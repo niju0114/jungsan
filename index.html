@@ -1,0 +1,3472 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>정산해 — 모임 정산</title>
+  <meta property="og:title" content="정산해 💸 — MT·회식 정산 끝판왕">
+  <meta property="og:description" content="명단 등록 → 링크 공유 → 실시간 O/X 입금 현황. 총무의 부담을 1/10로 줄였어요.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://rainbow-cheesecake-008fbd.netlify.app/og.png">
+  <meta property="og:image:width" content="600">
+  <meta property="og:image:height" content="315">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="정산해 💸">
+  <meta name="twitter:description" content="총무의 부담을 1/10로 줄였어요.">
+  <meta name="twitter:image" content="https://rainbow-cheesecake-008fbd.netlify.app/og.png">
+  <meta name="theme-color" content="#6366F1">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍻</text></svg>">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=block">
+  <style>.ms{font-family:'Material Symbols Rounded';font-size:22px;line-height:1;font-style:normal;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;-webkit-font-feature-settings:'liga';font-feature-settings:'liga';-webkit-font-smoothing:antialiased;color:inherit;vertical-align:middle;}.ms-sm{font-size:18px;}.ms-lg{font-size:26px;}</style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; background: #F2F3F5; padding: env(safe-area-inset-top) 0 0 0; }
+    #root { max-width: 480px; margin: 0 auto; min-height: 100vh; background: #F2F3F5; padding-bottom: env(safe-area-inset-bottom); }
+    input, textarea, button { font-family: inherit; }
+    input::placeholder, textarea::placeholder { color: #A0AEC0; }
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 2px; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @keyframes slideUp { from { transform:translateY(100%); opacity:0; } to { transform:none; opacity:1; } }
+    @keyframes pulse { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.15); opacity:0.85; } }
+    @keyframes borderPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(240,62,90,0); border-color: rgba(240,62,90,0.3); } 50% { box-shadow: 0 0 0 4px rgba(240,62,90,0.2); border-color: rgba(240,62,90,0.9); } }
+    .fade-up { animation: fadeUp 0.2s ease both; }
+    .press { transition: transform 0.12s; }
+    .press:active { transform: scale(0.96); }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ═══════════════════════════════════════════════════════════
+// 1. CONFIG — 설정값 (수정 시 여기만 변경)
+// ═══════════════════════════════════════════════════════════
+
+// Supabase anon key — 클라이언트 전용, RLS로 보호됨
+const SUPA_URL = 'https://jetxfddjunfpykgyurnf.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpldHhmZGRqdW5mcHlrZ3l1cm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMTAwNzMsImV4cCI6MjA5MDg4NjA3M30.Jg9cxDZw_aQ9EDy5bpheT7TEzUo8QZDIk9z5WNHwa1w';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+const ID_DOMAIN = '@jungsan.app';
+
+const C = {
+  pageBg:'#F2F3F5', cardBg:'#FFFFFF', inputBg:'#F7F8FA',
+  accent:'#6366F1', accentBg:'#EEF0FF', accentDark:'#4F46E5',
+  green:'#00C072', greenBg:'#E8FAF0',
+  red:'#F04452', redBg:'#FFF0F0',
+  orange:'#FF6B2B', orangeBg:'#FFF4EE',
+  text:'#191F28', textMid:'#4E5968', textDim:'#8B95A1',
+  border:'#F2F3F5',
+};
+
+// ═══════════════════════════════════════════════════════════
+// 2. API LAYER — 모든 DB 호출을 여기서 관리
+//    컴포넌트에서 sb.from() 직접 호출하지 않음
+// ═══════════════════════════════════════════════════════════
+
+const api = {
+  // Auth
+  getSession: () => sb.auth.getSession(),
+  getUser: () => sb.auth.getUser(),
+  signIn: (email, pw) => sb.auth.signInWithPassword({email, password:pw}),
+  signUp: (email, pw) => sb.auth.signUp({email, password:pw}),
+  signOut: () => sb.auth.signOut(),
+  onAuthChange: (cb) => sb.auth.onAuthStateChange(cb),
+
+  // Events
+  getEvents: (uid) => sb.from('events').select('*').eq('user_id',uid).order('created_at',{ascending:false}),
+  getEventByCode: (code) => sb.from('events').select('*').eq('code',code).single(),
+  insertEvent: (row) => sb.from('events').insert(row),
+  updateEvent: (code, row) => sb.from('events').update(row).eq('code',code),
+  deleteEvent: (code) => sb.from('events').delete().eq('code',code),
+  deleteEventsByUser: (uid) => sb.from('events').delete().eq('user_id',uid),
+
+  // Forms
+  getForms: async(uid) => {
+    try { const r=await sb.from('forms').select('*').eq('user_id',uid).order('created_at',{ascending:false}); return r; }
+    catch { return {data:null,error:true}; }
+  },
+  getFormByCode: (code) => sb.from('forms').select('*').eq('code',code).single(),
+  insertForm: (row) => sb.from('forms').insert(row),
+  updateForm: (code, row) => sb.from('forms').update(row).eq('code',code),
+  deleteForm: (code) => sb.from('forms').delete().eq('code',code),
+
+  // Profiles
+  getProfile: (uid) => sb.from('profiles').select('*').eq('id',uid).single(),
+  getProfileFields: (uid, fields) => sb.from('profiles').select(fields).eq('id',uid).single(),
+  upsertProfile: (data) => sb.from('profiles').upsert(data),
+  updateProfile: (uid, data) => sb.from('profiles').update(data).eq('id',uid),
+
+  // Views (조회수 추적)
+  trackView: async(eventCode, formCode, viewerKey) => {
+    try { await sb.from('views').insert({event_code:eventCode||null, form_code:formCode||null, viewer_key:viewerKey||null}); }
+    catch(e) {} // 테이블 미존재 시 무시
+  },
+  getViewCount: async(eventCode, formCode) => {
+    try {
+      const col = eventCode ? 'event_code' : 'form_code';
+      const val = eventCode || formCode;
+      const {count} = await sb.from('views').select('*',{count:'exact',head:true}).eq(col,val);
+      return count || 0;
+    } catch { return 0; }
+  },
+  getViewers: async(eventCode, formCode) => {
+    try {
+      const col = eventCode ? 'event_code' : 'form_code';
+      const val = eventCode || formCode;
+      const {data} = await sb.from('views').select('viewer_key,viewed_at').eq(col,val).order('viewed_at',{ascending:false});
+      return data || [];
+    } catch { return []; }
+  },
+
+  // Realtime
+  subscribeEvent: (code, cb) => {
+    const ch = sb.channel(`event:${code}`)
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'events',filter:`code=eq.${code}`},
+        p=>{ if(p.new) cb(p.new); })
+      .subscribe();
+    return () => sb.removeChannel(ch);
+  },
+};
+
+// ═══════════════════════════════════════════════════════════
+// 3. UTILITIES — 순수 함수 (입력 → 출력, 부작용 없음)
+//    테스트 가능, 어디서든 안전하게 호출
+// ═══════════════════════════════════════════════════════════
+
+// DB row ↔ App object 변환
+const rowToEv = r => ({
+  code:r.code, name:r.name, date:r.date, pin:r.pin,
+  account:r.account||{}, members:r.members||[],
+  memberMap:r.member_map||{}, rounds:r.rounds||[],
+  payments:r.payments||{}, attendance:r.attendance||{},
+  attendanceOpen:r.attendance_open||false, createdAt:r.created_at,
+});
+const evToRow = (ev, uid) => ({
+  code:ev.code, name:ev.name, date:ev.date, pin:ev.pin,
+  account:ev.account, members:ev.members, member_map:ev.memberMap,
+  rounds:ev.rounds, payments:ev.payments, attendance:ev.attendance,
+  attendance_open:ev.attendanceOpen,
+  ...(uid?{user_id:uid}:{}),
+});
+const rowToForm = r => ({
+  code:r.code, name:r.name, date:r.date, amount:r.amount||0,
+  maxPeople:r.max_people||null, account:r.account||{},
+  fields:r.fields||[], submissions:r.submissions||[],
+  status:r.status||'open', createdAt:r.created_at,
+});
+const formToRow = (f, uid) => ({
+  code:f.code, name:f.name, date:f.date, amount:f.amount,
+  max_people:f.maxPeople, account:f.account, fields:f.fields,
+  submissions:f.submissions, status:f.status,
+  ...(uid?{user_id:uid}:{}),
+});
+
+// 포매팅
+const genCode = () => { const ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; return Array.from({length:6},()=>ch[Math.floor(Math.random()*ch.length)]).join(''); };
+const fmtTime = iso => { const d=new Date(iso); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; };
+const fmtKRW = n => (n||0).toLocaleString('ko-KR')+'원';
+const getLink = (params) => `${window.location.origin}${window.location.pathname}?${params}`;
+
+// 클립보드 복사 (11곳 중복 → 1곳으로 통합)
+const copyText = async (text) => {
+  try { await navigator.clipboard.writeText(text); }
+  catch { const el=document.createElement('textarea'); el.value=text; el.style.cssText='position:fixed;opacity:0'; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); }
+};
+
+// 명단 파싱
+const parseMembers = text => {
+  const lines=text.split(/\n/).map(l=>l.trim()).filter(Boolean);
+  const result=[]; const seen=new Set();
+  lines.forEach(line=>{
+    const parts=line.split(/[\t,，]+|  +/).map(p=>p.trim()).filter(Boolean);
+    const name=parts[0]; const sid=parts[1]||'';
+    if(!name) return;
+    const key=name+(sid?`_${sid}`:'');
+    if(!seen.has(key)){seen.add(key);result.push({name,sid});}
+  });
+  return result;
+};
+const displayName = m => m.sid?`${m.name} (${m.sid})`:m.name;
+
+// 송금 딥링크
+const BANK_CODES={'카카오뱅크':'090','카카오':'090','국민':'004','국민은행':'004','KB국민':'004','신한':'088','신한은행':'088','우리':'020','우리은행':'020','하나':'081','하나은행':'081','농협':'011','NH농협':'011','기업':'003','IBK기업':'003','SC제일':'023','씨티':'027','대구':'031','부산':'032','경남':'039','광주':'034','전북':'037','제주':'035','수협':'007','새마을금고':'045','새마을':'045','신협':'048','우체국':'071','토스뱅크':'092','토스':'092','케이뱅크':'089','K뱅크':'089'};
+const getBankCode = (bank) => BANK_CODES[bank] || BANK_CODES[Object.keys(BANK_CODES).find(k=>bank?.includes(k))] || '';
+const getTossLink = (bank, accountNo, amount) => {
+  const code = getBankCode(bank);
+  if(!code||!accountNo) return null;
+  return `supertoss://send?bank=${code}&accountNo=${accountNo.replace(/[^0-9]/g,'')}&amount=${amount||0}`;
+};
+const getKakaoBankLink = (bank, accountNo, amount) => {
+  const code = getBankCode(bank);
+  if(!code||!accountNo) return null;
+  return `kakaotalk://kakaopay/money/to/bank?bank=${code}&accountNo=${accountNo.replace(/[^0-9]/g,'')}&amount=${amount||0}`;
+};
+
+// 카카오톡/시스템 공유 (모바일 Web Share API)
+const shareText = async (text) => {
+  if(navigator.share){
+    try{ await navigator.share({text}); return true; }catch{ return false; }
+  }
+  return false;
+};
+
+// 정산 계산 (순수 함수)
+const calcAmounts = ev => {
+  const presentMembers=(ev.members||[]).filter(k=>ev.attendance[k]!==false);
+  const a={};
+  presentMembers.forEach(k=>a[k]=0);
+  (ev.rounds||[]).forEach(r=>{
+    if(!r.members?.length||!r.amount) return;
+    const share=Math.ceil(r.amount/r.members.length);
+    r.members.forEach(k=>{if(a[k]!==undefined)a[k]+=share;});
+  });
+  return a;
+};
+const isEventDone = ev => {
+  const presentMembers=(ev.members||[]).filter(k=>ev.attendance[k]!==false);
+  if(presentMembers.length===0) return false;
+  return presentMembers.every(k=>ev.payments?.[k]?.paid);
+};
+
+// 입금 대조 매칭 엔진 (순수 함수)
+const matchEngine = {
+  NAME_COLS: ['적요','입금자','입금자명','보내는분','거래내용','기재내용','통장표시','비고','내용','메모','받는분'],
+  AMT_COLS: ['입금','입금액','입금금액','거래금액','금액'],
+
+  normalize: s => (s||'').replace(/\s+/g,'').replace(/[()]/g,''),
+
+  compareName(depositor, applicant) {
+    const d=this.normalize(depositor), a=this.normalize(applicant);
+    if(!d||!a) return 'none';
+    if(d===a) return 'exact';
+    if(d.includes(a)||a.includes(d)) return 'partial';
+    return 'none';
+  },
+
+  findCol(headers, candidates) {
+    return headers.findIndex(h => candidates.some(c => h.includes(c)));
+  },
+
+  parseExcel(arrayBuffer) {
+    const wb=XLSX.read(arrayBuffer);
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+
+    let headerIdx=-1;
+    for(let i=0;i<Math.min(rows.length,15);i++){
+      const row=rows[i].map(c=>String(c));
+      if(row.some(c=>this.NAME_COLS.some(n=>c.includes(n)))||row.some(c=>this.AMT_COLS.some(n=>c.includes(n)))){headerIdx=i;break;}
+    }
+    if(headerIdx===-1) return {error:'컬럼 인식 실패'};
+
+    const headers=rows[headerIdx].map(c=>String(c).trim());
+    const nameIdx=this.findCol(headers,this.NAME_COLS);
+    const amtIdx=this.findCol(headers,this.AMT_COLS);
+    if(nameIdx===-1) return {error:'입금자명 컬럼 없음'};
+
+    const deposits=[];
+    for(let i=headerIdx+1;i<rows.length;i++){
+      const row=rows[i];
+      const name=String(row[nameIdx]||'').trim();
+      const amt=amtIdx>=0?Number(String(row[amtIdx]).replace(/[^0-9.-]/g,''))||0:0;
+      if(name&&amt>0) deposits.push({name,amount:amt,row:i+1,matched:false});
+    }
+    return {deposits};
+  },
+
+  match(deposits, subs, expectedAmount) {
+    const matched=[], amountMismatch=[], unpaid=[], refund=[];
+    const subsCopy=subs.map(s=>({...s,_matched:false}));
+
+    // 1차: 정확 매칭
+    deposits.forEach(dep=>{
+      const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='exact'&&dep.amount===expectedAmount);
+      if(idx>=0){matched.push({sub:subsCopy[idx],deposit:dep,type:'exact'});subsCopy[idx]._matched=true;dep.matched=true;}
+    });
+    // 2차: 이름 매칭 + 금액 불일치
+    deposits.forEach(dep=>{
+      if(dep.matched) return;
+      const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='exact');
+      if(idx>=0){amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-expectedAmount});subsCopy[idx]._matched=true;dep.matched=true;}
+    });
+    // 3차: 부분 매칭
+    deposits.forEach(dep=>{
+      if(dep.matched) return;
+      const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='partial');
+      if(idx>=0){
+        if(dep.amount===expectedAmount) matched.push({sub:subsCopy[idx],deposit:dep,type:'partial'});
+        else amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-expectedAmount});
+        subsCopy[idx]._matched=true;dep.matched=true;
+      }
+    });
+
+    subsCopy.filter(s=>!s._matched).forEach(s=>unpaid.push(s));
+    deposits.filter(d=>!d.matched).forEach(d=>refund.push(d));
+    return {matched,amountMismatch,unpaid,refund,totalDeposits:deposits.length};
+  },
+};
+
+// ═══════════════════════════════════════════════════════════
+// 4. UI PRIMITIVES — 공통 컴포넌트
+// ═══════════════════════════════════════════════════════════
+
+const Spinner = ({size=20,color='#fff'}) => (
+  <div style={{width:size,height:size,border:`2.5px solid ${color}40`,borderTopColor:color,borderRadius:'50%',animation:'spin 0.7s linear infinite',flexShrink:0}}/>
+);
+
+const Btn = ({children,onClick,variant='primary',style={},disabled=false,small=false,loading=false}) => {
+  const v = {
+    primary:{background:`linear-gradient(135deg,#6366F1,#4F46E5)`,color:'#fff'},
+    secondary:{background:C.cardBg,color:C.textMid,border:`1px solid #E5E8EB`},
+    ghost:{background:'transparent',color:C.textDim,border:`1px solid #E5E8EB`},
+    green:{background:C.green,color:'#fff'},
+    danger:{background:C.red,color:'#fff'},
+    orange:{background:C.orange,color:'#fff'},
+  };
+  return(
+    <button className="press" onClick={!disabled&&!loading?onClick:undefined} style={{
+      display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+      padding:small?'12px 20px':'16px 24px',borderRadius:16,border:'none',
+      cursor:disabled||loading?'not-allowed':'pointer',fontSize:small?14:16,fontWeight:700,
+      width:'100%',opacity:disabled?0.45:1,transition:'all 0.15s',letterSpacing:-0.3,
+      ...v[variant],...style,
+    }}>
+      {loading?<Spinner/>:children}
+    </button>
+  );
+};
+
+const Field = ({label,value,onChange,placeholder,type='text',maxLength,inputMode,multiline,rows=3,hint,onEnter}) => (
+  <div style={{marginBottom:14}}>
+    {label&&<div style={{fontSize:12,color:C.textMid,marginBottom:7,fontWeight:700,letterSpacing:0.3}}>{label}</div>}
+    {multiline?(
+      <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
+        style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:14,outline:'none',resize:'vertical',lineHeight:1.75,transition:'border 0.15s'}}
+        onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
+        onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
+      />
+    ):(
+      <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+        maxLength={maxLength} inputMode={inputMode}
+        onKeyDown={e=>e.key==='Enter'&&onEnter&&onEnter()}
+        style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:15,outline:'none',transition:'border 0.15s'}}
+        onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
+        onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
+      />
+    )}
+    {hint&&<div style={{fontSize:11,color:C.textDim,marginTop:5}}>{hint}</div>}
+  </div>
+);
+
+const Header = ({title,onBack,right}) => (
+  <div style={{display:'flex',alignItems:'center',padding:'16px 20px',gap:12,position:'sticky',top:0,background:C.pageBg,zIndex:10}}>
+    {onBack&&<button onClick={onBack} style={{background:'transparent',border:'none',color:C.text,cursor:'pointer',width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,padding:0,margin:'-8px'}}><span className="ms" style={{fontSize:24}}>arrow_back</span></button>}
+    <div style={{flex:1,fontSize:18,fontWeight:800,color:C.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',letterSpacing:-0.5}}>{title}</div>
+    {right}
+  </div>
+);
+
+const Card = ({children,style={}}) => (
+  <div style={{background:C.cardBg,borderRadius:20,padding:'20px 20px',marginBottom:12,...style}}>{children}</div>
+);
+
+const Badge = ({children,color=C.accent}) => (
+  <span style={{display:'inline-flex',alignItems:'center',padding:'3px 10px',borderRadius:20,fontSize:11,fontWeight:700,background:color+'18',color,border:`1px solid ${color}30`}}>{children}</span>
+);
+
+const Toast = ({msg,color=C.green}) => msg?(
+  <div style={{position:'fixed',bottom:32,left:'50%',transform:'translateX(-50%)',background:color,color:'#fff',padding:'11px 22px',borderRadius:40,fontSize:13,fontWeight:700,zIndex:999,boxShadow:'0 4px 20px rgba(0,0,0,0.2)',whiteSpace:'nowrap',animation:'fadeUp 0.2s ease'}}>
+    {msg}
+  </div>
+):null;
+
+const SelectGrid = ({options,value,onChange}) => (
+  <div style={{display:'flex',flexWrap:'wrap',gap:7,marginBottom:4}}>
+    {options.map(o=>(
+      <button key={o} onClick={()=>onChange(o)} className="press" style={{
+        padding:'9px 14px',borderRadius:20,border:`2px solid ${value===o?C.accent:C.border}`,
+        background:value===o?C.accentBg:C.cardBg,color:value===o?C.accent:C.textMid,
+        fontSize:12,fontWeight:600,cursor:'pointer',transition:'all 0.12s',
+      }}>{o}</button>
+    ))}
+  </div>
+);
+
+// Realtime hook
+function useRealtimeEvent(code, onUpdate) {
+  useEffect(()=>{
+    if(!code) return;
+    return api.subscribeEvent(code, raw => onUpdate(rowToEv(raw)));
+  },[code]);
+}
+
+// ═══════════════════════════════════════════════════════════
+// 5. SCREENS — 화면 컴포넌트
+// ═══════════════════════════════════════════════════════════
+
+// ── App ────────────────────────────────────────────────────
+function App() {
+  const [ready,setReady]=useState(false);
+  const [user,setUser]=useState(null);
+  const [profile,setProfile]=useState({account:{bank:'',number:'',holder:''},groups:[],name:''});
+  const [events,setEvents]=useState([]);
+  const [forms,setForms]=useState([]);
+  const [view,setView]=useState('home');
+  const [currentCode,setCurrentCode]=useState('');
+  const [currentFormCode,setCurrentFormCode]=useState('');
+  const [participantKey,setParticipantKey]=useState('');
+  const [toast,setToast]=useState(null);
+  const [showGuide,setShowGuide]=useState(false);
+  const [showOnboarding,setShowOnboarding]=useState(false);
+  const [showFeedback,setShowFeedback]=useState(false);
+
+  const showToast=(msg,color=C.green)=>{setToast({msg,color});setTimeout(()=>setToast(null),2500);};
+
+  useEffect(()=>{
+    // Google OAuth 콜백 처리 (hash fragment 제거)
+    if(window.location.hash) window.history.replaceState({},'',window.location.pathname+window.location.search);
+
+    const urlParams=new URLSearchParams(window.location.search);
+    const urlCode=urlParams.get('code');
+    const urlForm=urlParams.get('form');
+
+    const {data:{subscription}}=api.onAuthChange((_evt,session)=>{
+      if(!session){
+        setUser(null);setEvents([]);setForms([]);
+        setProfile({account:{bank:'',number:'',holder:''},groups:[],name:''});
+        // 참여자 화면이면 유지
+        setView(v=>['participantEvent','formSubmit'].includes(v)?v:'home');
+        setReady(true);
+        return;
+      }
+      // onboarding 체크 — 참여자 화면이면 표시 안 함
+      if(_evt==='SIGNED_IN'||_evt==='INITIAL_SESSION'){
+        const isParticipantView=['participantEvent','formSubmit'];
+        if(!isParticipantView.some(v2=>view===v2||urlCode||urlForm)){
+          api.getProfileFields(session.user.id,'onboarding_done,name').then(({data})=>{
+            if(localStorage.getItem('onboarding_done_'+session.user.id)==='true') return;
+            if(data?.onboarding_done===true) return;
+            if(data?.name) setShowOnboarding(true);
+          });
+        }
+      }
+      loadUserData(session.user.id);
+    });
+
+    // 신청폼 URL 처리
+    if(urlForm){
+      const code=urlForm.toUpperCase();
+      window.history.replaceState({},'',window.location.pathname);
+      api.getFormByCode(code).then(({data,error})=>{
+        if(data&&!error){setForms([rowToForm(data)]);setCurrentFormCode(code);setView('formSubmit');}
+        setReady(true);
+      }).catch(()=>setReady(true));
+      return()=>subscription.unsubscribe();
+    }
+
+    if(urlCode){
+      const code=urlCode.toUpperCase();
+      const urlKey=urlParams.get('k')||'';
+      window.history.replaceState({},'',window.location.pathname);
+      api.getEventByCode(code).then(({data})=>{
+        if(data){
+          setEvents([rowToEv(data)]);setCurrentCode(code);
+          if(urlKey) setParticipantKey(decodeURIComponent(urlKey));
+          setView('participantEvent');
+        }
+        setReady(true);
+      });
+      return()=>subscription.unsubscribe();
+    }
+
+    api.getSession().then(({data:{session}})=>{
+      if(!session){setUser(null);setReady(true);}
+    });
+
+    return()=>subscription.unsubscribe();
+  },[]);
+
+  const loadUserData=async(uid)=>{
+    const [{data:evData},{data:profData}]=await Promise.all([
+      api.getEvents(uid),
+      api.getProfile(uid),
+    ]);
+    const formRes=await api.getForms(uid);
+    const formData=formRes.data;
+    const {data:{user:u}}=await api.getUser();
+    setUser(u||null);
+    if(evData) setEvents(evData.map(rowToEv));
+    if(formData) setForms(formData.map(rowToForm));
+    if(profData) setProfile({
+      account:profData.account||{bank:'',number:'',holder:''},
+      groups:profData.groups||[],
+      name:profData.name||profData.username||'',
+      school:profData.school||'',
+      department:profData.department||'',
+      role:profData.role||'',
+      phone:profData.phone||'',
+      username:profData.username||'',
+    });
+    setReady(true);
+    // 참여자/신청폼 화면이면 유지, auth/빈값이면 홈으로
+    setView(v=>['participantEvent','formSubmit'].includes(v)?v:(!v||v==='auth')?'home':v);
+  };
+
+  const saveProfile=async(prof)=>{
+    setProfile(prof);
+    if(user?.id){
+      const {error}=await api.upsertProfile({id:user.id,account:prof.account,groups:prof.groups,updated_at:new Date().toISOString()});
+      if(error) showToast('저장 실패',C.red);
+    }
+  };
+
+  const createEvent=async(ev)=>{
+    const {error}=await api.insertEvent(evToRow(ev,user.id));
+    if(error){showToast('저장 실패: '+error.message,C.red);return false;}
+    setEvents(evs=>[ev,...evs]);
+    return true;
+  };
+
+  const updateEvent=async(ev)=>{
+    const {error}=await api.updateEvent(ev.code,evToRow(ev));
+    if(error){showToast('업데이트 실패',C.red);return;}
+    setEvents(evs=>evs.map(e=>e.code===ev.code?ev:e));
+  };
+
+  const deleteEvent=async(code)=>{
+    const {error}=await api.deleteEvent(code);
+    if(error){showToast('삭제 실패',C.red);return;}
+    setEvents(evs=>evs.filter(e=>e.code!==code));
+  };
+
+  // Form CRUD
+  const createForm=async(form)=>{
+    const {error}=await api.insertForm(formToRow(form,user.id));
+    if(error){
+      if(error.message?.includes('schema cache')||error.message?.includes('does not exist'))
+        showToast('forms 테이블이 없어요. Supabase에서 SQL을 먼저 실행해주세요.',C.red);
+      else showToast('저장 실패: '+error.message,C.red);
+      return false;
+    }
+    setForms(fs=>[form,...fs]);
+    return true;
+  };
+
+  const updateForm=async(form)=>{
+    const {error}=await api.updateForm(form.code,formToRow(form));
+    if(error){showToast('업데이트 실패: '+error.message,C.red);return;}
+    setForms(fs=>fs.map(f=>f.code===form.code?form:f));
+  };
+
+  const deleteForm=async(code)=>{
+    const {error}=await api.deleteForm(code);
+    if(error){showToast('삭제 실패',C.red);return;}
+    setForms(fs=>fs.filter(f=>f.code!==code));
+  };
+
+  const nav={setView,setCurrentCode,setCurrentFormCode,setParticipantKey,showToast,loadUserData};
+  const currentEvent=events.find(e=>e.code===currentCode);
+
+  if(!ready) return(
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',background:'#fff',gap:12}}>
+      <div style={{fontSize:48,marginBottom:4}}>🍻</div>
+      <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:-0.5}}>정산해</div>
+      <div style={{marginTop:8}}><Spinner size={24} color={C.accent}/></div>
+    </div>
+  );
+
+  const currentForm=forms.find(f=>f.code===currentFormCode);
+
+  return(
+    <div style={{fontFamily:"'Pretendard',-apple-system,sans-serif",background:C.pageBg,minHeight:'100vh',maxWidth:480,margin:'0 auto',color:C.text,paddingBottom:60}}>
+      {!user&&view==='home'&&<LandingScreen nav={nav}/>}
+      {!user&&view==='auth'&&<AuthScreen nav={nav} showToast={showToast} setShowOnboarding={setShowOnboarding}/>}
+      {view==='participantEvent'&&currentEvent&&<ParticipantScreen nav={nav} event={currentEvent} updateEvent={updateEvent} participantKey={participantKey} showToast={showToast}/>}
+      {view==='formSubmit'&&currentForm&&<FormSubmitScreen nav={nav} form={currentForm} updateForm={updateForm} showToast={showToast}/>}
+      {user&&view==='home'&&<HomeScreen nav={nav} user={user} profile={profile} events={events} forms={forms} showToast={showToast} onGuide={()=>setShowGuide(true)} showFeedback={showFeedback} onFeedbackDone={()=>setShowFeedback(false)}/>}
+      {user&&view==='setup'&&<SetupScreen nav={nav} profile={profile} saveProfile={saveProfile}/>}
+      {user&&view==='create'&&<CreateScreen nav={nav} profile={profile} events={events} createEvent={createEvent}/>}
+      {user&&view==='formCreate'&&<FormCreateScreen nav={nav} profile={profile} createForm={createForm}/>}
+      {user&&view==='adminEvent'&&currentEvent&&<AdminEventScreen nav={nav} event={currentEvent} updateEvent={updateEvent} showToast={showToast}/>}
+      {user&&view==='formAdmin'&&currentForm&&<FormAdminScreen nav={nav} form={currentForm} updateForm={updateForm} showToast={showToast} profile={profile} saveProfile={saveProfile}/>}
+      {user&&view==='history'&&<HistoryScreen nav={nav} events={events} forms={forms} deleteEvent={deleteEvent} deleteForm={deleteForm}/>}
+      {showGuide&&<GuideModal onClose={()=>setShowGuide(false)} onFeedback={()=>{setShowGuide(false);setShowFeedback(true);}}/>}
+      {showOnboarding&&<OnboardingModal onClose={()=>setShowOnboarding(false)}/>}
+      <Toast msg={toast?.msg} color={toast?.color}/>
+    </div>
+  );
+}
+
+// ── LandingScreen ──────────────────────────────────────────
+function LandingScreen({nav}){
+  return(
+    <div className="fade-up" style={{background:'#fff',minHeight:'100vh',display:'flex',flexDirection:'column'}}>
+      <div style={{background:`linear-gradient(145deg,#6366F1 0%,#8B5CF6 100%)`,padding:'72px 28px 56px',textAlign:'center',position:'relative',overflow:'hidden'}}>
+        <div style={{position:'absolute',inset:0,opacity:0.05,backgroundImage:'radial-gradient(circle,#fff 1px,transparent 1px)',backgroundSize:'24px 24px'}}/>
+        <div style={{position:'relative'}}>
+          <div style={{fontSize:56,marginBottom:16}}>🍻</div>
+          <div style={{fontSize:28,fontWeight:900,color:'#fff',letterSpacing:-1,marginBottom:10}}>정산해</div>
+          <div style={{fontSize:16,color:'rgba(255,255,255,0.9)',fontWeight:600,lineHeight:1.6}}>총무의 부담을 1/10로 줄여드려요</div>
+        </div>
+      </div>
+      <div style={{flex:1,padding:'32px 24px',display:'flex',flexDirection:'column'}}>
+        <div style={{flex:1}}>
+          {[['📋','명단 한 번 등록','학년·기수별로 저장해두면 매번 재사용'],['💸','차수별 자동 계산','1인당 금액 자동으로 나눠줘요'],['📊','실시간 O/X 보드','친구가 완료 누르면 바로 반영']].map(([icon,title,desc],i)=>(
+            <div key={title} style={{display:'flex',alignItems:'flex-start',gap:16,marginBottom:i<2?24:0}}>
+              <div style={{width:48,height:48,borderRadius:16,background:C.accentBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0}}>{icon}</div>
+              <div style={{paddingTop:2}}>
+                <div style={{fontWeight:700,color:C.text,fontSize:15,marginBottom:4}}>{title}</div>
+                <div style={{color:C.textDim,fontSize:14,lineHeight:1.6}}>{desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{paddingTop:32,paddingBottom:'calc(16px + env(safe-area-inset-bottom))'}}>
+          <Btn onClick={()=>nav.setView('auth')}>시작하기</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── AuthScreen ─────────────────────────────────────────────
+function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
+  const [mode,setMode]=useState('login');
+  const [userId,setUserId]=useState('');
+  const [pw,setPw]=useState('');
+  const [pw2,setPw2]=useState('');
+  const [name,setName]=useState('');
+  const [org,setOrg]=useState('');
+  const [dept,setDept]=useState('');
+  const [role,setRole]=useState('');
+  const [size,setSize]=useState('');
+  const [freq,setFreq]=useState('');
+  const [method,setMethod]=useState([]);
+  const [referral,setReferral]=useState('');
+  const [phone,setPhone]=useState('');
+  const [marketing,setMarketing]=useState(false);
+  const [privacyAgree,setPrivacyAgree]=useState(false);
+  const [termsAgree,setTermsAgree]=useState(false);
+  const [thirdPartyAgree,setThirdPartyAgree]=useState(false);
+  const [legalModal,setLegalModal]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [idChecked,setIdChecked]=useState(false);
+  const [idAvail,setIdAvail]=useState(null);
+  const [err,setErr]=useState('');
+
+  const [idChecking,setIdChecking]=useState(false);
+
+  const toEmail = id => id.trim().toLowerCase()+ID_DOMAIN;
+
+  const checkId = async(val)=>{
+    const v=(val||userId).trim();
+    if(!v||v.length<3) return;
+    if(!/^[a-zA-Z0-9_]{3,20}$/.test(v)){setIdAvail(false);setIdChecked(true);setErr('영문, 숫자, _ 3~20자');return;}
+    setIdChecking(true);
+    const {error}=await api.signIn(toEmail(v),'__check__');
+    if(error?.message?.includes('Invalid login credentials')){
+      setIdAvail(true);setIdChecked(true);setErr('');
+    } else {
+      setIdAvail(false);setIdChecked(true);setErr('이미 사용 중인 아이디예요');
+    }
+    setIdChecking(false);
+  };
+
+  const submit=async()=>{
+    setErr('');
+    if(!userId.trim()||!pw){setErr('아이디와 비밀번호를 입력해주세요');return;}
+    if(mode==='signup'){
+      if(!idChecked||!idAvail){
+        if(!idChecked&&userId.trim().length>=3){await checkId();return;}
+        setErr('사용 가능한 아이디를 입력해주세요');return;
+      }
+      if(pw!==pw2){setErr('비밀번호가 일치하지 않아요');return;}
+      if(pw.length<6){setErr('비밀번호는 6자 이상이어야 해요');return;}
+      if(!name.trim()){setErr('이름을 입력해주세요');return;}
+      if(!org.trim()){setErr('학교/단체명을 입력해주세요');return;}
+      if(!privacyAgree||!termsAgree||!thirdPartyAgree){setErr('필수 약관에 모두 동의해주세요');return;}
+    }
+    setLoading(true);
+    const email=toEmail(userId);
+    if(mode==='login'){
+      const {error}=await api.signIn(email,pw);
+      if(error){setErr('아이디 또는 비밀번호가 틀렸어요');setLoading(false);return;}
+      // 탈퇴 여부 확인
+      const {data:{user:u}}=await api.getUser();
+      if(u){
+        const {data:prof}=await api.getProfileFields(u.id,'deleted');
+        if(prof?.deleted){
+          await api.signOut();
+          setErr('탈퇴된 계정이에요. 새 아이디로 가입해주세요.');
+          setLoading(false);return;
+        }
+      }
+    } else {
+      const {data,error}=await api.signUp(email,pw);
+      if(error){setErr(error.message);setLoading(false);return;}
+      const uid=data?.user?.id;
+      if(uid){
+        // profile 저장
+        const {error:profErr}=await api.upsertProfile({
+          id:uid,
+          name:name.trim(),
+          school:org.trim(),
+          department:dept.trim(),
+          username:userId.trim().toLowerCase(),
+          role,event_size:size,event_frequency:freq,
+          current_method:Array.isArray(method)?method.join(','):method,
+          referral,phone:phone.trim(),
+          marketing_agree:marketing,
+          updated_at:new Date().toISOString(),
+        });
+        if(profErr){console.error('Profile save error:',profErr);}
+        // profile 저장 후 data reload (race condition 방지)
+        await nav.loadUserData(uid);
+        // 신규가입 온보딩 표시
+        setShowOnboarding(true);
+      }
+    }
+    setLoading(false);
+  };
+
+  return(
+    <div className="fade-up" style={{minHeight:'100vh',background:C.pageBg}}>
+      <Header title={mode==='login'?'로그인':'회원가입'} onBack={()=>nav.setView('home')}/>
+      <div style={{padding:'16px 16px calc(40px + env(safe-area-inset-bottom))'}}>
+
+        {mode==='signup'&&(
+          <div style={{background:C.accentBg,borderRadius:16,padding:'14px 16px',marginBottom:14,border:`1px solid ${C.accent}20`}}>
+            <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:2}}>🍻 정산해에 오신 걸 환영해요!</div>
+            <div style={{fontSize:12,color:C.textMid}}>아래 정보는 서비스 개선에만 활용돼요.</div>
+          </div>
+        )}
+
+        <Card>
+          <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:7}}>아이디</div>
+          <div style={{marginBottom:14}}>
+            <input value={userId} onChange={e=>{setUserId(e.target.value.replace(/[^a-zA-Z0-9_]/g,''));setIdChecked(false);setIdAvail(null);setErr('');}}
+              onBlur={()=>mode==='signup'&&userId.trim().length>=3&&checkId()}
+              placeholder="영문, 숫자, _ (3~20자)" maxLength={20}
+              style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${idChecked?(idAvail?C.green:C.red):C.border}`,borderRadius:12,color:C.text,fontSize:15,outline:'none',transition:'border 0.15s'}}
+              onFocus={e=>!idChecked&&(e.target.style.border=`1.5px solid ${C.accent}`)}
+            />
+          </div>
+          {idChecking&&<div style={{color:C.accent,fontSize:12,marginTop:-10,marginBottom:10}}>확인 중...</div>}
+          {idChecked&&idAvail&&!idChecking&&<div style={{color:C.green,fontSize:12,marginTop:-10,marginBottom:10}}>✓ 사용 가능한 아이디예요</div>}
+          <Field label="비밀번호" value={pw} onChange={setPw} placeholder="6자 이상" type="password" onEnter={mode==='login'?submit:undefined}/>
+          {mode==='signup'&&(
+            <div style={{position:'relative'}}>
+              <Field label="비밀번호 확인" value={pw2} onChange={setPw2} placeholder="동일하게 입력" type="password"/>
+              {pw2.length>0&&<div style={{position:'absolute',right:14,top:36,fontSize:16,color:pw===pw2?C.green:C.red}}>{pw===pw2?'✓':'✗'}</div>}
+            </div>
+          )}
+        </Card>
+
+        {mode==='signup'&&(
+          <>
+            <Card>
+              <div style={{fontWeight:700,color:C.textMid,fontSize:13,marginBottom:14}}>기본 정보</div>
+              <Field label="이름 (실명) *" value={name} onChange={setName} placeholder="홍길동"/>
+              <div style={{display:'flex',gap:10}}>
+                <div style={{flex:1}}><Field label="학교·단체 *" value={org} onChange={setOrg} placeholder="OO대학교 / OO동아리"/></div>
+                <div style={{flex:1}}><Field label="학과·팀명 *" value={dept} onChange={setDept} placeholder="컴퓨터공학과 / 기획팀"/></div>
+              </div>
+              <Field label="전화번호 *" value={phone} onChange={v=>setPhone(v.replace(/[^0-9]/g,''))} placeholder="01012345678" inputMode="numeric"/>
+            </Card>
+            <Card>
+              <div style={{fontWeight:700,color:C.textMid,fontSize:13,marginBottom:14}}>사용 패턴 (선택)</div>
+              <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:8}}>주로 몇 명 규모?</div>
+              <SelectGrid options={['10명 미만','10~30명','30~50명','50명 이상']} value={size} onChange={setSize}/>
+              <div style={{fontSize:12,color:C.textMid,fontWeight:700,margin:'14px 0 8px'}}>연간 행사 횟수</div>
+              <SelectGrid options={['1~2회','3~5회','6~10회','10회 이상']} value={freq} onChange={setFreq}/>
+              <div style={{fontSize:12,color:C.textMid,fontWeight:700,margin:'14px 0 8px'}}>기존 정산 방법 <span style={{fontWeight:400,color:C.textDim}}>(복수 선택)</span></div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:7,marginBottom:4}}>
+                {['카톡으로 직접','손으로','엑셀/구글시트','다른 앱','따로 안 함'].map(o=>{
+                  const sel=method.includes(o);
+                  return <button key={o} onClick={()=>setMethod(m=>sel?m.filter(x=>x!==o):[...m,o])} className="press" style={{padding:'8px 13px',borderRadius:20,border:`2px solid ${sel?C.accent:C.border}`,background:sel?C.accentBg:C.cardBg,color:sel?C.accent:C.textMid,fontSize:12,fontWeight:600,cursor:'pointer'}}>{o}</button>;
+                })}
+              </div>
+            </Card>
+            <Card>
+              <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:14}}>약관 동의</div>
+              {/* 전체 동의 */}
+              <div onClick={()=>{const allChecked=termsAgree&&privacyAgree&&thirdPartyAgree&&marketing;setTermsAgree(!allChecked);setPrivacyAgree(!allChecked);setThirdPartyAgree(!allChecked);setMarketing(!allChecked);}} style={{display:'flex',alignItems:'center',gap:12,cursor:'pointer',padding:'14px 16px',background:C.inputBg,borderRadius:14,marginBottom:14,border:`1.5px solid ${termsAgree&&privacyAgree&&thirdPartyAgree?C.accent:C.border}`}}>
+                <div style={{width:24,height:24,borderRadius:8,border:`2px solid ${termsAgree&&privacyAgree&&thirdPartyAgree&&marketing?C.accent:C.border}`,background:termsAgree&&privacyAgree&&thirdPartyAgree&&marketing?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  {termsAgree&&privacyAgree&&thirdPartyAgree&&marketing&&<span style={{color:'#fff',fontSize:14,fontWeight:900}}>✓</span>}
+                </div>
+                <div style={{fontWeight:800,color:C.text,fontSize:14}}>전체 동의</div>
+              </div>
+              {[
+                {key:'terms',state:termsAgree,set:setTermsAgree,label:'서비스 이용약관',required:true,desc:'서비스 이용에 관한 기본 규칙'},
+                {key:'privacy',state:privacyAgree,set:setPrivacyAgree,label:'개인정보 수집 및 이용 동의',required:true,desc:'이름, 소속, 연락처 수집 및 이용'},
+                {key:'thirdParty',state:thirdPartyAgree,set:setThirdPartyAgree,label:'제3자 정보 제공 동의',required:true,desc:'서비스 운영에 필요한 외부 서비스 제공'},
+                {key:'marketing',state:marketing,set:setMarketing,label:'마케팅 수신 동의',required:false,desc:'유용한 소식 및 업데이트 안내'},
+              ].map(item=>(
+                <div key={item.key} style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:12}}>
+                  <div onClick={()=>item.set(v=>!v)} style={{width:22,height:22,borderRadius:7,border:`2px solid ${item.state?C.accent:item.required?C.red+'80':C.border}`,background:item.state?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1,cursor:'pointer'}}>
+                    {item.state&&<span style={{color:'#fff',fontSize:13,fontWeight:900}}>✓</span>}
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{display:'flex',alignItems:'center',gap:6}}>
+                      <span onClick={()=>item.set(v=>!v)} style={{fontSize:13,fontWeight:700,color:C.text,cursor:'pointer'}}>[{item.required?'필수':'선택'}] {item.label}</span>
+                      <button onClick={()=>setLegalModal(item.key)} style={{background:'none',border:'none',color:C.textDim,fontSize:11,cursor:'pointer',textDecoration:'underline',padding:0}}>보기</button>
+                    </div>
+                    <div style={{fontSize:11,color:C.textDim,marginTop:2}}>{item.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </Card>
+            {legalModal&&(
+              <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:200,backdropFilter:'blur(4px)'}} onClick={()=>setLegalModal(null)}>
+                <div style={{background:C.cardBg,borderRadius:'24px 24px 0 0',width:'100%',maxWidth:480,maxHeight:'75vh',display:'flex',flexDirection:'column',animation:'slideUp 0.22s ease'}} onClick={e=>e.stopPropagation()}>
+                  <div style={{padding:'20px 24px 14px',borderBottom:`1px solid ${C.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <div style={{fontWeight:900,color:C.text,fontSize:17}}>
+                      {legalModal==='terms'?'서비스 이용약관':legalModal==='privacy'?'개인정보 처리방침':legalModal==='thirdParty'?'제3자 정보 제공 동의':'마케팅 수신 동의'}
+                    </div>
+                    <button onClick={()=>setLegalModal(null)} style={{background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:10,width:32,height:32,cursor:'pointer',color:C.textMid,fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+                  </div>
+                  <div style={{overflow:'auto',padding:'16px 24px 32px',fontSize:13,color:C.textMid,lineHeight:2}}>
+                    {legalModal==='terms'&&(<div>
+                      <p style={{fontWeight:700,color:C.text,marginBottom:8}}>제1조 (목적)</p>
+                      <p>본 약관은 정산해(이하 "서비스")가 제공하는 모임 정산 관련 서비스의 이용 조건 및 절차, 이용자와 서비스 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.</p>
+                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>제2조 (서비스의 내용)</p>
+                      <p>서비스는 모임 참여자 명단 관리, 정산 금액 계산, 입금 현황 확인 등의 기능을 제공합니다. 서비스의 구체적인 내용은 운영 상황에 따라 변경될 수 있습니다.</p>
+                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>제3조 (이용자의 의무)</p>
+                      <p>이용자는 서비스 이용 시 타인의 권리를 침해하거나 관련 법령을 위반하는 행위를 해서는 안 됩니다. 허위 정보 입력, 서비스 악용, 부정 접근 시도 등은 금지됩니다.</p>
+                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>제4조 (서비스의 중단)</p>
+                      <p>서비스는 시스템 점검, 장비 교체 등 운영상 필요한 경우 서비스의 전부 또는 일부를 제한하거나 중단할 수 있습니다.</p>
+                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>제5조 (면책)</p>
+                      <p>서비스는 이용자 간 정산 과정에서 발생하는 금전적 분쟁에 대해 책임을 지지 않습니다. 서비스는 정산 편의 도구를 제공할 뿐, 금전 거래의 당사자가 아닙니다.</p>
+                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>제6조 (계정 해지)</p>
+                      <p>이용자는 언제든지 회원 탈퇴를 통해 계정을 해지할 수 있으며, 탈퇴 시 관련 데이터는 즉시 삭제됩니다.</p>
+                    </div>)}
+                    {legalModal==='privacy'&&(<div>
+                      <p style={{fontWeight:700,color:C.text,marginBottom:8}}>1. 수집하는 개인정보 항목</p>
+                      <p>필수: 아이디, 비밀번호, 이름, 소속(학교·단체), 학과·팀명, 전화번호</p>
+                      <p>선택: 행사 규모, 행사 빈도, 기존 정산 방법</p>
+                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>2. 수집 목적</p>
+                      <p>서비스 제공 및 운영, 본인 확인, 서비스 개선, 고객 지원</p>
+                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>3. 보유 및 이용 기간</p>
+                      <p>회원 탈퇴 시까지 보유하며, 탈퇴 즉시 파기합니다. 단, 관련 법령에 따라 보존이 필요한 경우 해당 기간 동안 보관합니다.</p>
+                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>4. 개인정보의 안전성 확보</p>
+                      <p>모든 데이터는 암호화된 전송(HTTPS) 및 저장이 적용되며, 접근 권한을 최소화하여 관리합니다.</p>
+                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>5. 이용자의 권리</p>
+                      <p>이용자는 언제든 본인의 개인정보를 조회, 수정, 삭제할 수 있으며, 회원 탈퇴를 통해 처리 정지를 요청할 수 있습니다.</p>
+                    </div>)}
+                    {legalModal==='thirdParty'&&(<div>
+                      <p style={{fontWeight:700,color:C.text,marginBottom:8}}>제3자 정보 제공 안내</p>
+                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>1. 제공 대상</p>
+                      <p>Supabase Inc. (데이터베이스 및 인증 서비스 제공)</p>
+                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>2. 제공 항목</p>
+                      <p>아이디(이메일 형식), 비밀번호(암호화), 서비스 이용 데이터</p>
+                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>3. 제공 목적</p>
+                      <p>회원 인증, 데이터 저장 및 실시간 동기화 서비스 운영</p>
+                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>4. 보유 기간</p>
+                      <p>회원 탈퇴 시까지이며, 탈퇴 시 즉시 삭제 요청합니다.</p>
+                    </div>)}
+                    {legalModal==='marketing'&&(<div>
+                      <p>정산해의 새로운 기능, 유용한 팁, 이벤트 안내 등을 받아보실 수 있습니다. 수신 동의는 언제든지 철회할 수 있습니다.</p>
+                    </div>)}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {err&&<div style={{color:C.red,fontSize:13,marginBottom:12,padding:'11px 14px',background:C.redBg,borderRadius:10}}>⚠ {err}</div>}
+        <Btn onClick={submit} loading={loading}>{mode==='login'?'로그인':'가입하고 시작하기 →'}</Btn>
+
+        <div style={{textAlign:'center',marginTop:18}}>
+          <span style={{color:C.textDim,fontSize:14}}>{mode==='login'?'계정이 없으신가요?':'이미 계정이 있으신가요?'} </span>
+          <button onClick={()=>{setMode(m=>m==='login'?'signup':'login');setErr('');}} style={{color:C.accent,fontWeight:700,fontSize:14,background:'none',border:'none',cursor:'pointer'}}>
+            {mode==='login'?'회원가입':'로그인'}
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+
+// ── HomeScreen ─────────────────────────────────────────────
+function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedback,onFeedbackDone}){
+  const [loggingOut,setLoggingOut]=useState(false);
+  const [menuOpen,setMenuOpen]=useState(false);
+  const [feedbackOpen,setFeedbackOpen]=useState(false);
+  const [feedbackText,setFeedbackText]=useState('');
+  const [feedbackLoading,setFeedbackLoading]=useState(false);
+  const [modeSelect,setModeSelect]=useState(false);
+
+  // FAQ에서 건의 버튼 눌렀을 때
+  useEffect(()=>{
+    if(showFeedback){setFeedbackOpen(true);onFeedbackDone&&onFeedbackDone();}
+  },[showFeedback]);
+
+  const logout=async()=>{setLoggingOut(true);await api.signOut();nav.setView('home');};
+
+  // 진행 중인 정산만 (완료 안 된 것)
+  const activeEvents=events.filter(ev=>!isEventDone(ev));
+  const activeForms=(forms||[]).filter(f=>f.status==='open');
+
+  const submitFeedback=async()=>{
+    if(!feedbackText.trim()) return;
+    setFeedbackLoading(true);
+    await api.updateProfile(user.id,{feedback:feedbackText.trim(),updated_at:new Date().toISOString()});
+    setFeedbackLoading(false);
+    setFeedbackText('');setFeedbackOpen(false);
+    showToast('건의사항이 전달됐어요 🙏');
+  };
+
+  return(
+    <div className="fade-up" style={{minHeight:'100vh',background:C.pageBg}}>
+      {/* 프로필 영역 */}
+      <div style={{background:'#FFFFFF',borderRadius:'0 0 24px 24px',padding:'24px 24px 20px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+          <div>
+            <div style={{fontSize:14,color:C.textDim,marginBottom:4}}>안녕하세요 👋</div>
+            <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:-0.5}}>{profile?.name||profile?.username||'총무'}님</div>
+          </div>
+          <div style={{position:'relative'}}>
+            <button onClick={()=>setMenuOpen(o=>!o)} style={{background:C.inputBg,border:'none',borderRadius:12,color:C.textMid,cursor:'pointer',width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center'}}><span className="ms" style={{fontSize:22}}>more_horiz</span></button>
+            {menuOpen&&(
+              <div style={{position:'absolute',right:0,top:48,background:'#fff',borderRadius:16,boxShadow:'0 8px 32px rgba(0,0,0,0.12)',zIndex:50,minWidth:160,overflow:'hidden'}}>
+                <button onClick={()=>{nav.setView('setup');setMenuOpen(false);}} style={{width:'100%',padding:'15px 18px',background:'none',border:'none',cursor:'pointer',fontSize:15,color:C.text,textAlign:'left',fontWeight:600,display:'flex',alignItems:'center',gap:10}}><span className="ms ms-sm">manage_accounts</span>명단·계좌 설정</button>
+                <div style={{height:1,background:C.pageBg,margin:'0 16px'}}/>
+                <button onClick={logout} style={{width:'100%',padding:'15px 18px',background:'none',border:'none',cursor:'pointer',fontSize:15,color:C.red,textAlign:'left',fontWeight:600,display:'flex',alignItems:'center',gap:10}}><span className="ms ms-sm">logout</span>{loggingOut?'..':'로그아웃'}</button>
+              </div>
+            )}
+          </div>
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          {[[events.length,'총 정산',C.accent],[activeEvents.length,'진행 중',C.green]].map(([v,l,c])=>(
+            <div key={l} style={{background:C.inputBg,borderRadius:16,padding:'14px 18px',flex:1}}>
+              <div style={{fontSize:24,fontWeight:900,color:c,letterSpacing:-0.5}}>{v}</div>
+              <div style={{fontSize:12,color:C.textDim,marginTop:4,fontWeight:600}}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{padding:'16px 16px 32px'}}>
+        {/* 새 정산 CTA */}
+        <Btn onClick={()=>setModeSelect(true)} style={{marginBottom:16,padding:'18px',fontSize:17,borderRadius:20}}>＋ 새 정산·신청</Btn>
+
+        {/* 메뉴 그리드 */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:20}}>
+          {[
+            {icon:'receipt_long',label:'정산 내역',action:()=>nav.setView('history')},
+            {icon:'manage_accounts',label:'명단·계좌',action:()=>nav.setView('setup')},
+            {icon:'help',label:'자주 묻는 질문',action:onGuide},
+          ].map(({icon,label,action})=>(
+            <button key={label} onClick={action} className="press" style={{
+              padding:'18px 8px',borderRadius:16,background:'#fff',
+              border:'none',cursor:'pointer',
+              display:'flex',flexDirection:'column',alignItems:'center',gap:8,
+            }}>
+              <span className="ms" style={{fontSize:24,color:C.textMid}}>{icon}</span>
+              <span style={{fontSize:12,fontWeight:700,color:C.textMid,textAlign:'center',lineHeight:1.3}}>{label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* 대규모 신청폼 있으면 표시 */}
+        {activeForms.length>0&&(
+          <>
+            <div style={{fontSize:11,color:C.textDim,fontWeight:700,marginBottom:10,letterSpacing:1.2,textTransform:'uppercase'}}>신청폼</div>
+            {activeForms.map(form=>(
+              <div key={form.code} onClick={()=>{nav.setCurrentFormCode(form.code);nav.setView('formAdmin');}} className="press"
+                style={{background:C.cardBg,borderRadius:16,padding:'16px 20px',marginBottom:8,cursor:'pointer'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:800,color:C.text,fontSize:16}}>{form.name}</div>
+                    <div style={{fontSize:13,color:C.textDim,marginTop:4}}>{form.date} · {fmtKRW(form.amount)} · <span style={{color:C.orange,fontWeight:700}}>{form.submissions?.length||0}/{form.maxPeople||'∞'}명</span></div>
+                  </div>
+                  <span className="ms" style={{color:C.textDim,fontSize:20,flexShrink:0,marginLeft:8}}>chevron_right</span>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
+        {activeEvents.length===0&&activeForms.length===0?(
+          <div style={{textAlign:'center',padding:'40px 0'}}>
+            <div style={{fontSize:40,marginBottom:14}}>📋</div>
+            <div style={{color:C.textMid,fontSize:14,fontWeight:600,marginBottom:6}}>진행 중인 정산이 없어요</div>
+            <div style={{color:C.textDim,fontSize:13}}>새 정산을 만들어보세요</div>
+          </div>
+        ):(
+          <>
+            <div style={{fontSize:11,color:C.textDim,fontWeight:700,marginBottom:12,letterSpacing:1.2,textTransform:'uppercase'}}>진행 중</div>
+            {activeEvents.map(ev=>{
+              const presentMembers=ev.members.filter(k=>ev.attendance[k]!==false);
+              const pc=presentMembers.filter(k=>ev.payments?.[k]?.paid).length;
+              return(
+                <div key={ev.code} onClick={()=>{nav.setCurrentCode(ev.code);nav.setView('adminEvent');}} className="press"
+                  style={{background:C.cardBg,borderRadius:16,padding:'16px 20px',marginBottom:8,cursor:'pointer'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:800,color:C.text,fontSize:16}}>{ev.name}</div>
+                      <div style={{color:C.textDim,fontSize:13,marginTop:4}}>
+                        {ev.date} · <span style={{color:pc===presentMembers.length&&presentMembers.length>0?C.green:C.accent,fontWeight:700}}>{pc}/{presentMembers.length}명 입금</span>
+                      </div>
+                    </div>
+                    <span className="ms" style={{color:C.textDim,fontSize:20,flexShrink:0,marginLeft:8}}>chevron_right</span>
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )}
+
+        {/* 피드백 버튼 */}
+        <button onClick={()=>setFeedbackOpen(true)} style={{
+          width:'100%',marginTop:16,padding:'14px',borderRadius:16,
+          border:`2px dashed ${C.accent}50`,background:C.accentBg,
+          color:C.accent,fontWeight:700,fontSize:14,cursor:'pointer',
+          display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+        }}>
+          💬 건의사항 · 불편한 점 알려주세요
+        </button>
+      </div>
+
+      {/* 피드백 모달 */}
+      {feedbackOpen&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)'}} onClick={()=>setFeedbackOpen(false)}>
+          <div style={{background:C.cardBg,borderRadius:'24px 24px 0 0',padding:'28px 24px 40px',width:'100%',maxWidth:480,animation:'slideUp 0.22s ease'}} onClick={e=>e.stopPropagation()}>
+            <div style={{width:40,height:4,background:C.border,borderRadius:2,margin:'0 auto 20px'}}/>
+            <div style={{fontWeight:900,color:C.text,fontSize:18,marginBottom:6}}>건의사항 · 질문</div>
+            <div style={{color:C.textMid,fontSize:13,marginBottom:18,lineHeight:1.9}}>
+              남들이 지기 싫어하는 책임을 지지만<br/>그만큼 모두에게 신뢰받는 사람이 총무라는 것을<br/>알고 있습니다.<br/>
+              <strong style={{color:C.accent}}>그런 여러분의 진짜 고민과 문제를 들려주세요.</strong>
+            </div>
+            <textarea value={feedbackText} onChange={e=>setFeedbackText(e.target.value)}
+              placeholder={"예) 진짜 총무 문제는 엑셀파일로 정리하는 거에요 너무 힘들어요"} rows={5}
+              style={{width:'100%',padding:'14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:14,fontSize:14,color:C.text,outline:'none',resize:'none',lineHeight:1.75,marginBottom:16}}
+              onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
+              onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
+            />
+            <div style={{display:'flex',gap:10}}>
+              <Btn variant="ghost" onClick={()=>setFeedbackOpen(false)} style={{flex:1}}>취소</Btn>
+              <Btn onClick={submitFeedback} loading={feedbackLoading} disabled={!feedbackText.trim()} style={{flex:2}}>전달하기 →</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 모드 선택 모달 */}
+      {modeSelect&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)'}} onClick={()=>setModeSelect(false)}>
+          <div style={{background:C.cardBg,borderRadius:'24px 24px 0 0',padding:'28px 24px 40px',width:'100%',maxWidth:480,animation:'slideUp 0.22s ease'}} onClick={e=>e.stopPropagation()}>
+            <div style={{width:40,height:4,background:C.border,borderRadius:2,margin:'0 auto 20px'}}/>
+
+            {/* 계좌·명단 미설정 안내 */}
+            {(!profile.account?.bank||!(profile.groups||[]).some(g=>(g.members||[]).length>0))&&(
+              <div style={{background:C.orangeBg,borderRadius:16,padding:'18px 20px',marginBottom:20,border:`1px solid ${C.orange}20`}}>
+                <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:6}}>⚡ 먼저 설정을 완료해주세요</div>
+                <div style={{fontSize:13,color:C.textMid,lineHeight:1.7,marginBottom:14}}>
+                  {!profile.account?.bank&&'입금 계좌가 아직 등록되지 않았어요.\n'}
+                  {!(profile.groups||[]).some(g=>(g.members||[]).length>0)&&'명단을 등록하면 매번 이름 입력 없이 바로 선택할 수 있어요.'}
+                </div>
+                <Btn variant="orange" onClick={()=>{setModeSelect(false);nav.setView('setup');}} small>명단·계좌 설정하러 가기</Btn>
+              </div>
+            )}
+
+            <div style={{fontWeight:900,color:C.text,fontSize:20,marginBottom:6,textAlign:'center'}}>무엇을 하시나요?</div>
+            <div style={{color:C.textMid,fontSize:13,marginBottom:24,textAlign:'center'}}>상황에 맞게 선택하세요</div>
+            
+            {/* 술자리·뒷풀이 */}
+            <button onClick={()=>{setModeSelect(false);nav.setView('create');}} className="press" style={{
+              width:'100%',padding:'20px',borderRadius:16,marginBottom:12,
+              background:C.accentBg,border:`1px solid ${C.accent}20`,
+              cursor:'pointer',textAlign:'left',
+            }}>
+              <div style={{display:'flex',alignItems:'center',gap:14}}>
+                <div style={{width:48,height:48,borderRadius:14,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🍻</div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>술자리·뒷풀이</div>
+                  <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>이미 모인 우리끼리 1/N 정산</div>
+                  <div style={{fontSize:11,color:C.accent,fontWeight:600}}>명단 선택 → OX 대시보드</div>
+                </div>
+                <span className="ms" style={{color:C.accent}}>chevron_right</span>
+              </div>
+            </button>
+            
+            {/* 행사·야식마차 */}
+            <button onClick={()=>{setModeSelect(false);nav.setView('formCreate');}} className="press" style={{
+              width:'100%',padding:'20px',borderRadius:16,
+              background:C.orangeBg,border:`1px solid ${C.orange}20`,
+              cursor:'pointer',textAlign:'left',
+            }}>
+              <div style={{display:'flex',alignItems:'center',gap:14}}>
+                <div style={{width:48,height:48,borderRadius:14,background:C.orange,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📋</div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>행사·야식마차</div>
+                  <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>선착순 모집부터 신청서 관리까지</div>
+                  <div style={{fontSize:11,color:C.orange,fontWeight:600}}>신청폼 → 선착순 마감 → 엑셀 대조</div>
+                </div>
+                <span className="ms" style={{color:C.orange}}>chevron_right</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── FnQ Modal ─────────────────────────────────────────────
+function GuideModal({onClose,onFeedback}){
+  const faqs=[
+    {q:'참여자는 앱 설치나 로그인이 필요한가요?',a:'전혀 필요 없어요. 총무가 공유한 링크만 누르면 바로 본인 금액 화면이 열려요. 앱 설치도, 회원가입도 필요 없이 바로 확인하고 완료 버튼만 누르면 돼요.'},
+    {q:'정산해는 어떤 서비스인가요?',a:'정산해는 모임·회식·MT 등에서 총무가 정산을 쉽게 할 수 있도록 도와주는 서비스예요. 명단 등록 → 금액 입력 → 링크 공유 → 실시간 O/X 확인까지, 총무의 정산 업무를 1/10로 줄여줘요.'},
+    {q:'술자리·뒷풀이와 행사·야식마차의 차이는?',a:'술자리·뒷풀이는 이미 모인 우리끼리 1/N 정산이에요. 출석 체크 → 차수별 금액 입력 → O/X 보드 방식이에요.\n행사·야식마차는 선착순 모집부터 신청서 관리까지 가능한 신청폼이에요. 참여자가 직접 신청서를 작성하고 선착순·정원 관리 + 거래내역 엑셀 자동 대조가 돼요.'},
+    {q:'데이터는 안전한가요?',a:'모든 데이터는 암호화된 클라우드 서버(AWS 인프라 기반)에 안전하게 저장돼요. 데이터 전송 시 HTTPS 암호화가 적용되며, 본인의 데이터는 본인만 접근할 수 있어요. 회원 탈퇴 시 모든 데이터가 즉시 삭제됩니다.'},
+  ];
+  const [open,setOpen]=useState(null);
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.7)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:200,backdropFilter:'blur(4px)'}} onClick={onClose}>
+      <div style={{background:C.cardBg,borderRadius:'24px 24px 0 0',width:'100%',maxWidth:480,maxHeight:'80vh',display:'flex',flexDirection:'column',animation:'slideUp 0.22s ease'}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:'20px 24px 16px',borderBottom:`1px solid ${C.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div style={{fontWeight:900,color:C.text,fontSize:18}}>자주 묻는 질문</div>
+          <button onClick={onClose} style={{background:C.inputBg,border:'none',borderRadius:10,width:32,height:32,cursor:'pointer',color:C.textMid,fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+        </div>
+        <div style={{overflow:'auto',padding:'12px 24px 32px'}}>
+          {faqs.map((f,i)=>(
+            <div key={i} style={{borderBottom:`1px solid ${C.pageBg}`,paddingBottom:12,marginBottom:12}}>
+              <button onClick={()=>setOpen(open===i?null:i)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,padding:'6px 0',textAlign:'left'}}>
+                <div style={{fontWeight:700,color:C.text,fontSize:14,lineHeight:1.6}}>{f.q}</div>
+                <div style={{color:C.textDim,fontSize:16,flexShrink:0,marginTop:2}}>{open===i?'▲':'▼'}</div>
+              </button>
+              {open===i&&<div style={{fontSize:13,color:C.textMid,lineHeight:1.85,marginTop:6,paddingLeft:4,whiteSpace:'pre-wrap'}}>{f.a}</div>}
+            </div>
+          ))}
+
+          {/* 불편해요? 건의사항 */}
+          <button onClick={()=>{onClose();onFeedback&&onFeedback();}} style={{
+            width:'100%',marginTop:8,padding:'16px 20px',borderRadius:16,
+            background:C.accentBg,border:'none',cursor:'pointer',textAlign:'left',
+            display:'flex',alignItems:'center',gap:12,
+          }}>
+            <span style={{fontSize:24}}>💬</span>
+            <div>
+              <div style={{fontWeight:800,color:C.text,fontSize:14}}>불편한 점이 있으신가요?</div>
+              <div style={{fontSize:12,color:C.textMid,marginTop:2}}>언제든지 건의해 주세요</div>
+            </div>
+            <span className="ms" style={{color:C.accent,marginLeft:'auto'}}>chevron_right</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── SetupScreen ────────────────────────────────────────────
+function SetupScreen({nav,profile,saveProfile}){
+  const [bank,setBank]=useState(profile.account?.bank||'');
+  const [number,setNumber]=useState(profile.account?.number||'');
+  const [holder,setHolder]=useState(profile.account?.holder||'');
+  const [groups,setGroups]=useState(profile.groups?.length?profile.groups:[{id:'g1',name:'전체',rawText:'',members:[]}]);
+  const [activeG,setActiveG]=useState(0);
+  const [saving,setSaving]=useState(false);
+  const [saved,setSaved]=useState(false);
+  const [addingGroup,setAddingGroup]=useState(false);
+  const [newGName,setNewGName]=useState('');
+
+  const updateRaw=(idx,text)=>{
+    const members=parseMembers(text);
+    setGroups(gs=>gs.map((g,i)=>i===idx?{...g,rawText:text,members}:g));
+  };
+  const textareaRef=useRef(null);
+  const addGroup=()=>{
+    if(!newGName.trim()) return;
+    setGroups(gs=>[...gs,{id:'g'+Date.now(),name:newGName.trim(),rawText:'',members:[]}]);
+    setActiveG(groups.length);setAddingGroup(false);setNewGName('');
+    setTimeout(()=>textareaRef.current?.focus(),100);
+  };
+  const delGroup=idx=>{
+    if(groups.length<=1) return;
+    setGroups(gs=>gs.filter((_,i)=>i!==idx));
+    setActiveG(Math.max(0,idx-1));
+  };
+  const save=async()=>{
+    setSaving(true);
+    await saveProfile({...profile,account:{bank,number,holder},groups});
+    setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),2200);
+  };
+  const cur=groups[activeG]||groups[0];
+
+  return(
+    <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+      <Header title="명단·계좌 설정" onBack={()=>nav.setView('home')}/>
+      <div style={{padding:'16px 16px 24px'}}>
+        <Card>
+          <div style={{fontWeight:800,color:C.text,marginBottom:4,fontSize:15}}>💳 입금 계좌</div>
+          <div style={{color:C.textDim,fontSize:12,marginBottom:14}}>한 번 저장하면 모든 정산에 자동 적용돼요</div>
+          <Field label="은행" value={bank} onChange={setBank} placeholder="카카오뱅크, 국민은행…"/>
+          <Field label="계좌번호" value={number} onChange={setNumber} placeholder="숫자만" inputMode="numeric"/>
+          <Field label="예금주" value={holder} onChange={setHolder} placeholder="홍길동"/>
+        </Card>
+        <Card>
+          <div style={{fontWeight:800,color:C.text,marginBottom:4,fontSize:15}}>👥 명단 관리</div>
+          <div style={{color:C.textDim,fontSize:12,marginBottom:14,lineHeight:1.7}}>
+            학년·기수·팀 등 그룹별로 관리해요.<br/>
+            <span style={{color:C.accent,fontWeight:600}}>이름 한 줄에 하나씩</span> 입력하거나 엑셀에서 복붙하세요.<br/>
+            
+          </div>
+          <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:14}}>
+            {groups.map((g,i)=>(
+              <button key={g.id} onClick={()=>setActiveG(i)} className="press" style={{
+                padding:'7px 14px',borderRadius:20,border:`2px solid ${activeG===i?C.accent:C.border}`,
+                background:activeG===i?C.accent:C.cardBg,color:activeG===i?'#fff':C.textMid,
+                fontSize:13,fontWeight:700,cursor:'pointer',transition:'all 0.12s',display:'flex',alignItems:'center',gap:6,
+              }}>
+                {g.name}
+                {g.members.length>0&&<span style={{background:activeG===i?'rgba(255,255,255,0.3)':'#E8ECF4',borderRadius:10,padding:'1px 7px',fontSize:11}}>{g.members.length}</span>}
+              </button>
+            ))}
+            {addingGroup?(
+              <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                <input value={newGName} onChange={e=>setNewGName(e.target.value)} placeholder="그룹 이름" maxLength={12} autoFocus
+                  onKeyDown={e=>e.key==='Enter'&&addGroup()}
+                  style={{padding:'7px 12px',borderRadius:20,border:`2px solid ${C.accent}`,fontSize:13,fontWeight:600,outline:'none',width:100,background:C.accentBg,color:C.accent}}/>
+                <button onClick={addGroup} style={{background:C.green,color:'#fff',border:'none',borderRadius:20,padding:'7px 12px',fontSize:12,fontWeight:700,cursor:'pointer'}}>저장</button>
+                <button onClick={()=>{setAddingGroup(false);setNewGName('');}} style={{background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:20,padding:'7px 10px',fontSize:12,cursor:'pointer',color:C.textDim}}>✕</button>
+              </div>
+            ):(
+              <button onClick={()=>setAddingGroup(true)} className="press" style={{padding:'7px 14px',borderRadius:20,border:`2px dashed ${C.border}`,background:'transparent',color:C.textDim,fontSize:13,cursor:'pointer'}}>＋ 그룹 추가</button>
+            )}
+          </div>
+          {cur&&(
+            <div key={cur.id}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                <div style={{fontSize:13,fontWeight:700,color:C.textMid}}>{cur.name} 명단</div>
+                {groups.length>1&&<button onClick={()=>delGroup(activeG)} style={{color:C.red,background:'none',border:'none',fontSize:12,cursor:'pointer',fontWeight:600}}>그룹 삭제</button>}
+              </div>
+              <div style={{marginBottom:8,padding:'10px 12px',background:'#FFFBF0',borderRadius:10,border:`1px solid ${C.orange}30`,fontSize:12,color:C.textMid,lineHeight:1.8}}>
+                💡 엑셀·카톡 명단을 그대로 복붙해도 돼요
+              </div>
+              <textarea ref={textareaRef} value={cur.rawText} onChange={e=>updateRaw(activeG,e.target.value)}
+                placeholder={`${cur.name} 명단 붙여넣기`} rows={9}
+                style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:14,outline:'none',resize:'vertical',lineHeight:1.75}}
+                onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
+                onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
+              />
+              {cur.members.length>0&&(
+                <div style={{marginTop:12}}>
+                  <div style={{fontSize:12,color:C.green,fontWeight:700,marginBottom:8}}>✓ {cur.members.length}명 인식됐어요</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                    {cur.members.map(m=>(
+                      <span key={m.name+(m.sid||'')} style={{
+                        display:'inline-flex',alignItems:'center',padding:'5px 12px',
+                        borderRadius:20,fontSize:12,fontWeight:600,
+                        background:C.accentBg,color:C.accent,border:`1.5px solid ${C.accent}30`,
+                      }}>{displayName(m)}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <div style={{marginTop:14,padding:'11px 14px',background:C.inputBg,borderRadius:10,border:`1px solid ${C.border}`,fontSize:12,color:C.textMid}}>
+            전체 {groups.reduce((s,g)=>s+g.members.length,0)}명
+            {groups.length>1&&<span style={{marginLeft:8}}>{groups.map(g=>`${g.name} ${g.members.length}명`).join(' · ')}</span>}
+          </div>
+        </Card>
+        <Btn onClick={save} loading={saving} variant={saved?'green':'primary'}>{saved?'✓ 저장됐어요!':'저장하기'}</Btn>
+        
+        <div style={{marginTop:32,paddingTop:20,borderTop:`1px solid ${C.border}`}}>
+          <DeleteAccountBtn/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeleteAccountBtn(){
+  const [confirm,setConfirm]=useState(false);
+  const [loading,setLoading]=useState(false);
+  
+  const deleteAccount=async()=>{
+    setLoading(true);
+    const {data:{user}}=await api.getUser();
+    if(user){
+      // events 삭제
+      await api.deleteEventsByUser(user.id);
+      // profile에 탈퇴 마킹 (삭제 대신 - auth user 삭제 불가)
+      await api.upsertProfile({id:user.id,deleted:true,updated_at:new Date().toISOString()});
+      await api.signOut();
+    }
+    setLoading(false);
+  };
+
+  if(!confirm) return(
+    <button onClick={()=>setConfirm(true)} style={{color:C.textDim,background:'none',border:'none',fontSize:13,cursor:'pointer',textDecoration:'underline',width:'100%',textAlign:'center'}}>
+      회원 탈퇴
+    </button>
+  );
+
+  return(
+    <Card style={{border:`2px solid ${C.red}30`,background:C.redBg}}>
+      <div style={{fontWeight:800,color:C.red,marginBottom:6}}>정말 탈퇴하시겠어요?</div>
+      <div style={{fontSize:13,color:C.textMid,marginBottom:14,lineHeight:1.7}}>모든 정산 데이터와 명단이 삭제돼요.<br/>이 작업은 되돌릴 수 없어요.</div>
+      <div style={{display:'flex',gap:8}}>
+        <Btn variant="ghost" onClick={()=>setConfirm(false)} style={{flex:1}}>취소</Btn>
+        <Btn variant="danger" onClick={deleteAccount} loading={loading} style={{flex:1}}>탈퇴하기</Btn>
+      </div>
+    </Card>
+  );
+}
+
+// ── CreateScreen ───────────────────────────────────────────
+function CreateScreen({nav,profile,events,createEvent}){
+  const [name,setName]=useState('');
+  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
+
+  const [bank,setBank]=useState(profile.account?.bank||'');
+  const [number,setNumber]=useState(profile.account?.number||'');
+  const [holder,setHolder]=useState(profile.account?.holder||'');
+  const [selected,setSelected]=useState([]);
+  const [extraText,setExtraText]=useState('');
+  const [err,setErr]=useState('');
+  const [loading,setLoading]=useState(false);
+  const [activeG,setActiveG]=useState(-1);
+
+  const groups=profile.groups||[];
+  const allFromGroups=groups.flatMap(g=>g.members||[]);
+  const extraMembers=parseMembers(extraText).filter(m=>!allFromGroups.find(x=>x.name===m.name&&x.sid===m.sid));
+  // 관리자 본인 자동 포함
+  const adminName=profile.name||'';
+  const adminMember=adminName&&!allFromGroups.find(m=>m.name===adminName)?[{name:adminName,sid:''}]:[];
+  const allMembers=[...adminMember,...allFromGroups,...extraMembers];
+  const memberMap={};
+  allMembers.forEach(m=>{memberMap[m.name+(m.sid?`_${m.sid}`:'')] = displayName(m);});
+  const visibleMembers=activeG===-1?allMembers:(groups[activeG]?.members||[]);
+
+  const toggle=m=>{
+    const k=m.name+(m.sid?`_${m.sid}`:'');
+    setSelected(s=>s.includes(k)?s.filter(x=>x!==k):[...s,k]);
+  };
+  const selectGroup=gIdx=>{
+    const gm=gIdx===-1?allMembers:(groups[gIdx]?.members||[]);
+    const keys=gm.map(m=>m.name+(m.sid?`_${m.sid}`:''));
+    const allSel=keys.every(k=>selected.includes(k));
+    setSelected(s=>allSel?s.filter(k=>!keys.includes(k)):[...new Set([...s,...keys])]);
+  };
+
+  const create=async()=>{
+    setErr('');
+    if(!name.trim()){setErr('정산 이름을 입력해주세요');return;}
+
+    if(selected.length===0){setErr('참여자를 1명 이상 선택해주세요');return;}
+    setLoading(true);
+    const code=genCode();
+    const ev={code,name:name.trim(),date,pin:'',account:{bank,number,holder},members:selected,memberMap,rounds:[],payments:{},attendance:{},attendanceOpen:false,createdAt:new Date().toISOString()};
+    const ok=await createEvent(ev);
+    setLoading(false);
+    if(ok){nav.setCurrentCode(ev.code);nav.setView('adminEvent');}
+  };
+
+  const hasAccount=profile.account?.bank&&profile.account?.number;
+
+  return(
+    <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+      <Header title="새 정산 만들기" onBack={()=>nav.setView('home')}/>
+      <div style={{padding:'16px 16px 24px'}}>
+        <Card>
+          <Field label="정산 이름" value={name} onChange={setName} placeholder="5월 MT, 종강 회식…"/>
+          <Field label="날짜" value={date} onChange={setDate} type="date"/>
+
+        </Card>
+        <Card>
+          <div style={{fontWeight:800,color:C.text,marginBottom:12,fontSize:14}}>💳 입금 계좌</div>
+          {hasAccount?(
+            <div style={{fontSize:13,color:C.textMid,padding:'11px 14px',background:C.inputBg,borderRadius:10,display:'flex',justifyContent:'space-between',alignItems:'center',border:`1.5px solid ${C.border}`}}>
+              <span>{bank} {number} ({holder})</span>
+              <Badge color={C.green}>자동 적용</Badge>
+            </div>
+          ):(
+            <>
+              <Field label="은행" value={bank} onChange={setBank} placeholder="카카오뱅크"/>
+              <Field label="계좌번호" value={number} onChange={setNumber} placeholder="계좌번호" inputMode="numeric"/>
+              <Field label="예금주" value={holder} onChange={setHolder} placeholder="이름"/>
+            </>
+          )}
+        </Card>
+        <Card>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <div style={{fontWeight:800,color:C.text,fontSize:14}}>👥 참여자 선택 <span style={{color:C.accent}}>({selected.length}명)</span></div>
+          </div>
+          {groups.length>0&&(
+            <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12}}>
+              <button onClick={()=>{
+                const allKeys=allMembers.map(m=>m.name+(m.sid?`_${m.sid}`:''));
+                const allSelected=allKeys.length>0&&allKeys.every(k=>selected.includes(k));
+                setSelected(allSelected?[]:allKeys);
+                setActiveG(-1);
+              }} className="press" style={{padding:'6px 13px',borderRadius:16,border:`1.5px solid ${selected.length===allMembers.length&&allMembers.length>0?C.accent:C.border}`,background:selected.length===allMembers.length&&allMembers.length>0?C.accent:C.cardBg,color:selected.length===allMembers.length&&allMembers.length>0?'#fff':C.textMid,fontSize:12,fontWeight:700,cursor:'pointer'}}>
+                전체 {selected.length===allMembers.length&&allMembers.length>0?'✓':''}
+              </button>
+              {groups.map((g,i)=>{
+                const keys=(g.members||[]).map(m=>m.name+(m.sid?`_${m.sid}`:''));
+                const allSel=keys.length>0&&keys.every(k=>selected.includes(k));
+                return(
+                  <button key={g.id} onClick={()=>{setActiveG(i);selectGroup(i);}} className="press" style={{padding:'6px 13px',borderRadius:16,border:`1.5px solid ${allSel?C.accent:C.border}`,background:allSel?C.accentBg:C.cardBg,color:allSel?C.accent:C.textMid,fontSize:12,fontWeight:700,cursor:'pointer',transition:'all 0.12s'}}>
+                    {g.name} {allSel?'✓':''}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div style={{display:'flex',flexWrap:'wrap',gap:7,marginBottom:allMembers.length>0?14:0}}>
+            {visibleMembers.map(m=>{
+              const k=m.name+(m.sid?`_${m.sid}`:'');
+              const sel=selected.includes(k);
+              return(
+                <button key={k} onClick={()=>toggle(m)} className="press" style={{padding:'8px 14px',borderRadius:20,border:`2px solid ${sel?C.accent:C.border}`,cursor:'pointer',fontSize:13,fontWeight:600,background:sel?C.accentBg:C.cardBg,color:sel?C.accent:C.textMid,transition:'all 0.12s'}}>
+                  {displayName(m)}
+                </button>
+              );
+            })}
+          </div>
+          {allMembers.length===0&&(
+            <div style={{background:C.accentBg,borderRadius:14,padding:'14px 16px',marginBottom:10,border:`1px solid ${C.accent}20`}}>
+              <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:4}}>등록된 명단이 없네요</div>
+              <div style={{fontSize:13,color:C.textMid,lineHeight:1.7,marginBottom:10}}>명단을 먼저 등록하면 매번 이름 없이 바로 선택할 수 있어요.</div>
+              <button onClick={()=>nav.setView('setup')} style={{background:C.accent,color:'#fff',border:'none',borderRadius:10,padding:'8px 16px',fontSize:13,fontWeight:700,cursor:'pointer'}}>명단 등록하러 가기 →</button>
+            </div>
+          )}
+          <div style={{marginTop:6}}>
+            <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:6}}>추가 참여자</div>
+            <Field value={extraText} onChange={setExtraText} placeholder="홍길동&#10;김철수" multiline rows={2}/>
+          </div>
+        </Card>
+        {err&&<div style={{color:C.red,fontSize:13,marginBottom:12,padding:'11px 14px',background:C.redBg,borderRadius:10}}>⚠ {err}</div>}
+        <Btn onClick={create} loading={loading}>정산 생성하기 →</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ── AdminEventScreen (플로우 구조) ───────────────────────
+function AdminEventScreen({nav,event:initEvent,updateEvent,showToast}){
+  const [event,setEvent]=useState(initEvent);
+  const [viewCount,setViewCount]=useState(0);
+  const getInitSlide=ev=>{
+    const hasRoundsWithAmount=(ev.rounds||[]).some(r=>r.amount>0);
+    if(hasRoundsWithAmount) return 3;
+    const attDone=ev.members.some(k=>ev.attendance[k]===true)||ev.members.some(k=>ev.attendance[k]===false);
+    if(attDone) return 1;
+    return 0;
+  };
+  const [slide,setSlide]=useState(()=>getInitSlide(initEvent));
+
+  useEffect(()=>setEvent(initEvent),[initEvent]);
+  useRealtimeEvent(event.code,ev=>setEvent(ev));
+  useEffect(()=>{api.getViewCount(event.code,null).then(c=>setViewCount(c));},[event.code]);
+
+  const update=async ev=>{setEvent(ev);if(updateEvent) await updateEvent(ev);};
+
+  const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
+  const pc=presentMembers.filter(k=>event.payments?.[k]?.paid).length;
+  const done=pc===presentMembers.length&&presentMembers.length>0;
+  const attDone=event.members.some(k=>event.attendance[k]===true)||event.members.some(k=>event.attendance[k]===false);
+  const hasRounds=event.rounds.length>0;
+
+  const steps=['출석 체크','금액 입력','공유하기','정산현황'];
+  const stepDone=[attDone,hasRounds,done,false];
+
+  const archiveEvent=async()=>{
+    if(!window.confirm('정산을 종료하고 내역으로 이동할까요?')) return;
+    const payments={...event.payments};
+    event.members.forEach(k=>{if(!payments[k]?.paid) payments[k]={paid:true,time:new Date().toISOString(),by:'archive'};});
+    await update({...event,payments});
+    nav.setView('home');
+  };
+
+  return(
+    <div style={{background:C.pageBg,minHeight:'100vh',display:'flex',flexDirection:'column'}}>
+      {/* 헤더 */}
+      <div style={{display:'flex',alignItems:'center',padding:'16px 20px',background:C.cardBg,position:'sticky',top:0,zIndex:10,gap:12}}>
+        <button onClick={()=>nav.setView('home')} style={{background:'transparent',border:'none',color:C.text,cursor:'pointer',width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,padding:0,margin:'-8px'}}><span className="ms" style={{fontSize:24}}>arrow_back</span></button>
+        <div style={{flex:1}}>
+          <div style={{fontSize:18,fontWeight:800,color:C.text,letterSpacing:-0.5}}>{event.name}</div>
+          <div style={{fontSize:12,color:C.textDim,marginTop:2,display:'flex',alignItems:'center',gap:8}}>
+            {steps[slide]}
+            {viewCount>0&&<span style={{color:C.accent}}>👀 {viewCount}</span>}
+          </div>
+        </div>
+        <button onClick={archiveEvent} style={{background:C.inputBg,border:'none',borderRadius:12,color:C.textMid,cursor:'pointer',padding:'8px 14px',fontSize:13,fontWeight:700}}>종료</button>
+      </div>
+
+      {/* 프로그레스 바 */}
+      <div style={{background:C.cardBg,padding:'14px 18px 0',borderBottom:`1px solid ${C.border}`}}>
+        <div style={{display:'flex',alignItems:'flex-start',gap:0}}>
+          {steps.map((label,i)=>{
+            const isActive=slide===i;
+            const isDone=stepDone[i]||slide>i;
+            return(
+              <React.Fragment key={i}>
+                <button onClick={()=>setSlide(i)} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,flex:1,background:'none',border:'none',cursor:'pointer',paddingBottom:12}}>
+                  <div style={{width:26,height:26,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:isDone?C.green:isActive?C.accent:C.border,color:'#fff',fontSize:11,fontWeight:900,transition:'all 0.3s'}}>
+                    {isDone?'✓':i+1}
+                  </div>
+                  <div style={{fontSize:10,fontWeight:isActive?700:400,color:isDone?C.green:isActive?C.accent:C.textDim,transition:'all 0.3s',whiteSpace:'nowrap'}}>{label}</div>
+                </button>
+                {i<steps.length-1&&<div style={{height:2,flex:2,background:isDone?C.green:C.border,marginTop:12,transition:'all 0.3s'}}/>}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 슬라이드 콘텐츠 */}
+      <div style={{flex:1,overflow:'auto'}}>
+        <div style={{padding:'16px 18px'}}>
+          {slide===0&&(
+            <div className="fade-up">
+              <AttendanceSection event={event} updateEvent={update} onDone={()=>setSlide(1)}/>
+            </div>
+          )}
+          {slide===1&&(
+            <div className="fade-up">
+              <RoundsSection event={event} updateEvent={update} onRoundAdded={()=>setSlide(2)}/>
+            </div>
+          )}
+          {slide===2&&(
+            <div className="fade-up">
+              <ShareSection event={event} showToast={showToast}/>
+            </div>
+          )}
+          {slide===3&&(
+            <div className="fade-up">
+              <StatusSection event={event} updateEvent={update}/>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 하단 네비게이션 */}
+      <div style={{padding:'12px 20px 24px',background:C.cardBg,borderTop:`1px solid ${C.pageBg}`,display:'flex',gap:10}}>
+        {slide>0&&<Btn variant="secondary" onClick={()=>setSlide(s=>s-1)} style={{flex:1}}>이전</Btn>}
+        {slide<steps.length-1&&(
+          <Btn onClick={()=>setSlide(s=>s+1)} style={{flex:2}}>다음</Btn>
+        )}
+        {slide===steps.length-1&&<Btn variant="green" onClick={()=>nav.setView('home')} style={{flex:2}}>홈으로</Btn>}
+      </div>
+    </div>
+  );
+}
+
+
+// ── AttendanceSection ──────────────────────────────────────
+function AttendanceSection({event,updateEvent,onDone}){
+  const [search,setSearch]=useState('');
+  const mm=event.memberMap||{};
+
+  const toggleAtt=(k)=>{
+    const isAbsent=event.attendance[k]===false;
+    updateEvent({...event,attendance:{...event.attendance,[k]:isAbsent?true:false}});
+  };
+  const allPresent=event.members.every(k=>event.attendance[k]!==false);
+  const present=event.members.filter(k=>event.attendance[k]!==false);
+  const absent=event.members.filter(k=>event.attendance[k]===false);
+  const filtered=event.members.filter(k=>!search||(mm[k]||k).includes(search));
+
+  return(
+    <div>
+      {/* 전원 참석 버튼 */}
+      <button onClick={()=>{
+        const a={};
+        event.members.forEach(k=>a[k]=true);
+        updateEvent({...event,attendance:a});
+      }} style={{
+        width:'100%',marginBottom:12,padding:'11px',borderRadius:12,
+        border:`2px solid ${allPresent?C.green:C.border}`,
+        background:allPresent?C.green:C.cardBg,
+        color:allPresent?'#fff':C.textMid,
+        fontWeight:700,fontSize:14,cursor:'pointer',transition:'all 0.2s',
+      }}>
+        {allPresent?'✓ 전원 참석':'전원 참석'}
+      </button>
+
+      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="이름 검색..."
+        style={{width:'100%',padding:'10px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:13,outline:'none',marginBottom:10}}
+      />
+
+      <div style={{maxHeight:320,overflowY:'auto'}}>
+        {filtered.map(k=>{
+          const att=event.attendance[k];
+          const isAbsent=att===false;
+          return(
+            <div key={k} onClick={()=>toggleAtt(k)} className="press" style={{
+              background:isAbsent?C.inputBg:C.cardBg,borderRadius:12,padding:'12px 14px',marginBottom:6,
+              display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',
+              border:`1.5px solid ${isAbsent?C.red+'40':C.green+'40'}`,
+              opacity:isAbsent?0.6:1,transition:'all 0.15s',
+            }}>
+              <div style={{fontWeight:600,color:isAbsent?C.textDim:C.text,fontSize:14,textDecoration:isAbsent?'line-through':'none'}}>{mm[k]||k}</div>
+              <div style={{
+                width:28,height:28,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',
+                background:isAbsent?C.redBg:C.green,
+                color:isAbsent?C.red:'#fff',fontWeight:900,fontSize:14,transition:'all 0.15s',
+              }}>{isAbsent?'✕':'○'}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{marginTop:4,fontSize:11,color:C.textDim,textAlign:'center'}}>탭하면 불참 처리돼요</div>
+    </div>
+  );
+}
+
+// ── RoundsSection ──────────────────────────────────────────
+function RoundsSection({event,updateEvent,onRoundAdded}){
+  const [editingId,setEditingId]=useState('round_1'); // 1차 기본으로 열려있음
+  const [adding,setAdding]=useState(false);
+  const [label,setLabel]=useState('');
+  const [amount,setAmount]=useState('');
+  const [roundMembers,setRoundMembers]=useState([]);
+  const [editAmount,setEditAmount]=useState('');
+  const mm=event.memberMap||{};
+  const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
+
+  // 1차가 없으면 자동 생성 (출석자 기반, 금액만 입력)
+  const hasFirst=event.rounds.some(r=>r.label==='1차');
+  useEffect(()=>{
+    if(!hasFirst&&presentMembers.length>0&&!adding){
+      // 1차 자동 생성 (금액 0으로)
+      updateEvent({...event,rounds:[{id:'round_1',label:'1차',amount:0,members:[...presentMembers]}]});
+    }
+  },[]);
+
+  useEffect(()=>{if(adding)setRoundMembers([...presentMembers]);},[adding]);
+
+  const updateRound=(id,patch)=>updateEvent({...event,rounds:event.rounds.map(r=>r.id===id?{...r,...patch}:r)});
+
+  const addRound=()=>{
+    const amt=Number(amount.replace(/[^0-9]/g,''));
+    if(!label.trim()||!amt||roundMembers.length===0) return;
+    updateEvent({...event,rounds:[...event.rounds,{id:Date.now().toString(),label:label.trim(),amount:amt,members:[...roundMembers]}]});
+    setAdding(false);setLabel('');setAmount('');
+    onRoundAdded&&onRoundAdded();
+  };
+
+  return(
+    <div>
+      {event.rounds.map((r,idx)=>{
+        const isFirst=r.label==='1차';
+        const isEditing=editingId===r.id;
+        return(
+          <div key={r.id} style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:10,border:`1.5px solid ${r.amount>0?C.accent+'30':C.orange+'50'}`,boxShadow:C.shadow}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:isEditing?12:0}}>
+              <div>
+                <div style={{fontWeight:800,color:C.text,fontSize:15}}>{r.label}</div>
+                {r.amount>0&&<div style={{fontSize:12,color:C.textMid,marginTop:2}}>{r.members.length}명 · 1인당 {fmtKRW(Math.ceil(r.amount/r.members.length))}</div>}
+                {r.amount===0&&<div style={{fontSize:12,color:C.orange,marginTop:2}}>금액을 입력해주세요</div>}
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                {r.amount>0&&<div style={{color:C.accent,fontWeight:900}}>{fmtKRW(r.amount)}</div>}
+                <button onClick={()=>{ setEditingId(isEditing?null:r.id); setEditAmount(r.amount>0?String(r.amount):''); }} style={{background:isEditing?C.accentBg:C.inputBg,border:`1.5px solid ${isEditing?C.accent:C.border}`,borderRadius:8,color:isEditing?C.accent:C.textMid,cursor:'pointer',padding:'5px 10px',fontSize:12,fontWeight:600}}>
+                  {isEditing?'완료':'수정'}
+                </button>
+                {!isFirst&&<button onClick={()=>updateEvent({...event,rounds:event.rounds.filter(x=>x.id!==r.id)})} style={{background:C.redBg,border:'none',borderRadius:8,color:C.red,cursor:'pointer',width:26,height:26,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>×</button>}
+              </div>
+            </div>
+            {isEditing&&(
+              <div className="fade-up">
+                <Field label="금액 (원)" value={editAmount} onChange={v=>setEditAmount(v.replace(/[^0-9]/g,''))} placeholder="150000" inputMode="numeric"/>
+                <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:8}}>참여자 ({r.members.length}명)</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                  <button onClick={()=>updateRound(r.id,{members:[...presentMembers]})} style={{padding:'5px 9px',borderRadius:12,border:`1.5px solid ${C.accent}`,cursor:'pointer',fontSize:11,background:C.accentBg,color:C.accent,fontWeight:700}}>전체</button>
+                  {presentMembers.map(k=>{
+                    const sel=r.members.includes(k);
+                    return <button key={k} onClick={()=>updateRound(r.id,{members:sel?r.members.filter(x=>x!==k):[...r.members,k]})} style={{padding:'5px 9px',borderRadius:12,border:`1.5px solid ${sel?C.accent:C.border}`,cursor:'pointer',fontSize:12,fontWeight:600,background:sel?C.accentBg:C.cardBg,color:sel?C.accent:C.textMid}}>{mm[k]||k}</button>;
+                  })}
+                </div>
+                <Btn onClick={()=>{
+                  const amt=Number(editAmount.replace(/[^0-9]/g,''));
+                  if(amt>0) updateRound(r.id,{amount:amt});
+                  setEditingId(null);
+                }} disabled={!editAmount} style={{marginTop:12}} small>저장</Btn>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {event.rounds.length>0&&event.rounds[0].amount>0&&<div style={{textAlign:'right',fontSize:13,color:C.textMid,marginBottom:10}}>합계 <span style={{color:C.text,fontWeight:900}}>{fmtKRW(event.rounds.reduce((s,r)=>s+r.amount,0))}</span></div>}
+
+      {/* 2차부터 추가 가능 */}
+      {event.rounds.length>0&&event.rounds[0].amount>0&&(
+        adding?(
+          <div style={{background:C.inputBg,borderRadius:14,padding:14,border:`1.5px solid ${C.accent}30`}}>
+            <Field label="차수 이름" value={label} onChange={setLabel} placeholder="2차, 노래방…"/>
+            <Field label="총 금액 (원)" value={amount} onChange={v=>setAmount(v.replace(/[^0-9]/g,''))} placeholder="80000" inputMode="numeric"/>
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:8}}>참여자 ({roundMembers.length}명)</div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                <button onClick={()=>setRoundMembers([...presentMembers])} style={{padding:'5px 9px',borderRadius:12,border:`1.5px solid ${C.accent}`,cursor:'pointer',fontSize:11,background:C.accentBg,color:C.accent,fontWeight:700}}>전체</button>
+                {presentMembers.map(k=>(
+                  <button key={k} onClick={()=>setRoundMembers(s=>s.includes(k)?s.filter(x=>x!==k):[...s,k])} style={{padding:'5px 9px',borderRadius:12,border:`1.5px solid ${roundMembers.includes(k)?C.accent:C.border}`,cursor:'pointer',fontSize:12,fontWeight:600,background:roundMembers.includes(k)?C.accentBg:C.cardBg,color:roundMembers.includes(k)?C.accent:C.textMid}}>
+                    {mm[k]||k}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{display:'flex',gap:8}}>
+              <Btn variant="ghost" onClick={()=>setAdding(false)} style={{flex:1}}>취소</Btn>
+              <Btn onClick={addRound} disabled={!label||!amount||roundMembers.length===0} style={{flex:2}}>추가</Btn>
+            </div>
+          </div>
+        ):(
+          <Btn variant="secondary" onClick={()=>{setAdding(true);setLabel(`${event.rounds.length+1}차`);}}>＋ 차수 추가</Btn>
+        )
+      )}
+    </div>
+  );
+}
+
+// ── ShareSection ───────────────────────────────────────────
+function ShareSection({event,showToast}){
+  const mm=event.memberMap||{};
+  const amounts=calcAmounts(event);
+  const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
+  const unpaid=presentMembers.filter(k=>!event.payments?.[k]?.paid);
+
+  const copy=async(text,label)=>{
+    await copyText(text);
+    showToast(`${label} 복사됐어요`);
+  };
+
+  const directLink=getLink(`code=${event.code}`);
+  const nl='\n';
+  const kakaoMsg=['['+event.date+' '+event.name+'] 정산 안내',nl,'아래 링크를 누르시면 바로 확인할 수 있어요.',directLink,nl,'오늘까지 입금 부탁드립니다.'].join(nl);
+
+  return(
+    <div>
+      <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',fontSize:12,color:C.textMid,lineHeight:1.85,marginBottom:10,whiteSpace:'pre-wrap',border:`1.5px solid ${C.border}`}}>{kakaoMsg}</div>
+      <div style={{display:'flex',gap:8,marginBottom:8}}>
+        <Btn onClick={async()=>{const shared=await shareText(kakaoMsg);if(!shared){await copy(kakaoMsg,'메시지');}else showToast('공유 완료');}} small style={{flex:2}}>💬 카톡 공유</Btn>
+        <Btn onClick={()=>copy(directLink,'링크')} variant="secondary" small style={{flex:1}}>🔗 링크</Btn>
+      </div>
+      <Btn onClick={()=>copy(kakaoMsg,'메시지')} variant="ghost" small style={{marginBottom:16}}>📋 메시지 복사</Btn>
+      {unpaid.length===0&&<div style={{textAlign:'center',color:C.green,fontWeight:900,fontSize:15,padding:'8px 0'}}>🎉 모두 완료!</div>}
+    </div>
+  );
+}
+
+// ── StatusSection ──────────────────────────────────────────
+function StatusSection({event,updateEvent}){
+  const mm=event.memberMap||{};
+  const amounts=calcAmounts(event);
+  const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
+  const pc=presentMembers.filter(k=>event.payments?.[k]?.paid).length;
+  const unpaidList=presentMembers.filter(k=>!event.payments?.[k]?.paid);
+  const directLink=getLink(`code=${event.code}`);
+  const nl='\n';
+  const acct=event.account?.bank?('💳 '+event.account.bank+' '+event.account.number+' ('+event.account.holder+')'):'';
+  const nudgeMsg=unpaidList.length===0?'':['['+event.name+'] 콕 찌르기',nl,...unpaidList.map(k=>('• '+(mm[k]||k)+'  '+fmtKRW(amounts[k]||0))),acct,nl,directLink].filter(Boolean).join(nl);
+
+  const toggle=k=>{
+    const cur=event.payments?.[k]?.paid;
+    updateEvent({...event,payments:{...event.payments,[k]:cur?{paid:false,time:null,by:null}:{paid:true,time:new Date().toISOString(),by:'admin'}}});
+  };
+
+  return(
+    <div>
+      <div style={{display:'flex',gap:8,marginBottom:12}}>
+        {[[pc,'완료',C.green,C.greenBg],[presentMembers.length-pc,'미완료',C.red,C.redBg]].map(([v,l,c,bg])=>(
+          <div key={l} style={{flex:1,background:bg,borderRadius:12,padding:'11px 8px',textAlign:'center',border:`1.5px solid ${c}30`}}>
+            <div style={{fontSize:20,fontWeight:900,color:c}}>{v}</div>
+            <div style={{fontSize:11,color:c,marginTop:2,fontWeight:600}}>{l}</div>
+          </div>
+        ))}
+      </div>
+      {presentMembers.map(k=>{
+        const p=event.payments?.[k]; const paid=p?.paid;
+        return(
+          <div key={k} onClick={()=>toggle(k)} className="press" style={{background:C.cardBg,borderRadius:12,padding:'11px 14px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:paid?`0 0 0 2px ${C.green}40`:C.shadow,cursor:'pointer'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <div style={{width:32,height:32,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:paid?C.green:C.redBg,color:paid?'#fff':C.red,fontWeight:900,fontSize:14}}>{paid?'O':'X'}</div>
+              <div>
+                <div style={{fontWeight:600,color:C.text,fontSize:13}}>{mm[k]||k}</div>
+                {paid&&p?.time&&<div style={{fontSize:11,color:C.textDim}}>{fmtTime(p.time)}{p.by==='admin'?' · 관리자':p.by==='archive'?' · 종료처리':''}</div>}
+              </div>
+            </div>
+            <div style={{color:C.accent,fontWeight:900,fontSize:13}}>{fmtKRW(amounts[k]||0)}</div>
+          </div>
+        );
+      })}
+
+      {/* 콕 찌르기 */}
+      {unpaidList.length>0&&(
+        <div style={{marginTop:16}}>
+          <div style={{fontWeight:700,color:C.text,fontSize:13,marginBottom:8}}>콕 찌르기 <span style={{color:C.red}}>({unpaidList.length}명)</span></div>
+          <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',fontSize:12,color:C.textMid,lineHeight:1.85,marginBottom:8,whiteSpace:'pre-wrap',border:`1.5px solid ${C.border}`}}>{nudgeMsg}</div>
+          <Btn onClick={()=>copyText(nudgeMsg)} variant="secondary" small>콕 찌르기 복사</Btn>
+        </div>
+      )}
+      {unpaidList.length===0&&pc>0&&<div style={{textAlign:'center',color:C.green,fontWeight:900,fontSize:15,padding:'16px 0'}}>🎉 전원 완료!</div>}
+    </div>
+  );
+}
+
+// ── ParticipantScreen ──────────────────────────────────────
+function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showToast}){
+  const [event,setEvent]=useState(initEvent);
+  const [selectedKey,setSelectedKey]=useState(participantKey||'');
+  const [searchQ,setSearchQ]=useState('');
+  const [dialog,setDialog]=useState(false);
+
+  useEffect(()=>setEvent(initEvent),[initEvent]);
+  useRealtimeEvent(event.code,ev=>setEvent(ev));
+  useEffect(()=>{api.trackView(event.code,null,participantKey||'anonymous');},[]);
+
+  const mm=event.memberMap||{};
+  const amounts=calcAmounts(event);
+  const isPaid=event.payments?.[selectedKey]?.paid;
+  const myAmount=amounts[selectedKey]||0;
+  const myRounds=(event.rounds||[]).filter(r=>r.members.includes(selectedKey));
+
+  const markPaid=async()=>{
+    const payments={...event.payments,[selectedKey]:{paid:true,time:new Date().toISOString(),by:'self'}};
+    const updated={...event,payments};
+    setEvent(updated);await updateEvent(updated);
+    setDialog(false);showToast('입금 완료 처리됐어요 ✓');
+  };
+
+  if(!selectedKey){
+    const filtered=event.members.filter(k=>{
+      if(event.attendance[k]===false) return false; // 불참자 제외
+      if(!searchQ) return true;
+      return (mm[k]||k).includes(searchQ);
+    });
+
+    return(
+      <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+        <Header title={event.name} onBack={()=>nav.setView('home')}/>
+        <div style={{padding:20}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'10px 14px',background:C.accentBg,borderRadius:12,border:`1px solid ${C.accent}20`}}>
+            <span style={{fontSize:16}}>🍻</span>
+            <span style={{fontSize:13,color:C.accent,fontWeight:700}}>입금 후 완료 버튼 누르면 끝!</span>
+          </div>
+          <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:12}}>이름을 검색해주세요</div>
+          <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름 입력..."
+            autoFocus
+            style={{width:'100%',padding:'13px 14px',background:C.cardBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:15,outline:'none',marginBottom:12,boxShadow:C.shadow}}
+            onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
+            onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
+          />
+
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            {filtered.map(k=>{
+              const paid=event.payments?.[k]?.paid;
+              return(
+                <button key={k} onClick={async()=>{
+                  // 참여자 입장 시 자동 출석 처리
+                  if(event.attendance[k]===undefined||event.attendance[k]===null){
+                    const att={...event.attendance,[k]:true};
+                    await updateEvent({...event,attendance:att});
+                  }
+                  setSelectedKey(k);
+                }} className="press" style={{
+                  padding:'14px 16px',background:C.cardBg,border:`1.5px solid ${paid?C.green+'50':C.border}`,
+                  borderRadius:14,color:C.text,fontSize:14,fontWeight:600,cursor:'pointer',
+                  textAlign:'left',fontFamily:'inherit',display:'flex',justifyContent:'space-between',alignItems:'center',
+                  boxShadow:C.shadow,
+                }}>
+                  <span>{mm[k]||k}</span>
+                  {paid&&<span style={{color:C.green,fontSize:12,fontWeight:800,background:C.greenBg,padding:'3px 8px',borderRadius:8}}>✓ 완료</span>}
+                </button>
+              );
+            })}
+            {searchQ&&filtered.length===0&&<div style={{color:C.textDim,fontSize:13,textAlign:'center',padding:'20px 0'}}>검색 결과가 없어요</div>}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return(
+    <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+      <Header title={event.name} onBack={()=>setSelectedKey('')}/>
+      <div style={{padding:'16px 16px 24px'}}>
+        <Card style={{background:isPaid?C.greenBg:C.cardBg,border:`1.5px solid ${isPaid?C.green+'40':C.border}`}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16}}>
+            <div>
+              <div style={{fontSize:22,fontWeight:900,color:C.text}}>{mm[selectedKey]||selectedKey}</div>
+              <div style={{color:C.textDim,fontSize:12,marginTop:3}}>{event.date}</div>
+            </div>
+            <div style={{textAlign:'right'}}>
+              <div style={{fontSize:28,fontWeight:900,color:C.accent}}>{fmtKRW(myAmount)}</div>
+              <div style={{fontSize:11,color:C.textDim,marginTop:2}}>납부 금액</div>
+            </div>
+          </div>
+          {myRounds.length>0&&(
+            <div style={{borderTop:`1.5px solid ${C.border}`,paddingTop:12,marginBottom:14}}>
+              {myRounds.map(r=>(
+                <div key={r.id} style={{display:'flex',justifyContent:'space-between',marginBottom:7}}>
+                  <span style={{fontSize:13,color:C.textMid}}>{r.label} ({r.members.length}명 균등)</span>
+                  <span style={{fontSize:13,color:C.text,fontWeight:800}}>{fmtKRW(Math.ceil(r.amount/r.members.length))}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {event.account?.bank&&!isPaid&&(()=>{
+            const tl=getTossLink(event.account.bank,event.account.number,myAmount);
+            const kl=getKakaoBankLink(event.account.bank,event.account.number,myAmount);
+            return(
+              <div style={{marginBottom:14}}>
+                <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',border:`1.5px solid ${C.border}`,marginBottom:10}}>
+                  <div style={{fontSize:11,color:C.textDim,marginBottom:6,fontWeight:600}}>입금 계좌</div>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div>
+                      <div style={{fontSize:13,color:C.textMid}}>{event.account.bank} · {event.account.holder}</div>
+                      <div style={{fontSize:16,fontWeight:900,color:C.text,marginTop:2,letterSpacing:0.5}}>{event.account.number}</div>
+                    </div>
+                    <button onClick={async(e)=>{
+                      e.stopPropagation();
+                      await copyText(event.account.number);
+                      showToast('계좌번호 복사됐어요');
+                    }} style={{background:C.accentBg,border:`1.5px solid ${C.accent}30`,borderRadius:10,padding:'8px 14px',color:C.accent,fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0}}>복사</button>
+                  </div>
+                </div>
+                {(tl||kl)&&(
+                  <div style={{display:'flex',gap:8}}>
+                    {tl&&<a href={tl} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'12px',borderRadius:12,background:'#0050FF',color:'#fff',fontWeight:700,fontSize:13,textDecoration:'none'}}>토스 송금</a>}
+                    {kl&&<a href={kl} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'12px',borderRadius:12,background:'#FEE500',color:'#191919',fontWeight:700,fontSize:13,textDecoration:'none'}}>카뱅 송금</a>}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          {isPaid?(
+            <div>
+              <div style={{textAlign:'center',color:C.green,fontWeight:900,fontSize:15,padding:'8px 0 12px',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                ✓ 완료 {event.payments[selectedKey]?.time?'· '+fmtTime(event.payments[selectedKey].time):''}
+              </div>
+              {event.account?.bank&&(
+                <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',border:`1.5px solid ${C.border}`,marginBottom:10}}>
+                  <div style={{fontSize:11,color:C.textDim,marginBottom:6,fontWeight:600}}>입금 계좌</div>
+                  <div style={{fontSize:14,color:C.text,fontWeight:700,marginBottom:4}}>{event.account.bank} · {event.account.holder}</div>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div style={{fontSize:16,color:C.accent,fontWeight:900,letterSpacing:0.5}}>{event.account.number}</div>
+                    <button onClick={()=>copyText(event.account.number)} style={{background:C.accentBg,border:`1.5px solid ${C.accent}30`,borderRadius:10,padding:'6px 12px',color:C.accent,fontSize:12,fontWeight:700,cursor:'pointer'}}>복사</button>
+                  </div>
+                </div>
+              )}
+              <button onClick={async()=>{
+                const payments={...event.payments,[selectedKey]:{paid:false,time:null,by:null}};
+                const updated={...event,payments};
+                setEvent(updated);await updateEvent(updated);
+              }} style={{width:'100%',color:C.textDim,background:'none',border:'none',fontSize:12,cursor:'pointer',textDecoration:'underline',padding:'4px 0'}}>
+                앗, 실수로 눌렀어요
+              </button>
+            </div>
+          ):(
+            <div>
+              <div style={{background:C.orangeBg,borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
+                <span style={{fontSize:14,flexShrink:0}}>⚠️</span>
+                <div style={{fontSize:12,color:C.orange,fontWeight:700,lineHeight:1.5}}>반드시 본인 이름으로 입금해주세요</div>
+              </div>
+              <Btn variant="green" onClick={()=>setDialog('confirm')} style={{fontSize:18,padding:'18px'}}>완료하기</Btn>
+            </div>
+          )}
+        </Card>
+
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+          <div style={{fontWeight:800,color:C.text,fontSize:14}}>전체 입금 현황</div>
+          <div style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:C.green,fontWeight:600}}>
+            <div style={{width:6,height:6,borderRadius:'50%',background:C.green}}/>실시간
+          </div>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+          {event.members.filter(k=>event.attendance[k]!==false).map(k=>{
+            const paid=event.payments?.[k]?.paid;
+            const isMe=k===selectedKey;
+            return(
+              <div key={k} style={{background:paid?C.greenBg:C.cardBg,borderRadius:14,padding:'14px 6px',textAlign:'center',border:`2px solid ${isMe?C.accent+'80':paid?C.green+'40':C.red+'30'}`,animation:paid?'none':'borderPulse 1.8s ease infinite',transition:'background 0.3s'}}>
+                <div style={{fontSize:isMe&&!paid?28:22,fontWeight:900,color:paid?C.green:C.red,lineHeight:1,animation:paid?'none':'pulse 1.2s ease infinite'}}>{paid?'O':'X'}</div>
+                <div style={{fontSize:11,color:isMe?C.accent:C.text,fontWeight:isMe?900:600,marginTop:6,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',padding:'0 4px'}}>{mm[k]||k}</div>
+                <div style={{fontSize:10,color:C.textDim,marginTop:3}}>{fmtKRW(amounts[k]||0)}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+            {dialog==='confirm'&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)',padding:'0 24px'}} onClick={()=>setDialog(false)}>
+          <div className="fade-up" style={{background:C.cardBg,borderRadius:20,padding:'28px 24px',width:'100%',maxWidth:360,boxShadow:'0 8px 32px rgba(0,0,0,0.2)'}} onClick={e=>e.stopPropagation()}>
+            <div style={{textAlign:'center',marginBottom:20}}>
+              <div style={{fontSize:32,marginBottom:10}}>💳</div>
+              <div style={{fontWeight:900,color:C.text,fontSize:18,marginBottom:6}}>입금 완료 하셨습니까?</div>
+              <div style={{fontSize:13,color:C.textMid}}>확인 후 O로 처리됩니다</div>
+            </div>
+            <div style={{display:'flex',gap:10}}>
+              <Btn variant="ghost" onClick={()=>setDialog(false)} style={{flex:1}}>아니요</Btn>
+              <Btn variant="green" onClick={markPaid} style={{flex:2}}>네, 완료!</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── HistoryScreen ──────────────────────────────────────────
+function HistoryScreen({nav,events,forms,deleteEvent,deleteForm}){
+  const [sel,setSel]=useState(null);
+  const [tab,setTab]=useState('events'); // events, forms
+  // 완료된 정산만
+  const doneEvents=events.filter(ev=>isEventDone(ev));
+  const closedForms=(forms||[]).filter(f=>f.status==='closed');
+
+  const del=async code=>{
+    if(!window.confirm('이 정산 기록을 삭제할까요?')) return;
+    await deleteEvent(code);
+    if(sel===code) setSel(null);
+  };
+
+  const delForm=async code=>{
+    if(!window.confirm('이 신청폼을 삭제할까요?')) return;
+    await deleteForm(code);
+  };
+
+  if(sel){
+    const ev=events.find(e=>e.code===sel);
+    if(!ev){setSel(null);return null;}
+    const mm=ev.memberMap||{};
+    const amounts=calcAmounts(ev);
+    const presentMembers=ev.members.filter(k=>ev.attendance[k]!==false);
+    const pc=presentMembers.filter(k=>ev.payments?.[k]?.paid).length;
+    const totalAmt=ev.rounds.reduce((s,r)=>s+r.amount,0);
+    return(
+      <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+        <Header title={ev.name} onBack={()=>setSel(null)}/>
+        <div style={{padding:'16px 16px 24px'}}>
+          <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:16}}>
+            {[[ev.date,C.textMid],[`${pc}/${presentMembers.length} 완료`,C.green],[fmtKRW(totalAmt),C.text]].map(([t,c])=>(
+              <Badge key={t} color={c}>{t}</Badge>
+            ))}
+          </div>
+          {ev.rounds.map(r=>(
+            <Card key={r.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 16px'}}>
+              <div>
+                <div style={{fontWeight:800,color:C.text}}>{r.label}</div>
+                <div style={{fontSize:11,color:C.textMid,marginTop:2}}>{r.members.length}명 · 1인 {fmtKRW(Math.ceil(r.amount/r.members.length))}</div>
+              </div>
+              <div style={{color:C.accent,fontWeight:900}}>{fmtKRW(r.amount)}</div>
+            </Card>
+          ))}
+          <div style={{fontWeight:800,color:C.text,marginTop:12,marginBottom:10,fontSize:14}}>입금 현황</div>
+          {presentMembers.map(k=>{
+            const paid=ev.payments?.[k]?.paid;
+            return(
+              <div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 0',borderBottom:`1px solid ${C.border}`}}>
+                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  <div style={{width:28,height:28,borderRadius:'50%',background:paid?C.green:C.redBg,border:paid?'none':`2px solid ${C.red}40`,display:'flex',alignItems:'center',justifyContent:'center',color:paid?'#fff':C.red,fontWeight:900,fontSize:13}}>{paid?'O':'X'}</div>
+                  <span style={{color:C.text,fontSize:14}}>{mm[k]||k}</span>
+                </div>
+                <span style={{color:C.accent,fontSize:13,fontWeight:800}}>{fmtKRW(amounts[k]||0)}</span>
+              </div>
+            );
+          })}
+          <div style={{marginTop:24}}><Btn variant="danger" onClick={()=>del(ev.code)} small>이 정산 삭제</Btn></div>
+        </div>
+      </div>
+    );
+  }
+
+  return(
+    <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+      <Header title="정산 내역" onBack={()=>nav.setView('home')}/>
+      
+      {/* 탭 */}
+      <div style={{display:'flex',padding:'12px 18px 0',gap:8}}>
+        {[['events','술자리·뒷풀이'],['forms','행사·야식마차']].map(([key,label])=>(
+          <button key={key} onClick={()=>setTab(key)} style={{
+            flex:1,padding:'10px',borderRadius:10,fontSize:14,fontWeight:700,cursor:'pointer',
+            background:tab===key?C.accent:'#fff',color:tab===key?'#fff':C.textMid,
+            border:`1px solid ${tab===key?C.accent:C.border}`,
+          }}>{label}</button>
+        ))}
+      </div>
+
+      <div style={{padding:'16px 16px 24px'}}>
+        {tab==='events'&&(
+          doneEvents.length===0?(
+            <div style={{textAlign:'center',padding:'64px 0'}}>
+              <div style={{fontSize:40,marginBottom:14}}>📭</div>
+              <div style={{color:C.textDim,fontSize:14}}>완료된 정산이 없어요</div>
+            </div>
+          ):doneEvents.map(ev=>{
+            const presentMembers=ev.members.filter(k=>ev.attendance[k]!==false);
+            const totalAmt=ev.rounds.reduce((s,r)=>s+r.amount,0);
+            return(
+              <div key={ev.code} onClick={()=>setSel(ev.code)} className="press" style={{background:C.cardBg,borderRadius:16,padding:'16px 18px',marginBottom:10,boxShadow:C.shadow,cursor:'pointer',border:`1.5px solid ${C.green}30`}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                  <div>
+                    <div style={{fontWeight:800,color:C.text,fontSize:15}}>{ev.name}</div>
+                    <div style={{color:C.textDim,fontSize:12,marginTop:3}}>{ev.date} · {presentMembers.length}명 · {ev.rounds.length}차</div>
+                  </div>
+                  <Badge color={C.green}>완료</Badge>
+                </div>
+                {totalAmt>0&&<div style={{marginTop:8,fontSize:12,color:C.textMid}}>총 <span style={{color:C.text,fontWeight:800}}>{fmtKRW(totalAmt)}</span></div>}
+              </div>
+            );
+          })
+        )}
+
+        {tab==='forms'&&(
+          closedForms.length===0?(
+            <div style={{textAlign:'center',padding:'64px 0'}}>
+              <div style={{fontSize:40,marginBottom:14}}>📭</div>
+              <div style={{color:C.textDim,fontSize:14}}>마감된 신청폼이 없어요</div>
+            </div>
+          ):closedForms.map(f=>{
+            const paidCount=(f.submissions||[]).filter(s=>s.paid).length;
+            return(
+              <div key={f.code} className="press" style={{background:C.cardBg,borderRadius:16,padding:'16px 18px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${C.orange}30`}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                  <div>
+                    <div style={{fontWeight:800,color:C.text,fontSize:15}}>{f.name}</div>
+                    <div style={{color:C.textDim,fontSize:12,marginTop:3}}>{f.date} · {f.submissions?.length||0}명 신청 · {paidCount}명 입금</div>
+                  </div>
+                  <Badge color={C.orange}>마감</Badge>
+                </div>
+                <div style={{marginTop:8,fontSize:12,color:C.textMid}}>총 <span style={{color:C.text,fontWeight:800}}>{fmtKRW((f.submissions?.length||0)*f.amount)}</span></div>
+                <button onClick={()=>delForm(f.code)} style={{marginTop:10,padding:'6px 12px',borderRadius:8,background:C.redBg,color:C.red,border:'none',fontSize:12,fontWeight:600,cursor:'pointer'}}>삭제</button>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// ── OnboardingModal (가입 후 1회) ─────────────────────────
+function OnboardingModal({onClose}){
+  const [step,setStep]=useState(0);
+  const steps=[
+    {icon:'⚙',title:'먼저 설정부터',desc:'홈에서 명단·계좌 설정을 눌러\n학년·기수별로 명단을 등록해두세요.\n기존 엑셀 데이터를 그대로 복붙하면 돼요.'},
+    {icon:'➕',title:'정산·신청 만들기',desc:'새 정산·신청을 누르고\n행사명과 날짜를 입력해요.\n명단에서 참여자를 선택하면 끝.'},
+    {icon:'📤',title:'링크 공유하기',desc:'출석 확인 → 금액 입력 → 공유 탭에서\n카톡 메시지를 복사해 단톡방에 올려요.\n안 낸 사람은 콕 찌르기로 해결.'},
+    {icon:'📊',title:'실시간 O/X',desc:'참여자가 링크 들어와서 완료 누르면\nO/X 보드가 모두한테 실시간으로 바뀌어요.\n총무는 보기만 하면 끝!'},
+  ];
+  const cur=steps[step];
+  const isLast=step===steps.length-1;
+  const finish=async()=>{
+    try{
+      const {data:{user}}=await api.getUser();
+      if(user){
+        await api.updateProfile(user.id,{onboarding_done:true,updated_at:new Date().toISOString()});
+        localStorage.setItem('onboarding_done_'+user.id,'true');
+      }
+    }catch(e){console.error(e);}
+    onClose();
+  };
+
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,backdropFilter:'blur(4px)',padding:'0 24px'}}>
+      <div className="fade-up" style={{background:C.cardBg,borderRadius:24,padding:'32px 24px',width:'100%',maxWidth:380,boxShadow:'0 8px 32px rgba(0,0,0,0.2)'}}>
+        {/* 프로그레스 dots */}
+        <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:24}}>
+          {steps.map((_,i)=>(
+            <div key={i} style={{width:i===step?20:6,height:6,borderRadius:3,background:i===step?C.accent:C.border,transition:'all 0.3s'}}/>
+          ))}
+        </div>
+        <div style={{textAlign:'center',marginBottom:24}}>
+          <div style={{fontSize:48,marginBottom:16}}>{cur.icon}</div>
+          <div style={{fontWeight:900,color:C.text,fontSize:20,marginBottom:10,letterSpacing:-0.5}}>{cur.title}</div>
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.9,whiteSpace:'pre-wrap'}}>{cur.desc}</div>
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          {step>0&&<Btn variant="ghost" onClick={()=>setStep(s=>s-1)} style={{flex:1}}>이전</Btn>}
+          <Btn onClick={isLast?finish:()=>setStep(s=>s+1)} style={{flex:2}}>
+            {isLast?'시작할게요 🚀':'다음 →'}
+          </Btn>
+        </div>
+        <button onClick={async()=>{
+          const {data:{user}}=await api.getUser();
+          if(user) await api.updateProfile(user.id,{onboarding_done:true,updated_at:new Date().toISOString()});
+          onClose();
+        }} style={{width:'100%',marginTop:12,color:C.textDim,background:'none',border:'none',fontSize:13,cursor:'pointer'}}>다시 보지 않기</button>
+      </div>
+    </div>
+  );
+}
+
+// ── FormCreateScreen (대규모 신청폼 생성) ──────────────────
+function FormCreateScreen({nav,profile,createForm}){
+  const [name,setName]=useState('');
+  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
+  const [amount,setAmount]=useState('');
+  const [useLimit,setUseLimit]=useState(false);
+  const [maxPeople,setMaxPeople]=useState('');
+  const [bank,setBank]=useState(profile.account?.bank||'');
+  const [number,setNumber]=useState(profile.account?.number||'');
+  const [holder,setHolder]=useState(profile.account?.holder||'');
+  const [fields,setFields]=useState([
+    {id:'name',type:'text',label:'이름',required:true},
+    {id:'phone',type:'text',label:'연락처',required:true},
+    {id:'grade',type:'select',label:'학년',required:false,options:['1학년','2학년','3학년','4학년']},
+    {id:'studentId',type:'text',label:'학번',required:false},
+  ]);
+  const [err,setErr]=useState('');
+  const [loading,setLoading]=useState(false);
+  const [customLabel,setCustomLabel]=useState('');
+  const [customType,setCustomType]=useState('text');
+  const [showCustom,setShowCustom]=useState(false);
+
+  const hasAccount=profile.account?.bank&&profile.account?.number;
+
+  // 빠른 추가용 프리셋
+  const presets=[
+    {label:'소속',type:'text'},
+    {label:'학과',type:'text'},
+    {label:'비상연락처',type:'text'},
+    {label:'식사 선택',type:'select',options:['고기','해산물','채식']},
+    {label:'교통편',type:'select',options:['자차','버스','카풀']},
+    {label:'참여 일정',type:'select',options:['1박2일','당일']},
+    {label:'요청사항',type:'textarea'},
+  ];
+  const usedLabels=fields.map(f=>f.label);
+  const availPresets=presets.filter(p=>!usedLabels.includes(p.label));
+
+  const addPreset=p=>{
+    setFields(fs=>[...fs,{id:'f'+Date.now(),type:p.type,label:p.label,required:false,options:p.options||[]}]);
+  };
+  const addCustom=()=>{
+    if(!customLabel.trim()) return;
+    const opts=customType==='select'?['옵션 1','옵션 2']:[];
+    setFields(fs=>[...fs,{id:'f'+Date.now(),type:customType,label:customLabel.trim(),required:false,options:opts}]);
+    setCustomLabel('');setCustomType('text');setShowCustom(false);
+  };
+  const removeField=id=>setFields(fs=>fs.filter(f=>f.id!==id));
+  const updateField=(id,key,val)=>setFields(fs=>fs.map(f=>f.id===id?{...f,[key]:val}:f));
+  const addOption=(id)=>setFields(fs=>fs.map(f=>f.id===id?{...f,options:[...(f.options||[]),'']}:f));
+  const removeOption=(id,idx)=>setFields(fs=>fs.map(f=>f.id===id?{...f,options:(f.options||[]).filter((_,i)=>i!==idx)}:f));
+  const updateOption=(id,idx,val)=>setFields(fs=>fs.map(f=>f.id===id?{...f,options:(f.options||[]).map((o,i)=>i===idx?val:o)}:f));
+
+  const create=async()=>{
+    setErr('');
+    if(!name.trim()){setErr('행사명을 입력해주세요');return;}
+    if(!amount||isNaN(Number(amount))){setErr('참가비를 입력해주세요');return;}
+    const b=bank.trim()||profile.account?.bank||'';
+    const n=number.trim()||profile.account?.number||'';
+    const h=holder.trim()||profile.account?.holder||'';
+    if(!b||!n||!h){setErr('계좌 정보를 입력해주세요');return;}
+
+    setLoading(true);
+    const code=genCode();
+    // 빈 옵션 제거
+    const cleanFields=fields.map(f=>({...f,options:(f.options||[]).map(o=>o.trim()).filter(Boolean)}));
+    const form={
+      code,name:name.trim(),date,amount:Number(amount),
+      maxPeople:useLimit&&maxPeople?Number(maxPeople):null,
+      account:{bank:b,number:n,holder:h},fields:cleanFields,
+      submissions:[],status:'open',createdAt:new Date().toISOString()
+    };
+    const ok=await createForm(form);
+    setLoading(false);
+    if(ok){nav.setCurrentFormCode(code);nav.setView('formAdmin');}
+  };
+
+  return(
+    <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh',display:'flex',flexDirection:'column'}}>
+      <Header title="신청폼 만들기" onBack={()=>nav.setView('home')}/>
+      <div style={{flex:1,padding:'8px 16px 16px',overflow:'auto'}}>
+        {/* 기본 정보 */}
+        <Card>
+          <Field label="행사명" value={name} onChange={setName} placeholder="5월 MT, 개강총회…"/>
+          <Field label="날짜" value={date} onChange={setDate} type="date"/>
+          <Field label="참가비 (원)" value={amount} onChange={v=>setAmount(v.replace(/[^0-9]/g,''))} placeholder="30,000" inputMode="numeric"/>
+          <div style={{marginBottom:14}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:useLimit?10:0}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:700,color:C.text}}>선착순 마감</div>
+                <div style={{fontSize:12,color:C.textDim,marginTop:2}}>정원이 차면 자동 마감돼요</div>
+              </div>
+              <button onClick={()=>{setUseLimit(v=>!v);if(useLimit)setMaxPeople('');}} style={{
+                width:52,height:30,borderRadius:15,border:'none',cursor:'pointer',
+                background:useLimit?C.accent:'#D1D5DB',position:'relative',transition:'background 0.2s',
+              }}>
+                <div style={{width:24,height:24,borderRadius:12,background:'#fff',position:'absolute',top:3,
+                  left:useLimit?25:3,transition:'left 0.2s',boxShadow:'0 1px 3px rgba(0,0,0,0.2)'}}/>
+              </button>
+            </div>
+            {useLimit&&(
+              <input value={maxPeople} onChange={e=>setMaxPeople(e.target.value.replace(/[^0-9]/g,''))}
+                placeholder="최대 인원 입력" inputMode="numeric"
+                style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:15,outline:'none'}}
+              />
+            )}
+          </div>
+        </Card>
+
+        {/* 계좌 - 프로필에 있으면 자동 적용 */}
+        <Card>
+          <div style={{fontWeight:800,color:C.text,marginBottom:12,fontSize:15}}>💳 입금 계좌</div>
+          {hasAccount?(
+            <div style={{background:C.inputBg,borderRadius:14,padding:'14px 16px'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize:15,fontWeight:700,color:C.text}}>{profile.account.bank} {profile.account.number}</div>
+                  <div style={{fontSize:13,color:C.textMid,marginTop:2}}>예금주: {profile.account.holder}</div>
+                </div>
+                <Badge color={C.green}>자동 적용</Badge>
+              </div>
+            </div>
+          ):(
+            <>
+              <Field label="은행" value={bank} onChange={setBank} placeholder="카카오뱅크"/>
+              <Field label="계좌번호" value={number} onChange={setNumber} placeholder="계좌번호" inputMode="numeric"/>
+              <Field label="예금주" value={holder} onChange={setHolder} placeholder="홍길동"/>
+            </>
+          )}
+        </Card>
+
+        {/* 신청폼 항목 */}
+        <Card>
+          <div style={{fontWeight:800,color:C.text,marginBottom:14,fontSize:15}}>📋 신청 항목</div>
+
+          {/* 현재 항목 리스트 */}
+          {fields.map(f=>(
+            <div key={f.id} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',background:C.inputBg,borderRadius:12,marginBottom:6}}>
+              <div style={{flex:1}}>
+                <span style={{fontWeight:700,color:C.text,fontSize:14}}>{f.label}</span>
+                {f.required&&<span style={{fontSize:11,color:C.red,marginLeft:4}}>*</span>}
+                {f.type==='select'&&<span style={{fontSize:11,color:C.accent,marginLeft:6}}>선택형</span>}
+                {f.type==='textarea'&&<span style={{fontSize:11,color:C.accent,marginLeft:6}}>서술형</span>}
+              </div>
+              <button onClick={()=>updateField(f.id,'required',!f.required)} style={{background:f.required?C.redBg:'none',border:`1px solid ${f.required?C.red+'30':C.border}`,borderRadius:8,padding:'3px 8px',fontSize:10,fontWeight:700,color:f.required?C.red:C.textDim,cursor:'pointer'}}>
+                {f.required?'필수':'선택'}
+              </button>
+              <button onClick={()=>removeField(f.id)} style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'flex'}}>
+                <span className="ms ms-sm" style={{color:C.textDim}}>close</span>
+              </button>
+            </div>
+          ))}
+
+          {/* 선택형 항목의 옵션 편집 */}
+          {fields.filter(f=>['select','multiselect'].includes(f.type)).map(f=>(
+            <div key={f.id+'opt'} style={{padding:'14px 16px',background:'#fff',borderRadius:14,marginBottom:8,border:`1.5px solid ${C.accentBg}`}}>
+              <div style={{fontSize:13,color:C.text,marginBottom:10,fontWeight:700}}>{f.label} 옵션</div>
+              {(f.options||[]).map((opt,idx)=>(
+                <div key={idx} style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                  <div style={{width:20,height:20,borderRadius:f.type==='select'?'50%':4,border:`2px solid ${C.textDim}`,flexShrink:0}}/>
+                  <input
+                    value={opt}
+                    onChange={e=>updateOption(f.id,idx,e.target.value)}
+                    placeholder={`옵션 ${idx+1}`}
+                    style={{flex:1,padding:'10px 12px',background:C.inputBg,border:'none',borderRadius:10,fontSize:14,color:C.text,outline:'none',borderBottom:`1.5px solid transparent`}}
+                    onFocus={e=>e.target.style.borderBottom=`1.5px solid ${C.accent}`}
+                    onBlur={e=>e.target.style.borderBottom='1.5px solid transparent'}
+                  />
+                  {(f.options||[]).length>1&&(
+                    <button onClick={()=>removeOption(f.id,idx)} style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'flex',flexShrink:0}}>
+                      <span className="ms ms-sm" style={{color:C.textDim}}>close</span>
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button onClick={()=>addOption(f.id)} style={{
+                display:'flex',alignItems:'center',gap:8,padding:'10px 12px',
+                background:'none',border:'none',cursor:'pointer',color:C.accent,fontSize:14,fontWeight:600,
+                width:'100%',borderRadius:10,
+              }}>
+                <div style={{width:20,height:20,borderRadius:f.type==='select'?'50%':4,border:`2px dashed ${C.accent}60`,flexShrink:0}}/>
+                옵션 추가
+              </button>
+            </div>
+          ))}
+
+          {/* 빠른 추가 칩 */}
+          {availPresets.length>0&&(
+            <div style={{marginTop:12}}>
+              <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:8}}>탭해서 항목 추가</div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                {availPresets.map(p=>(
+                  <button key={p.label} onClick={()=>addPreset(p)} className="press" style={{
+                    padding:'8px 14px',borderRadius:20,border:`1.5px dashed ${C.accent}40`,
+                    background:'#fff',color:C.accent,fontSize:13,fontWeight:600,cursor:'pointer',
+                    display:'flex',alignItems:'center',gap:4,
+                  }}>
+                    <span style={{fontSize:16,lineHeight:1}}>+</span> {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 직접 입력 */}
+          <div style={{marginTop:12}}>
+            {showCustom?(
+              <div style={{background:C.accentBg,borderRadius:14,padding:'14px 16px',border:`1.5px solid ${C.accent}30`}}>
+                <input value={customLabel} onChange={e=>setCustomLabel(e.target.value)} placeholder="항목 이름 입력" autoFocus
+                  onKeyDown={e=>e.key==='Enter'&&addCustom()}
+                  style={{width:'100%',padding:'10px 14px',border:`1.5px solid ${C.accent}`,borderRadius:12,fontSize:14,outline:'none',background:'#fff',color:C.text,marginBottom:10}}/>
+                <div style={{display:'flex',gap:6,marginBottom:12}}>
+                  {[['text','텍스트'],['select','선택형'],['textarea','서술형']].map(([val,label])=>(
+                    <button key={val} onClick={()=>setCustomType(val)} style={{
+                      padding:'7px 14px',borderRadius:10,fontSize:13,fontWeight:600,cursor:'pointer',
+                      background:customType===val?C.accent:'#fff',
+                      color:customType===val?'#fff':C.textMid,
+                      border:`1.5px solid ${customType===val?C.accent:'#E5E8EB'}`,
+                    }}>{label}</button>
+                  ))}
+                </div>
+                <div style={{display:'flex',gap:8}}>
+                  <button onClick={()=>{setShowCustom(false);setCustomLabel('');setCustomType('text');}} style={{flex:1,padding:'10px',borderRadius:12,background:'#fff',color:C.textDim,border:'none',fontSize:14,fontWeight:600,cursor:'pointer'}}>취소</button>
+                  <button onClick={addCustom} disabled={!customLabel.trim()} style={{flex:2,padding:'10px',borderRadius:12,background:C.accent,color:'#fff',border:'none',fontSize:14,fontWeight:700,cursor:'pointer',opacity:customLabel.trim()?1:0.4}}>추가</button>
+                </div>
+              </div>
+            ):(
+              <button onClick={()=>setShowCustom(true)} style={{
+                width:'100%',padding:'12px',borderRadius:12,border:`1.5px dashed ${C.textDim}40`,
+                background:'transparent',color:C.textMid,fontSize:14,fontWeight:600,cursor:'pointer',
+              }}>
+                + 직접 항목 추가
+              </button>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* 하단 고정 CTA */}
+      <div style={{padding:'12px 16px 24px',background:C.cardBg}}>
+        {err&&<div style={{color:C.red,fontSize:13,textAlign:'center',marginBottom:10,fontWeight:600}}>⚠ {err}</div>}
+        <Btn onClick={create} loading={loading}>신청폼 만들기</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// 5. HOOKS — 로직만, UI 없음
+// ═══════════════════════════════════════════════════════════
+
+function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
+  const [matchResults,setMatchResults]=useState(null);
+  const [uploading,setUploading]=useState(false);
+  const [searchQ,setSearchQ]=useState('');
+  const [groupFilter,setGroupFilter]=useState('all');
+  const subs=form.submissions||[];
+  const groups=profile?.groups||[];
+
+  const findGroup=(name)=>{
+    for(const g of groups){
+      if((g.members||[]).some(m=>m.name===name)) return g.name;
+    }
+    return null;
+  };
+
+  const filteredSubs=subs.map((s,i)=>({...s,_idx:i,_group:findGroup(s.name)})).filter(s=>{
+    if(searchQ&&!s.name.includes(searchQ)&&!(s.phone||'').includes(searchQ)) return false;
+    if(groupFilter!=='all'){
+      if(groupFilter==='unregistered') return !s._group;
+      return s._group===groupFilter;
+    }
+    return true;
+  });
+
+  const groupCounts={};
+  let unregisteredCount=0;
+  subs.forEach(s=>{
+    const g=findGroup(s.name);
+    if(g){groupCounts[g]=(groupCounts[g]||0)+1;}
+    else unregisteredCount++;
+  });
+
+  const saveSubsToRoster=async()=>{
+    if(!subs.length) return;
+    const newGroups=[...groups];
+    let added=0;
+    subs.forEach(s=>{
+      const name=(s.name||'').trim();
+      if(!name) return;
+      const already=groups.some(g=>(g.members||[]).some(m=>m.name===name));
+      if(!already){
+        const gName=`${form.name}`;
+        let target=newGroups.find(g=>g.name===gName);
+        if(!target){target={id:'g'+Date.now(),name:gName,rawText:'',members:[]};newGroups.push(target);}
+        if(!target.members.find(m=>m.name===name)){target.members.push({name,sid:''});added++;}
+      }
+    });
+    if(added===0){showToast('모두 이미 명단에 있어요');return;}
+    await saveProfile({...profile,groups:newGroups});
+    showToast(`${added}명이 "${form.name}" 그룹에 추가됨`);
+  };
+
+  const togglePaid=async(idx)=>{
+    const newSubs=[...subs];
+    const s=newSubs[idx];
+    const wasPaid=s.paid||s.paymentStatus==='matched';
+    newSubs[idx]={...s,paid:!wasPaid,paymentStatus:wasPaid?'pending':'matched',matchedBy:'manual',matchedAt:new Date().toISOString()};
+    await updateForm({...form,submissions:newSubs});
+  };
+
+  const handleExcel=async(e)=>{
+    const file=e.target.files?.[0];
+    if(!file) return;
+    setUploading(true);
+    try{
+      const data=await file.arrayBuffer();
+      const parsed=matchEngine.parseExcel(data);
+      if(parsed.error){showToast(parsed.error,C.red);setUploading(false);return;}
+      if(parsed.deposits.length===0){showToast('입금 내역이 없어요',C.red);setUploading(false);return;}
+      const results=matchEngine.match(parsed.deposits,subs,form.amount);
+      setMatchResults(results);
+      showToast(`${results.totalDeposits}건 분석 완료`);
+    }catch(err){
+      console.error(err);
+      showToast('파일을 읽을 수 없어요',C.red);
+    }
+    setUploading(false);
+    e.target.value='';
+  };
+
+  const applyMatched=async()=>{
+    if(!matchResults) return;
+    const newSubs=[...subs];
+    matchResults.matched.forEach(m=>{
+      const idx=newSubs.findIndex(s=>s.createdAt===m.sub.createdAt);
+      if(idx>=0) newSubs[idx]={...newSubs[idx],paid:true,paymentStatus:'matched',matchedAmount:m.deposit.amount,matchedAt:new Date().toISOString(),matchedBy:'auto'};
+    });
+    await updateForm({...form,submissions:newSubs,refundList:matchResults.refund.map(d=>({name:d.name,amount:d.amount}))});
+    showToast(`${matchResults.matched.length}명 입금 확인 처리됨`);
+  };
+
+  const unpaidNames=matchResults?matchResults.unpaid:subs.filter(s=>!s.paid&&s.paymentStatus!=='matched');
+  const nudgeMsg=unpaidNames.length>0?[
+    `[${form.name}] 입금 안내`,'',
+    ...unpaidNames.map(s=>`• ${s.name}  ${fmtKRW(form.amount)}`),
+    '',`💳 ${form.account.bank} ${form.account.number}`,`예금주: ${form.account.holder}`,
+  ].join('\n'):'';
+
+  const copyNudge=()=>{if(!nudgeMsg) return; copyText(nudgeMsg); showToast('콕 찌르기 메시지 복사됨');};
+
+  return {
+    subs, filteredSubs, groupCounts, unregisteredCount, matchResults, uploading,
+    searchQ, setSearchQ, groupFilter, setGroupFilter,
+    handlers:{saveSubsToRoster, togglePaid, handleExcel, applyMatched, copyNudge,
+      setMatchResults,
+      closeForm:async()=>{if(!window.confirm('신청을 마감할까요?')) return; await updateForm({...form,status:'closed'}); showToast('신청이 마감됐어요');},
+      reopenForm:async()=>{await updateForm({...form,status:'open'}); showToast('신청이 다시 열렸어요');},
+      copyLink:()=>{copyText(getLink(`form=${form.code}`)); showToast('링크가 복사됐어요!');},
+    },
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// 6. TAB / SUB COMPONENTS — UI만, 비즈니스 로직 없음
+// ═══════════════════════════════════════════════════════════
+
+function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCount, groups,
+                         searchQ, setSearchQ, groupFilter, setGroupFilter,
+                         onTogglePaid, onSaveRoster}){
+  if(subs.length===0) return(
+    <div style={{textAlign:'center',padding:'40px 0'}}>
+      <div style={{fontSize:40,marginBottom:12}}>📭</div>
+      <div style={{color:C.textMid,fontSize:14}}>아직 신청이 없어요</div>
+      <div style={{color:C.textDim,fontSize:13,marginTop:4}}>링크를 공유해보세요</div>
+    </div>
+  );
+  return(
+    <div>
+      <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름 또는 연락처 검색"
+        style={{width:'100%',padding:'10px 14px',background:'#fff',border:'none',borderRadius:12,fontSize:14,outline:'none',marginBottom:8,color:C.text}}
+        onFocus={e=>e.target.style.boxShadow=`0 0 0 2px ${C.accent}40`}
+        onBlur={e=>e.target.style.boxShadow='none'}
+      />
+      {groups.length>0&&(
+        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:10}}>
+          <button onClick={()=>setGroupFilter('all')} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter==='all'?C.accent:'#fff',color:groupFilter==='all'?'#fff':C.textMid,border:'none'}}>
+            전체 {subs.length}
+          </button>
+          {groups.map(g=>groupCounts[g.name]?(
+            <button key={g.name} onClick={()=>setGroupFilter(f=>f===g.name?'all':g.name)} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter===g.name?C.accent:'#fff',color:groupFilter===g.name?'#fff':C.textMid,border:'none'}}>
+              {g.name} {groupCounts[g.name]}
+            </button>
+          ):null)}
+          {unregisteredCount>0&&(
+            <button onClick={()=>setGroupFilter(f=>f==='unregistered'?'all':'unregistered')} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter==='unregistered'?C.red:'#fff',color:groupFilter==='unregistered'?'#fff':C.textDim,border:'none'}}>
+              미등록 {unregisteredCount}
+            </button>
+          )}
+        </div>
+      )}
+      {filteredSubs.map(s=>{
+        const isPaid=s.paid||s.paymentStatus==='matched';
+        const isRequested=s.paymentStatus==='requested';
+        return(
+          <div key={s._idx} style={{background:'#fff',borderRadius:16,padding:'14px 16px',marginBottom:8}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+              <div style={{display:'flex',alignItems:'center',gap:6,flex:1,minWidth:0}}>
+                {s._group&&<span style={{padding:'2px 8px',borderRadius:8,fontSize:10,fontWeight:700,background:C.accentBg,color:C.accent,flexShrink:0}}>{s._group}</span>}
+                {!s._group&&groups.length>0&&<span style={{padding:'2px 8px',borderRadius:8,fontSize:10,fontWeight:700,background:C.redBg,color:C.red,flexShrink:0}}>미등록</span>}
+                <span style={{fontWeight:800,color:C.text,fontSize:15,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</span>
+                <span style={{color:C.textDim,fontSize:12,flexShrink:0}}>{s.phone}</span>
+              </div>
+              <button onClick={()=>onTogglePaid(s._idx)} className="press" style={{
+                padding:'6px 12px',borderRadius:20,fontSize:11,fontWeight:700,cursor:'pointer',flexShrink:0,marginLeft:6,
+                background:isPaid?C.green:isRequested?C.accentBg:C.orangeBg,
+                color:isPaid?'#fff':isRequested?C.accent:C.orange,border:'none',
+              }}>
+                {isPaid?'✓ 확정':isRequested?'요청됨':'대기'}
+              </button>
+            </div>
+            {Object.entries(s.data||{}).filter(([k])=>!['name','phone'].includes(k)).map(([k,v])=>(
+              <div key={k} style={{fontSize:12,color:C.textMid,marginTop:3}}>
+                <span style={{color:C.textDim}}>{k}:</span> {Array.isArray(v)?v.join(', '):v}
+              </div>
+            ))}
+            <div style={{fontSize:11,color:C.textDim,marginTop:4,display:'flex',gap:8}}>
+              {fmtTime(s.createdAt)}
+              {s.matchedBy==='auto'&&<span style={{color:C.green}}>자동매칭</span>}
+              {s.matchedBy==='manual'&&<span style={{color:C.accent}}>수동확인</span>}
+            </div>
+          </div>
+        );
+      })}
+      {subs.length>0&&onSaveRoster&&(
+        <button onClick={onSaveRoster} style={{
+          width:'100%',marginTop:12,padding:'14px',borderRadius:14,
+          background:'#fff',border:`1.5px dashed ${C.accent}50`,
+          color:C.accent,fontWeight:700,fontSize:13,cursor:'pointer',
+          display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+        }}>
+          📋 신청 명단 → 내 명단에 저장
+        </button>
+      )}
+    </div>
+  );
+}
+
+function VerifyTab({form, subs, matchResults, uploading, bankGuideOpen, setBankGuideOpen, uploadMode, setUploadMode, fileRef, onUpload, onApply, onReset, onCopyNudge}){
+  if(matchResults) return(
+    <div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:16}}>
+        {[[matchResults.matched.length,'매칭',C.green,C.greenBg],[matchResults.amountMismatch.length,'금액 확인',C.orange,C.orangeBg],[matchResults.unpaid.length,'미입금',C.red,C.redBg],[matchResults.refund.length,'환불 대상','#8B5CF6','#F3F0FF']].map(([n,l,c,bg])=>(
+          <div key={l} style={{background:bg,borderRadius:12,padding:'10px 4px',textAlign:'center'}}>
+            <div style={{fontSize:18,fontWeight:900,color:c}}>{n}</div>
+            <div style={{fontSize:10,color:c,fontWeight:600}}>{l}</div>
+          </div>
+        ))}
+      </div>
+      {matchResults.matched.length>0&&<Btn variant="green" onClick={onApply} style={{marginBottom:16}}>✓ 매칭 {matchResults.matched.length}명 입금 확인 처리</Btn>}
+      {matchResults.matched.length>0&&(
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:800,color:C.green,marginBottom:8}}>✅ 매칭 완료 ({matchResults.matched.length}명)</div>
+          {matchResults.matched.map((m,i)=>(
+            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+              <div><span style={{fontWeight:700,color:C.text,fontSize:14}}>{m.sub.name}</span>{m.type==='partial'&&<span style={{fontSize:11,color:C.textDim,marginLeft:6}}>≈ {m.deposit.name}</span>}</div>
+              <span style={{color:C.green,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {matchResults.amountMismatch.length>0&&(
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:800,color:C.orange,marginBottom:8}}>⚠ 금액 불일치 ({matchResults.amountMismatch.length}명)</div>
+          {matchResults.amountMismatch.map((m,i)=>(
+            <div key={i} style={{padding:'12px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <span style={{fontWeight:700,color:C.text,fontSize:14}}>{m.sub.name}</span>
+                <span style={{color:C.orange,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
+              </div>
+              <div style={{fontSize:12,color:C.orange,marginTop:4}}>
+                {m.diff>0?`${fmtKRW(m.diff)} 초과 입금`:`${fmtKRW(Math.abs(m.diff))} 부족`}
+                <span style={{color:C.textDim,marginLeft:8}}>예상: {fmtKRW(form.amount)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {matchResults.unpaid.length>0&&(
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:800,color:C.red,marginBottom:8}}>❌ 미입금 ({matchResults.unpaid.length}명)</div>
+          {matchResults.unpaid.map((s,i)=>(
+            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+              <div><span style={{fontWeight:700,color:C.text,fontSize:14}}>{s.name}</span><span style={{color:C.textDim,fontSize:12,marginLeft:8}}>{s.phone}</span></div>
+              <span style={{color:C.red,fontWeight:700,fontSize:13}}>{fmtKRW(form.amount)}</span>
+            </div>
+          ))}
+          <Btn variant="secondary" onClick={onCopyNudge} style={{marginTop:8}} small>콕 찌르기 메시지 복사</Btn>
+        </div>
+      )}
+      {matchResults.refund.length>0&&(
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:800,color:'#8B5CF6',marginBottom:8}}>🔄 환불 대상 ({matchResults.refund.length}명)</div>
+          <div style={{fontSize:12,color:C.textMid,marginBottom:8,lineHeight:1.6}}>신청 내역 없이 입금한 건이에요</div>
+          {matchResults.refund.map((d,i)=>(
+            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+              <span style={{fontWeight:700,color:C.text,fontSize:14}}>{d.name}</span>
+              <span style={{color:'#8B5CF6',fontWeight:700,fontSize:13}}>{fmtKRW(d.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <Btn variant="secondary" onClick={onReset} style={{marginBottom:8}}>다시 업로드</Btn>
+    </div>
+  );
+
+  return(
+    <div style={{padding:'16px 0'}}>
+      <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={onUpload} style={{display:'none'}}/>
+      <div style={{textAlign:'center',marginBottom:20}}>
+        <div style={{fontSize:48,marginBottom:12}}>📊</div>
+        <div style={{fontWeight:800,color:C.text,fontSize:18,marginBottom:4}}>거래내역 대조</div>
+        <div style={{color:C.textMid,fontSize:13,lineHeight:1.7}}>은행 거래내역을 업로드하면 자동 대조해요</div>
+      </div>
+      <div style={{display:'flex',gap:6,marginBottom:16}}>
+        {[['file','📁 파일 업로드'],['email','📧 이메일로 받기']].map(([k,l])=>(
+          <button key={k} onClick={()=>setUploadMode(k)} style={{flex:1,padding:'10px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',background:uploadMode===k?C.accent:'#fff',color:uploadMode===k?'#fff':C.textMid,border:'none'}}>{l}</button>
+        ))}
+      </div>
+      {uploadMode==='file'&&(
+        <div style={{textAlign:'center',marginBottom:20}}>
+          <Btn onClick={()=>fileRef.current?.click()} loading={uploading}>파일 선택하기</Btn>
+          <div style={{marginTop:10,fontSize:12,color:C.textDim}}>지원: .xlsx, .xls, .csv</div>
+        </div>
+      )}
+      {uploadMode==='email'&&(
+        <Card style={{marginBottom:16}}>
+          <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:10}}>📧 이메일로 거래내역 받기</div>
+          <div style={{fontSize:13,color:C.textMid,lineHeight:1.8,marginBottom:14}}>은행 앱에서 거래내역서를 본인 이메일로 보낸 후,<br/>첨부된 엑셀 파일을 다운받아 위 "파일 업로드"로 올려주세요.</div>
+          <div style={{background:C.accentBg,borderRadius:12,padding:'14px 16px',fontSize:13,lineHeight:1.9}}>
+            <strong style={{color:C.text}}>방법:</strong><br/>
+            <span style={{color:C.textMid}}>1. 은행 앱 → 거래내역서 → "이메일로 보내기"<br/>2. 본인 이메일 주소 입력 → 전송<br/>3. 메일함에서 첨부 파일(.xlsx) 다운로드<br/>4. 위 "파일 업로드" 탭에서 업로드</span>
+          </div>
+          <div style={{marginTop:12}}><Btn variant="secondary" onClick={()=>setUploadMode('file')} small>파일 업로드로 이동</Btn></div>
+        </Card>
+      )}
+      <Card style={{padding:'16px'}}>
+        <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:12}}>📱 은행별 다운로드 방법</div>
+        <div style={{borderRadius:12,overflow:'hidden',marginBottom:8,border:`1.5px solid ${bankGuideOpen==='toss'?C.accent+'40':C.pageBg}`}}>
+          <button onClick={()=>setBankGuideOpen(v=>v==='toss'?null:'toss')} style={{width:'100%',padding:'12px 14px',background:bankGuideOpen==='toss'?C.accentBg:C.inputBg,border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left'}}>
+            <span style={{fontWeight:700,color:C.text,fontSize:14}}>토스뱅크</span>
+            <span style={{color:C.textDim,fontSize:14}}>{bankGuideOpen==='toss'?'▲':'▼'}</span>
+          </button>
+          {bankGuideOpen==='toss'&&(
+            <div style={{padding:'12px 14px',background:'#fff',fontSize:13,color:C.textMid,lineHeight:2}}>
+              <div style={{fontWeight:700,color:C.text,marginBottom:6}}>토스 앱에서:</div>
+              1. 하단 <strong>전체</strong> 탭<br/>2. <strong>관리</strong> 메뉴<br/>3. <strong>증명서 발급</strong><br/>4. <strong>거래내역서</strong> 선택<br/>5. 기간 설정 → <strong>엑셀(xlsx) 다운로드</strong>
+              <div style={{marginTop:8,padding:'8px 10px',background:C.accentBg,borderRadius:8,fontSize:12}}>💡 이메일로 받기도 가능해요</div>
+            </div>
+          )}
+        </div>
+        {[{id:'kakao',bank:'카카오뱅크',steps:'더보기 → 입출금 내역 → 우측 상단 ··· → 엑셀 다운로드'},{id:'kb',bank:'국민은행',steps:'KB Star 앱 → 조회 → 계좌조회 → 거래내역조회 → 하단 "엑셀저장"'},{id:'shinhan',bank:'신한은행',steps:'SOL 앱 → 계좌관리 → 거래내역조회 → 우측 상단 내보내기 → 파일 저장'},{id:'woori',bank:'우리은행',steps:'확인 중 — 은행 앱에서 거래내역 조회 후 엑셀 내보내기를 찾아주세요'},{id:'hana',bank:'하나은행',steps:'확인 중 — 은행 앱에서 거래내역 조회 후 엑셀 내보내기를 찾아주세요'},{id:'nh',bank:'농협',steps:'NH올원뱅크 → 계좌 → 거래내역조회 → 하단 "파일저장" → 엑셀'},].map(({id,bank,steps})=>(
+          <div key={id} style={{borderRadius:12,overflow:'hidden',marginBottom:4}}>
+            <button onClick={()=>setBankGuideOpen(v=>v===id?null:id)} style={{width:'100%',padding:'10px 14px',background:C.inputBg,border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left',borderRadius:12}}>
+              <span style={{fontWeight:600,color:C.text,fontSize:13}}>{bank}</span>
+              <span style={{color:C.textDim,fontSize:12}}>{bankGuideOpen===id?'▲':'▼'}</span>
+            </button>
+            {bankGuideOpen===id&&<div style={{padding:'10px 14px',fontSize:12,color:C.textMid,lineHeight:1.8,background:'#fff'}}>{steps}</div>}
+          </div>
+        ))}
+        <div style={{fontSize:11,color:C.textDim,marginTop:10,lineHeight:1.6}}>* 앱 버전에 따라 메뉴가 다를 수 있어요</div>
+      </Card>
+    </div>
+  );
+}
+
+function FormShareTab({form, showToast}){
+  const formLink=getLink(`form=${form.code}`);
+  const shareMsg=`[${form.name}] 신청 안내\n\n📅 ${form.date}\n💰 ${fmtKRW(form.amount)}${form.maxPeople?`\n👥 선착순 ${form.maxPeople}명`:''}\n\n아래 링크에서 신청해주세요!\n${formLink}`;
+  return(
+    <div>
+      <div style={{background:C.inputBg,borderRadius:12,padding:'14px 16px',fontSize:13,color:C.textMid,lineHeight:1.85,marginBottom:12,whiteSpace:'pre-wrap'}}>{shareMsg}</div>
+      <div style={{display:'flex',gap:8,marginBottom:8}}>
+        <Btn onClick={async()=>{const shared=await shareText(shareMsg);if(!shared){copyText(shareMsg);showToast('메시지 복사됨');}else showToast('공유 완료');}} small style={{flex:2}}>💬 카톡 공유</Btn>
+        <Btn variant="secondary" onClick={()=>{copyText(getLink(`form=${form.code}`));showToast('링크가 복사됐어요!');}} small style={{flex:1}}>🔗 링크</Btn>
+      </div>
+      <Btn onClick={()=>{copyText(shareMsg);showToast('메시지 복사됨');}} variant="ghost" small>📋 메시지 복사</Btn>
+    </div>
+  );
+}
+
+// ── FormAdminScreen (대규모 관리자 대시보드) ──────────────────
+function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
+  const [tab,setTab]=useState('submissions');
+  const [bankGuideOpen,setBankGuideOpen]=useState(null);
+  const [uploadMode,setUploadMode]=useState('file');
+  const [viewCount,setViewCount]=useState(0);
+  const fileRef=useRef(null);
+  const isClosed=form.status==='closed';
+  const subs=form.submissions||[];
+  const paidCount=subs.filter(s=>s.paid||s.paymentStatus==='matched').length;
+  const groups=profile?.groups||[];
+
+  useEffect(()=>{api.getViewCount(null,form.code).then(c=>setViewCount(c));},[form.code]);
+
+  const {filteredSubs,groupCounts,unregisteredCount,matchResults,uploading,
+         searchQ,setSearchQ,groupFilter,setGroupFilter,handlers}=useFormAdmin(form,updateForm,profile,saveProfile,showToast);
+
+  return(
+    <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+      <Header title={form.name} onBack={()=>nav.setView('home')}/>
+      
+      {/* 상단 요약 */}
+      <div style={{padding:'8px 16px 0'}}>
+        <Card>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <div>
+              <div style={{fontSize:13,color:C.textDim}}>{form.date}</div>
+              <div style={{fontSize:22,fontWeight:900,color:C.text}}>{fmtKRW(form.amount)}</div>
+            </div>
+            <div style={{textAlign:'right'}}>
+              <div style={{fontSize:28,fontWeight:900,color:C.accent}}>{subs.length}{form.maxPeople?`/${form.maxPeople}`:''}</div>
+              <div style={{fontSize:11,color:C.textDim}}>신청</div>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:8}}>
+            <div style={{flex:1,background:C.accentBg,borderRadius:12,padding:'10px',textAlign:'center'}}>
+              <div style={{fontSize:20,fontWeight:900,color:C.accent}}>{viewCount}</div>
+              <div style={{fontSize:11,color:C.accent,fontWeight:600}}>👀 조회</div>
+            </div>
+            <div style={{flex:1,background:C.greenBg,borderRadius:12,padding:'10px',textAlign:'center'}}>
+              <div style={{fontSize:20,fontWeight:900,color:C.green}}>{paidCount}</div>
+              <div style={{fontSize:11,color:C.green,fontWeight:600}}>확정</div>
+            </div>
+            <div style={{flex:1,background:C.orangeBg,borderRadius:12,padding:'10px',textAlign:'center'}}>
+              <div style={{fontSize:20,fontWeight:900,color:C.orange}}>{subs.length-paidCount}</div>
+              <div style={{fontSize:11,color:C.orange,fontWeight:600}}>대기</div>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* 탭 */}
+      <div style={{display:'flex',padding:'8px 16px',gap:6}}>
+        {[['submissions','신청 목록'],['verify','입금 대조'],['share','공유']].map(([key,label])=>(
+          <button key={key} onClick={()=>setTab(key)} style={{
+            flex:1,padding:'10px 4px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',
+            background:tab===key?C.accent:'#fff',color:tab===key?'#fff':C.textMid,
+            border:'none',
+          }}>{label}</button>
+        ))}
+      </div>
+
+      <div style={{padding:'8px 16px 16px'}}>
+
+        {/* ── 탭1: 신청 목록 ── */}
+        {tab==='submissions'&&(
+          <>
+            {subs.length===0?(
+              <div style={{textAlign:'center',padding:'40px 0'}}>
+                <div style={{fontSize:40,marginBottom:12}}>📭</div>
+                <div style={{color:C.textMid,fontSize:14}}>아직 신청이 없어요</div>
+                <div style={{color:C.textDim,fontSize:13,marginTop:4}}>링크를 공유해보세요</div>
+              </div>
+            ):(
+              <div>
+                {/* 검색 */}
+                <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름 또는 연락처 검색"
+                  style={{width:'100%',padding:'10px 14px',background:'#fff',border:'none',borderRadius:12,fontSize:14,outline:'none',marginBottom:8,color:C.text}}
+                  onFocus={e=>e.target.style.boxShadow=`0 0 0 2px ${C.accent}40`}
+                  onBlur={e=>e.target.style.boxShadow='none'}
+                />
+
+                {/* 그룹 필터 칩 */}
+                {groups.length>0&&(
+                  <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:10}}>
+                    <button onClick={()=>setGroupFilter('all')} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter==='all'?C.accent:'#fff',color:groupFilter==='all'?'#fff':C.textMid,border:'none'}}>
+                      전체 {subs.length}
+                    </button>
+                    {groups.map(g=>groupCounts[g.name]?(
+                      <button key={g.name} onClick={()=>setGroupFilter(f=>f===g.name?'all':g.name)} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter===g.name?C.accent:'#fff',color:groupFilter===g.name?'#fff':C.textMid,border:'none'}}>
+                        {g.name} {groupCounts[g.name]}
+                      </button>
+                    ):null)}
+                    {unregisteredCount>0&&(
+                      <button onClick={()=>setGroupFilter(f=>f==='unregistered'?'all':'unregistered')} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter==='unregistered'?C.red:'#fff',color:groupFilter==='unregistered'?'#fff':C.textDim,border:'none'}}>
+                        미등록 {unregisteredCount}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* 목록 */}
+                {filteredSubs.map(s=>{
+                  const isPaid=s.paid||s.paymentStatus==='matched';
+                  const isRequested=s.paymentStatus==='requested';
+                  return(
+                    <div key={s._idx} style={{background:'#fff',borderRadius:16,padding:'14px 16px',marginBottom:8}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                        <div style={{display:'flex',alignItems:'center',gap:6,flex:1,minWidth:0}}>
+                          {s._group&&<span style={{padding:'2px 8px',borderRadius:8,fontSize:10,fontWeight:700,background:C.accentBg,color:C.accent,flexShrink:0}}>{s._group}</span>}
+                          {!s._group&&groups.length>0&&<span style={{padding:'2px 8px',borderRadius:8,fontSize:10,fontWeight:700,background:C.redBg,color:C.red,flexShrink:0}}>미등록</span>}
+                          <span style={{fontWeight:800,color:C.text,fontSize:15,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</span>
+                          <span style={{color:C.textDim,fontSize:12,flexShrink:0}}>{s.phone}</span>
+                        </div>
+                        <button onClick={()=>togglePaid(s._idx)} className="press" style={{
+                          padding:'6px 12px',borderRadius:20,fontSize:11,fontWeight:700,cursor:'pointer',flexShrink:0,marginLeft:6,
+                          background:isPaid?C.green:isRequested?C.accentBg:C.orangeBg,
+                          color:isPaid?'#fff':isRequested?C.accent:C.orange,border:'none',
+                        }}>
+                          {isPaid?'✓ 확정':isRequested?'요청됨':'대기'}
+                        </button>
+                      </div>
+                      {Object.entries(s.data||{}).filter(([k])=>!['name','phone'].includes(k)).map(([k,v])=>(
+                      <div key={k} style={{fontSize:12,color:C.textMid,marginTop:3}}>
+                        <span style={{color:C.textDim}}>{k}:</span> {Array.isArray(v)?v.join(', '):v}
+                      </div>
+                    ))}
+                    <div style={{fontSize:11,color:C.textDim,marginTop:4,display:'flex',gap:8}}>
+                      {fmtTime(s.createdAt)}
+                      {s.matchedBy==='auto'&&<span style={{color:C.green}}>자동매칭</span>}
+                      {s.matchedBy==='manual'&&<span style={{color:C.accent}}>수동확인</span>}
+                    </div>
+                  </div>
+                );
+              })}
+
+                {/* 명단 저장 버튼 */}
+                {subs.length>0&&saveProfile&&(
+                  <button onClick={saveSubsToRoster} style={{
+                    width:'100%',marginTop:12,padding:'14px',borderRadius:14,
+                    background:'#fff',border:`1.5px dashed ${C.accent}50`,
+                    color:C.accent,fontWeight:700,fontSize:13,cursor:'pointer',
+                    display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+                  }}>
+                    📋 신청 명단 → 내 명단에 저장
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── 탭2: 입금 대조 ── */}
+        {tab==='verify'&&(
+          <div>
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleExcel} style={{display:'none'}}/>
+            
+            {!matchResults?(
+              <div style={{padding:'16px 0'}}>
+                <div style={{textAlign:'center',marginBottom:20}}>
+                  <div style={{fontSize:48,marginBottom:12}}>📊</div>
+                  <div style={{fontWeight:800,color:C.text,fontSize:18,marginBottom:4}}>거래내역 대조</div>
+                  <div style={{color:C.textMid,fontSize:13,lineHeight:1.7}}>은행 거래내역을 업로드하면 자동 대조해요</div>
+                </div>
+
+                {/* 모드 탭 */}
+                <div style={{display:'flex',gap:6,marginBottom:16}}>
+                  {[['file','📁 파일 업로드'],['email','📧 이메일로 받기']].map(([k,l])=>(
+                    <button key={k} onClick={()=>setUploadMode(k)} style={{
+                      flex:1,padding:'10px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',
+                      background:uploadMode===k?C.accent:'#fff',color:uploadMode===k?'#fff':C.textMid,border:'none',
+                    }}>{l}</button>
+                  ))}
+                </div>
+
+                {uploadMode==='file'&&(
+                  <div style={{textAlign:'center',marginBottom:20}}>
+                    <Btn onClick={()=>fileRef.current?.click()} loading={uploading}>파일 선택하기</Btn>
+                    <div style={{marginTop:10,fontSize:12,color:C.textDim}}>지원: .xlsx, .xls, .csv</div>
+                  </div>
+                )}
+
+                {uploadMode==='email'&&(
+                  <Card style={{marginBottom:16}}>
+                    <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:10}}>📧 이메일로 거래내역 받기</div>
+                    <div style={{fontSize:13,color:C.textMid,lineHeight:1.8,marginBottom:14}}>
+                      은행 앱에서 거래내역서를 본인 이메일로 보낸 후,<br/>
+                      첨부된 엑셀 파일을 다운받아 위 "파일 업로드"로 올려주세요.
+                    </div>
+                    <div style={{background:C.accentBg,borderRadius:12,padding:'14px 16px',fontSize:13,lineHeight:1.9}}>
+                      <strong style={{color:C.text}}>방법:</strong><br/>
+                      <span style={{color:C.textMid}}>
+                        1. 은행 앱 → 거래내역서 → "이메일로 보내기"<br/>
+                        2. 본인 이메일 주소 입력 → 전송<br/>
+                        3. 메일함에서 첨부 파일(.xlsx) 다운로드<br/>
+                        4. 위 "파일 업로드" 탭에서 업로드
+                      </span>
+                    </div>
+                    <div style={{marginTop:12}}>
+                      <Btn variant="secondary" onClick={()=>setUploadMode('file')} small>파일 업로드로 이동</Btn>
+                    </div>
+                  </Card>
+                )}
+
+                {/* 은행별 거래내역 다운로드 가이드 */}
+                <Card style={{padding:'16px'}}>
+                  <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:12}}>📱 은행별 다운로드 방법</div>
+                  
+                  {/* 토스뱅크 — 기본 열림, 상세 */}
+                  <div style={{borderRadius:12,overflow:'hidden',marginBottom:8,border:`1.5px solid ${bankGuideOpen==='toss'?C.accent+'40':C.pageBg}`}}>
+                    <button onClick={()=>setBankGuideOpen(v=>v==='toss'?null:'toss')} style={{width:'100%',padding:'12px 14px',background:bankGuideOpen==='toss'?C.accentBg:C.inputBg,border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left'}}>
+                      <span style={{fontWeight:700,color:C.text,fontSize:14}}>토스뱅크</span>
+                      <span style={{color:C.textDim,fontSize:14}}>{bankGuideOpen==='toss'?'▲':'▼'}</span>
+                    </button>
+                    {bankGuideOpen==='toss'&&(
+                      <div style={{padding:'12px 14px',background:'#fff',fontSize:13,color:C.textMid,lineHeight:2}}>
+                        <div style={{fontWeight:700,color:C.text,marginBottom:6}}>토스 앱에서:</div>
+                        1. 하단 <strong>전체</strong> 탭<br/>
+                        2. <strong>관리</strong> 메뉴<br/>
+                        3. <strong>증명서 발급</strong><br/>
+                        4. <strong>거래내역서</strong> 선택<br/>
+                        5. 기간 설정 → <strong>엑셀(xlsx) 다운로드</strong><br/>
+                        <div style={{marginTop:8,padding:'8px 10px',background:C.accentBg,borderRadius:8,fontSize:12}}>
+                          💡 이메일로 받기도 가능해요 (아래 이메일 옵션 참고)
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 나머지 은행 — 토글 */}
+                  {[
+                    {id:'kakao',bank:'카카오뱅크',steps:'더보기 → 입출금 내역 → 우측 상단 ··· → 엑셀 다운로드'},
+                    {id:'kb',bank:'국민은행',steps:'KB Star 앱 → 조회 → 계좌조회 → 거래내역조회 → 하단 "엑셀저장"'},
+                    {id:'shinhan',bank:'신한은행',steps:'SOL 앱 → 계좌관리 → 거래내역조회 → 우측 상단 내보내기 → 파일 저장'},
+                    {id:'woori',bank:'우리은행',steps:'확인 중 — 은행 앱에서 거래내역 조회 후 엑셀 내보내기를 찾아주세요'},
+                    {id:'hana',bank:'하나은행',steps:'확인 중 — 은행 앱에서 거래내역 조회 후 엑셀 내보내기를 찾아주세요'},
+                    {id:'nh',bank:'농협',steps:'NH올원뱅크 → 계좌 → 거래내역조회 → 하단 "파일저장" → 엑셀'},
+                  ].map(({id,bank,steps})=>(
+                    <div key={id} style={{borderRadius:12,overflow:'hidden',marginBottom:4,border:`1px solid ${bankGuideOpen===id?C.pageBg:'transparent'}`}}>
+                      <button onClick={()=>setBankGuideOpen(v=>v===id?null:id)} style={{width:'100%',padding:'10px 14px',background:C.inputBg,border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left',borderRadius:12}}>
+                        <span style={{fontWeight:600,color:C.text,fontSize:13}}>{bank}</span>
+                        <span style={{color:C.textDim,fontSize:12}}>{bankGuideOpen===id?'▲':'▼'}</span>
+                      </button>
+                      {bankGuideOpen===id&&(
+                        <div style={{padding:'10px 14px',fontSize:12,color:C.textMid,lineHeight:1.8,background:'#fff'}}>
+                          {steps}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  <div style={{fontSize:11,color:C.textDim,marginTop:10,lineHeight:1.6}}>
+                    * 앱 버전에 따라 메뉴가 다를 수 있어요
+                  </div>
+                </Card>
+              </div>
+            ):(
+              <div>
+                {/* 대조 요약 */}
+                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:16}}>
+                  {[
+                    [matchResults.matched.length,'매칭',C.green,C.greenBg],
+                    [matchResults.amountMismatch.length,'금액 확인',C.orange,C.orangeBg],
+                    [matchResults.unpaid.length,'미입금',C.red,C.redBg],
+                    [matchResults.refund.length,'환불 대상','#8B5CF6','#F3F0FF'],
+                  ].map(([n,l,c,bg])=>(
+                    <div key={l} style={{background:bg,borderRadius:12,padding:'10px 4px',textAlign:'center'}}>
+                      <div style={{fontSize:18,fontWeight:900,color:c}}>{n}</div>
+                      <div style={{fontSize:10,color:c,fontWeight:600}}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 일괄 반영 버튼 */}
+                {matchResults.matched.length>0&&(
+                  <Btn variant="green" onClick={applyMatched} style={{marginBottom:16}}>
+                    ✓ 매칭 {matchResults.matched.length}명 입금 확인 처리
+                  </Btn>
+                )}
+
+                {/* ✅ 매칭 완료 */}
+                {matchResults.matched.length>0&&(
+                  <div style={{marginBottom:16}}>
+                    <div style={{fontSize:13,fontWeight:800,color:C.green,marginBottom:8}}>✅ 매칭 완료 ({matchResults.matched.length}명)</div>
+                    {matchResults.matched.map((m,i)=>(
+                      <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+                        <div>
+                          <span style={{fontWeight:700,color:C.text,fontSize:14}}>{m.sub.name}</span>
+                          {m.type==='partial'&&<span style={{fontSize:11,color:C.textDim,marginLeft:6}}>≈ {m.deposit.name}</span>}
+                        </div>
+                        <span style={{color:C.green,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* ⚠️ 금액 불일치 */}
+                {matchResults.amountMismatch.length>0&&(
+                  <div style={{marginBottom:16}}>
+                    <div style={{fontSize:13,fontWeight:800,color:C.orange,marginBottom:8}}>⚠ 금액 불일치 ({matchResults.amountMismatch.length}명)</div>
+                    {matchResults.amountMismatch.map((m,i)=>(
+                      <div key={i} style={{padding:'12px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                          <span style={{fontWeight:700,color:C.text,fontSize:14}}>{m.sub.name}</span>
+                          <span style={{color:C.orange,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
+                        </div>
+                        <div style={{fontSize:12,color:C.orange,marginTop:4}}>
+                          {m.diff>0?`${fmtKRW(m.diff)} 초과 입금`:`${fmtKRW(Math.abs(m.diff))} 부족`}
+                          <span style={{color:C.textDim,marginLeft:8}}>예상: {fmtKRW(form.amount)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* ❌ 미입금 */}
+                {matchResults.unpaid.length>0&&(
+                  <div style={{marginBottom:16}}>
+                    <div style={{fontSize:13,fontWeight:800,color:C.red,marginBottom:8}}>❌ 미입금 ({matchResults.unpaid.length}명)</div>
+                    {matchResults.unpaid.map((s,i)=>(
+                      <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+                        <div>
+                          <span style={{fontWeight:700,color:C.text,fontSize:14}}>{s.name}</span>
+                          <span style={{color:C.textDim,fontSize:12,marginLeft:8}}>{s.phone}</span>
+                        </div>
+                        <span style={{color:C.red,fontWeight:700,fontSize:13}}>{fmtKRW(form.amount)}</span>
+                      </div>
+                    ))}
+                    <Btn variant="secondary" onClick={copyNudge} style={{marginTop:8}} small>콕 찌르기 메시지 복사</Btn>
+                  </div>
+                )}
+
+                {/* 🔄 환불 대상 */}
+                {matchResults.refund.length>0&&(
+                  <div style={{marginBottom:16}}>
+                    <div style={{fontSize:13,fontWeight:800,color:'#8B5CF6',marginBottom:8}}>🔄 환불 대상 ({matchResults.refund.length}명)</div>
+                    <div style={{fontSize:12,color:C.textMid,marginBottom:8,lineHeight:1.6}}>신청 내역 없이 입금한 건이에요</div>
+                    {matchResults.refund.map((d,i)=>(
+                      <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+                        <span style={{fontWeight:700,color:C.text,fontSize:14}}>{d.name}</span>
+                        <span style={{color:'#8B5CF6',fontWeight:700,fontSize:13}}>{fmtKRW(d.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 다시 업로드 */}
+                <Btn variant="secondary" onClick={()=>{setMatchResults(null);}} style={{marginBottom:8}}>다시 업로드</Btn>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── 탭3: 공유 ── */}
+        {tab==='share'&&(()=>{
+          const formLink=getLink(`form=${form.code}`);
+          const shareMsg=`[${form.name}] 신청 안내\n\n📅 ${form.date}\n💰 ${fmtKRW(form.amount)}${form.maxPeople?`\n👥 선착순 ${form.maxPeople}명`:''}\n\n아래 링크에서 신청해주세요!\n${formLink}`;
+          return(
+            <div>
+              <div style={{background:C.inputBg,borderRadius:12,padding:'14px 16px',fontSize:13,color:C.textMid,lineHeight:1.85,marginBottom:12,whiteSpace:'pre-wrap'}}>{shareMsg}</div>
+              <div style={{display:'flex',gap:8,marginBottom:8}}>
+                <Btn onClick={async()=>{const shared=await shareText(shareMsg);if(!shared){copyText(shareMsg);showToast('메시지 복사됨');}else showToast('공유 완료');}} small style={{flex:2}}>💬 카톡 공유</Btn>
+                <Btn variant="secondary" onClick={copyLink} small style={{flex:1}}>🔗 링크</Btn>
+              </div>
+              <Btn onClick={()=>{copyText(shareMsg);showToast('메시지 복사됨');}} variant="ghost" small>📋 메시지 복사</Btn>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* 하단 마감 버튼 */}
+      <div style={{padding:'0 16px 24px'}}>
+        {isClosed?(
+          <Btn variant="secondary" onClick={reopenForm}>신청 다시 열기</Btn>
+        ):(
+          <Btn variant="danger" onClick={closeForm}>신청 마감하기</Btn>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── FormSubmitScreen (참여자용 신청폼) ──────────────────
+function FormSubmitScreen({nav,form,updateForm,showToast}){
+  const [values,setValues]=useState({});
+  const [loading,setLoading]=useState(false);
+  const [submitted,setSubmitted]=useState(false);
+  const [mySubmission,setMySubmission]=useState(null);
+
+  const isClosed=form.status==='closed';
+  const isFull=form.maxPeople&&(form.submissions||[]).length>=form.maxPeople;
+
+  // 조회수 추적
+  useEffect(()=>{api.trackView(null,form.code,'anonymous');},[]);
+
+  // 재방문 시 이전 신청 확인 (localStorage)
+  useEffect(()=>{
+    const savedKey=localStorage.getItem('form_sub_'+form.code);
+    if(savedKey){
+      const existing=(form.submissions||[]).find(s=>s.createdAt===savedKey);
+      if(existing){setMySubmission(existing);setSubmitted(true);}
+      else localStorage.removeItem('form_sub_'+form.code); // 삭제된 신청
+    }
+  },[form.code]);
+
+  // form이 업데이트되면 mySubmission도 갱신 (실시간 상태 반영)
+  useEffect(()=>{
+    if(mySubmission){
+      const updated=(form.submissions||[]).find(s=>s.createdAt===mySubmission.createdAt);
+      if(updated&&(updated.paid!==mySubmission.paid||updated.paymentStatus!==mySubmission.paymentStatus)){
+        setMySubmission(updated);
+      }
+    }
+  },[form.submissions]);
+
+  const setValue=(id,val)=>setValues(v=>({...v,[id]:val}));
+
+  const submit=async()=>{
+    for(const f of form.fields){
+      if(f.required&&!values[f.id]){
+        showToast(`${f.label}을(를) 입력해주세요`,C.red);return;
+      }
+    }
+    // #2: 중복 신청 방지 (이름+전화번호)
+    const existingSubs=form.submissions||[];
+    const name=(values.name||'').trim();
+    const phone=(values.phone||'').replace(/[^0-9]/g,'');
+    if(name&&phone){
+      const dup=existingSubs.find(s=>s.name.trim()===name&&(s.phone||'').replace(/[^0-9]/g,'')===phone);
+      if(dup){
+        showToast('이미 신청한 내역이 있어요',C.orange);
+        setMySubmission(dup);setSubmitted(true);
+        localStorage.setItem('form_sub_'+form.code,dup.createdAt);
+        return;
+      }
+    }
+
+    setLoading(true);
+    const submission={
+      name:name,
+      phone:values.phone||'',
+      data:values,
+      paid:false,
+      paymentStatus:'pending',
+      createdAt:new Date().toISOString(),
+    };
+    const newSubs=[...existingSubs,submission];
+    try{
+      await updateForm({...form,submissions:newSubs});
+      setMySubmission(submission);
+      setSubmitted(true);
+      localStorage.setItem('form_sub_'+form.code,submission.createdAt);
+    }catch(e){
+      showToast('신청 실패: 다시 시도해주세요',C.red);
+    }
+    setLoading(false);
+  };
+
+  // 제출 완료 화면
+  const markPaidRequest=async()=>{
+    if(!mySubmission) return;
+    const idx=(form.submissions||[]).findIndex(s=>s.createdAt===mySubmission.createdAt);
+    if(idx===-1) return;
+    const newSubs=[...(form.submissions||[])];
+    newSubs[idx]={...newSubs[idx],paymentStatus:'requested',requestedAt:new Date().toISOString()};
+    await updateForm({...form,submissions:newSubs});
+    setMySubmission(newSubs[idx]);
+    showToast('입금 완료 요청이 전달됐어요');
+  };
+
+  if(submitted&&mySubmission){
+    const isConfirmed=mySubmission.paid||mySubmission.paymentStatus==='matched';
+    const isRequested=mySubmission.paymentStatus==='requested';
+    const tossLink=getTossLink(form.account.bank,form.account.number,form.amount);
+    const kakaoLink=getKakaoBankLink(form.account.bank,form.account.number,form.amount);
+    const accountText=`${form.account.bank} ${form.account.number}`;
+    const subIdx=(form.submissions||[]).findIndex(s=>s.createdAt===mySubmission.createdAt);
+    const myNumber=subIdx>=0?subIdx+1:(form.submissions||[]).length;
+
+    return(
+      <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh',padding:'48px 20px',textAlign:'center'}}>
+        <div style={{fontSize:56,marginBottom:16}}>{isConfirmed?'✅':'🎉'}</div>
+        <div style={{fontSize:24,fontWeight:900,color:C.text,marginBottom:6}}>
+          {isConfirmed?'입금 확정!':'신청 완료!'}
+        </div>
+        {form.maxPeople&&(
+          <div style={{display:'inline-flex',alignItems:'center',gap:6,background:C.accentBg,borderRadius:20,padding:'6px 16px',marginBottom:8}}>
+            <span style={{fontSize:13,color:C.accent,fontWeight:700}}>{myNumber}/{form.maxPeople}번째 신청</span>
+          </div>
+        )}
+        <div style={{fontSize:14,color:C.textMid,marginBottom:28,lineHeight:1.7}}>
+          {isConfirmed?'총무가 입금을 확인했어요':isRequested?(
+            <>입금 완료 요청을 보냈어요<br/><span style={{color:C.green,fontWeight:700}}>총무 확인 대기 중</span></>
+          ):(
+            <>아래 계좌로 입금해주세요<br/><span style={{color:C.orange,fontWeight:700}}>입금 요청 중</span></>
+          )}
+        </div>
+        
+        {!isConfirmed&&(
+          <Card style={{textAlign:'left',marginBottom:16}}>
+            <div style={{fontWeight:800,color:C.text,marginBottom:14,fontSize:15}}>💳 입금 정보</div>
+            <div style={{background:C.inputBg,borderRadius:14,padding:'14px 16px',marginBottom:10}}>
+              <div style={{fontSize:12,color:C.textDim,marginBottom:4}}>입금액</div>
+              <div style={{fontSize:24,fontWeight:900,color:C.accent}}>{fmtKRW(form.amount)}</div>
+            </div>
+            <div style={{background:C.inputBg,borderRadius:14,padding:'14px 16px',marginBottom:14}}>
+              <div style={{fontSize:12,color:C.textDim,marginBottom:6}}>입금 계좌</div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize:16,fontWeight:700,color:C.text}}>{accountText}</div>
+                  <div style={{fontSize:13,color:C.textMid,marginTop:2}}>예금주: {form.account.holder}</div>
+                </div>
+                <button onClick={async()=>{await copyText(accountText);showToast('계좌번호 복사됨');}} style={{background:C.accentBg,border:'none',borderRadius:10,padding:'8px 14px',color:C.accent,fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0}}>복사</button>
+              </div>
+            </div>
+
+            {/* 본인 명의 안내 */}
+            <div style={{background:C.orangeBg,borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:16,flexShrink:0}}>⚠️</span>
+              <div style={{fontSize:12,color:C.orange,fontWeight:700,lineHeight:1.5}}>반드시 본인 이름으로 입금해주세요<br/><span style={{fontWeight:500,color:C.textMid}}>다른 이름으로 입금하면 확인이 어려워요</span></div>
+            </div>
+
+            {/* 송금 딥링크 */}
+            {(tossLink||kakaoLink)&&(
+              <div style={{display:'flex',gap:8,marginBottom:10}}>
+                {tossLink&&(
+                  <a href={tossLink} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'14px',borderRadius:14,background:'#0050FF',color:'#fff',fontWeight:700,fontSize:14,textDecoration:'none',cursor:'pointer'}}>
+                    토스 송금
+                  </a>
+                )}
+                {kakaoLink&&(
+                  <a href={kakaoLink} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'14px',borderRadius:14,background:'#FEE500',color:'#191919',fontWeight:700,fontSize:14,textDecoration:'none',cursor:'pointer'}}>
+                    카뱅 송금
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* 입금 완료 요청 */}
+            {isRequested?(
+              <div style={{textAlign:'center',padding:'14px',background:C.greenBg,borderRadius:14}}>
+                <div style={{fontWeight:700,color:C.green,fontSize:14}}>✓ 입금 완료 요청됨</div>
+                <div style={{fontSize:12,color:C.textMid,marginTop:4}}>총무가 확인하면 확정돼요</div>
+              </div>
+            ):(
+              <Btn variant="green" onClick={markPaidRequest}>입금 완료했어요</Btn>
+            )}
+          </Card>
+        )}
+
+        {isConfirmed&&(
+          <Card style={{textAlign:'center',background:C.greenBg}}>
+            <div style={{fontSize:18,fontWeight:900,color:C.green,marginBottom:4}}>✓ 입금 확정</div>
+            <div style={{fontSize:13,color:C.textMid}}>총무가 입금을 확인했어요</div>
+          </Card>
+        )}
+
+        <div style={{fontSize:12,color:C.textDim,marginTop:16}}>이 탭을 닫아도 돼요</div>
+      </div>
+    );
+  }
+
+  // 마감/정원 초과
+  if(isClosed||isFull){
+    return(
+      <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh',padding:'60px 20px',textAlign:'center'}}>
+        <div style={{fontSize:64,marginBottom:20}}>{isClosed?'🔒':'😢'}</div>
+        <div style={{fontSize:24,fontWeight:900,color:C.text,marginBottom:8}}>{isClosed?'신청이 마감됐어요':'정원이 마감됐어요'}</div>
+        <div style={{fontSize:14,color:C.textMid,lineHeight:1.7}}>
+          {isClosed?'총무님이 신청을 마감했어요':'선착순 마감됐어요. 다음 기회에!'}
+        </div>
+      </div>
+    );
+  }
+
+  return(
+    <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+      {/* 헤더 */}
+      <div style={{background:C.orange,padding:'32px 20px 24px',textAlign:'center'}}>
+        <div style={{fontSize:36,marginBottom:10}}>📋</div>
+        <div style={{fontSize:22,fontWeight:900,color:'#fff',marginBottom:6}}>{form.name}</div>
+        <div style={{display:'flex',justifyContent:'center',gap:12,fontSize:13,color:'rgba(255,255,255,0.9)'}}>
+          <span>📅 {form.date}</span>
+          <span>💰 {fmtKRW(form.amount)}</span>
+        </div>
+        {form.maxPeople&&(
+          <div style={{marginTop:10,display:'inline-flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.2)',borderRadius:20,padding:'4px 14px'}}>
+            <span style={{fontSize:12,color:'#fff'}}>👥 {form.submissions?.length||0}/{form.maxPeople}명 신청</span>
+          </div>
+        )}
+      </div>
+
+      <div style={{padding:'20px 16px'}}>
+        <Card>
+          {form.fields.map(f=>(
+            <div key={f.id} style={{marginBottom:14}}>
+              <label style={{display:'block',fontSize:12,color:C.textMid,marginBottom:6,fontWeight:600}}>
+                {f.label} {f.required&&<span style={{color:C.red}}>*</span>}
+              </label>
+              {f.type==='text'&&(
+                <input
+                  value={values[f.id]||''}
+                  onChange={e=>setValue(f.id,e.target.value)}
+                  style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,background:C.inputBg}}
+                  placeholder={f.label}
+                />
+              )}
+              {f.type==='textarea'&&(
+                <textarea
+                  value={values[f.id]||''}
+                  onChange={e=>setValue(f.id,e.target.value)}
+                  rows={3}
+                  style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,background:C.inputBg,resize:'vertical'}}
+                  placeholder={f.label}
+                />
+              )}
+              {f.type==='number'&&(
+                <input
+                  type="number"
+                  value={values[f.id]||''}
+                  onChange={e=>setValue(f.id,e.target.value)}
+                  style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,background:C.inputBg}}
+                  placeholder="0"
+                />
+              )}
+              {f.type==='select'&&(
+                <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                  {(f.options||[]).map(opt=>(
+                    <button key={opt} onClick={()=>setValue(f.id,opt)} style={{
+                      padding:'10px 16px',borderRadius:10,fontSize:14,fontWeight:600,cursor:'pointer',
+                      background:values[f.id]===opt?C.accent:'#fff',
+                      color:values[f.id]===opt?'#fff':C.textMid,
+                      border:`1.5px solid ${values[f.id]===opt?C.accent:C.border}`,
+                    }}>{opt}</button>
+                  ))}
+                </div>
+              )}
+              {f.type==='multiselect'&&(
+                <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                  {(f.options||[]).map(opt=>{
+                    const selected=(values[f.id]||[]).includes(opt);
+                    return(
+                      <button key={opt} onClick={()=>{
+                        const cur=values[f.id]||[];
+                        setValue(f.id,selected?cur.filter(v=>v!==opt):[...cur,opt]);
+                      }} style={{
+                        padding:'10px 16px',borderRadius:10,fontSize:14,fontWeight:600,cursor:'pointer',
+                        background:selected?C.accent:'#fff',
+                        color:selected?'#fff':C.textMid,
+                        border:`1.5px solid ${selected?C.accent:C.border}`,
+                      }}>{opt}</button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+        </Card>
+
+        <Btn onClick={submit} loading={loading} variant="orange">신청하기 →</Btn>
+      </div>
+    </div>
+  );
+}
+
+const root=ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>
