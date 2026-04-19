@@ -232,9 +232,11 @@ const calcAmounts = ev => {
   const a={};
   presentMembers.forEach(k=>a[k]=0);
   (ev.rounds||[]).forEach(r=>{
-    if(!r.members?.length||!r.amount) return;
-    const share=Math.ceil(r.amount/r.members.length);
-    r.members.forEach(k=>{if(a[k]!==undefined)a[k]+=share;});
+    if(!r.amount) return;
+    const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0);
+    if(!totalCount) return;
+    const share=Math.ceil(r.amount/totalCount);
+    (r.members||[]).forEach(k=>{if(a[k]!==undefined)a[k]+=share;});
   });
   return a;
 };
@@ -1686,7 +1688,10 @@ function RoundsSection({event,updateEvent,onRoundAdded}){
   const [label,setLabel]=useState('');
   const [amount,setAmount]=useState('');
   const [roundMembers,setRoundMembers]=useState([]);
+  const [roundExtraMembers,setRoundExtraMembers]=useState([]);
+  const [roundExtraInput,setRoundExtraInput]=useState('');
   const [editAmount,setEditAmount]=useState('');
+  const [extraInput,setExtraInput]=useState('');
   const mm=event.memberMap||{};
   const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
 
@@ -1699,15 +1704,15 @@ function RoundsSection({event,updateEvent,onRoundAdded}){
     }
   },[]);
 
-  useEffect(()=>{if(adding)setRoundMembers([...presentMembers]);},[adding]);
+  useEffect(()=>{if(adding){setRoundMembers([...presentMembers]);setRoundExtraMembers([]);setRoundExtraInput('');}},[adding]);
 
   const updateRound=(id,patch)=>updateEvent({...event,rounds:event.rounds.map(r=>r.id===id?{...r,...patch}:r)});
 
   const addRound=()=>{
     const amt=Number(amount.replace(/[^0-9]/g,''));
     if(!label.trim()||!amt||roundMembers.length===0) return;
-    updateEvent({...event,rounds:[...event.rounds,{id:Date.now().toString(),label:label.trim(),amount:amt,members:[...roundMembers]}]});
-    setAdding(false);setLabel('');setAmount('');
+    updateEvent({...event,rounds:[...event.rounds,{id:Date.now().toString(),label:label.trim(),amount:amt,members:[...roundMembers],extraMembers:[...roundExtraMembers]}]});
+    setAdding(false);setLabel('');setAmount('');setRoundExtraMembers([]);setRoundExtraInput('');
     onRoundAdded&&onRoundAdded();
   };
 
@@ -1721,12 +1726,12 @@ function RoundsSection({event,updateEvent,onRoundAdded}){
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:isEditing?12:0}}>
               <div>
                 <div style={{fontWeight:800,color:C.text,fontSize:15}}>{r.label}</div>
-                {r.amount>0&&<div style={{fontSize:12,color:C.textMid,marginTop:2}}>{r.members.length}명 · 1인당 {fmtKRW(Math.ceil(r.amount/r.members.length))}</div>}
+                {r.amount>0&&<div style={{fontSize:12,color:C.textMid,marginTop:2}}>{r.members.length+(r.extraMembers?.length||0)}명 · 1인당 {fmtKRW(Math.ceil(r.amount/(r.members.length+(r.extraMembers?.length||0))))}{(r.extraMembers?.length||0)>0&&<span style={{color:C.orange,marginLeft:5}}>임시 {r.extraMembers.length}명 포함</span>}</div>}
                 {r.amount===0&&<div style={{fontSize:12,color:C.orange,marginTop:2}}>금액을 입력해주세요</div>}
               </div>
               <div style={{display:'flex',alignItems:'center',gap:8}}>
                 {r.amount>0&&<div style={{color:C.accent,fontWeight:900}}>{fmtKRW(r.amount)}</div>}
-                <button onClick={()=>{ setEditingId(isEditing?null:r.id); setEditAmount(r.amount>0?String(r.amount):''); }} style={{background:isEditing?C.accentBg:C.inputBg,border:`1.5px solid ${isEditing?C.accent:C.border}`,borderRadius:8,color:isEditing?C.accent:C.textMid,cursor:'pointer',padding:'5px 10px',fontSize:12,fontWeight:600}}>
+                <button onClick={()=>{ setEditingId(isEditing?null:r.id); setEditAmount(r.amount>0?String(r.amount):''); setExtraInput(''); }} style={{background:isEditing?C.accentBg:C.inputBg,border:`1.5px solid ${isEditing?C.accent:C.border}`,borderRadius:8,color:isEditing?C.accent:C.textMid,cursor:'pointer',padding:'5px 10px',fontSize:12,fontWeight:600}}>
                   {isEditing?'완료':'수정'}
                 </button>
                 {!isFirst&&<button onClick={()=>updateEvent({...event,rounds:event.rounds.filter(x=>x.id!==r.id)})} style={{background:C.redBg,border:'none',borderRadius:8,color:C.red,cursor:'pointer',width:26,height:26,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>×</button>}
@@ -1742,6 +1747,24 @@ function RoundsSection({event,updateEvent,onRoundAdded}){
                     const sel=r.members.includes(k);
                     return <button key={k} onClick={()=>updateRound(r.id,{members:sel?r.members.filter(x=>x!==k):[...r.members,k]})} style={{padding:'5px 9px',borderRadius:12,border:`1.5px solid ${sel?C.accent:C.border}`,cursor:'pointer',fontSize:12,fontWeight:600,background:sel?C.accentBg:C.cardBg,color:sel?C.accent:C.textMid}}>{mm[k]||k}</button>;
                   })}
+                </div>
+                <div style={{marginTop:14,borderTop:`1px solid ${C.border}`,paddingTop:12}}>
+                  <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:6}}>임시 인원 ({(r.extraMembers||[]).length}명)</div>
+                  <div style={{fontSize:11,color:C.orange,marginBottom:8,lineHeight:1.5}}>임시 인원은 카톡 공유 링크에 포함되지 않아요. 분담금을 직접 알려주세요.</div>
+                  {(r.extraMembers||[]).length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>
+                    {(r.extraMembers||[]).map((em,ei)=>(
+                      <div key={ei} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:12,background:C.orange+'20',border:`1.5px solid ${C.orange}50`}}>
+                        <span style={{fontSize:10,fontWeight:800,color:C.orange}}>임시</span>
+                        <span style={{fontSize:12,color:C.text,fontWeight:600}}>{em.name}</span>
+                        <button onClick={()=>updateRound(r.id,{extraMembers:(r.extraMembers||[]).filter((_,j)=>j!==ei)})} style={{background:'none',border:'none',cursor:'pointer',color:C.textMid,fontSize:14,lineHeight:1,padding:'0 0 0 2px'}}>×</button>
+                      </div>
+                    ))}
+                  </div>}
+                  <div style={{display:'flex',gap:6}}>
+                    <input value={extraInput} onChange={e=>setExtraInput(e.target.value)} placeholder="이름 입력" onKeyDown={e=>{if(e.key==='Enter'&&extraInput.trim()){updateRound(r.id,{extraMembers:[...(r.extraMembers||[]),{name:extraInput.trim()}]});setExtraInput('');}}} style={{flex:1,padding:'7px 10px',borderRadius:8,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none'}}/>
+                    <button onClick={()=>{if(extraInput.trim()){updateRound(r.id,{extraMembers:[...(r.extraMembers||[]),{name:extraInput.trim()}]});setExtraInput('');}}} style={{padding:'7px 12px',borderRadius:8,background:C.orange+'20',border:`1.5px solid ${C.orange}50`,color:C.orange,fontWeight:700,fontSize:13,cursor:'pointer'}}>추가</button>
+                  </div>
+                  <div style={{marginTop:7,fontSize:11,color:C.textMid,lineHeight:1.5}}>명단에 빠진 멤버는 명단 관리 화면에서 추가해주세요. 그래야 다음 정산에도 쓸 수 있어요.</div>
                 </div>
                 <Btn onClick={()=>{
                   const amt=Number(editAmount.replace(/[^0-9]/g,''));
@@ -1772,7 +1795,25 @@ function RoundsSection({event,updateEvent,onRoundAdded}){
                 ))}
               </div>
             </div>
-            <div style={{display:'flex',gap:8}}>
+            <div style={{marginTop:4,marginBottom:4}}>
+              <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:6}}>임시 인원 ({roundExtraMembers.length}명)</div>
+              <div style={{fontSize:11,color:C.orange,marginBottom:8,lineHeight:1.5}}>임시 인원은 카톡 공유 링크에 포함되지 않아요. 분담금을 직접 알려주세요.</div>
+              {roundExtraMembers.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>
+                {roundExtraMembers.map((em,ei)=>(
+                  <div key={ei} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:12,background:C.orange+'20',border:`1.5px solid ${C.orange}50`}}>
+                    <span style={{fontSize:10,fontWeight:800,color:C.orange}}>임시</span>
+                    <span style={{fontSize:12,color:C.text,fontWeight:600}}>{em.name}</span>
+                    <button onClick={()=>setRoundExtraMembers(s=>s.filter((_,j)=>j!==ei))} style={{background:'none',border:'none',cursor:'pointer',color:C.textMid,fontSize:14,lineHeight:1,padding:'0 0 0 2px'}}>×</button>
+                  </div>
+                ))}
+              </div>}
+              <div style={{display:'flex',gap:6,marginBottom:6}}>
+                <input value={roundExtraInput} onChange={e=>setRoundExtraInput(e.target.value)} placeholder="이름 입력" onKeyDown={e=>{if(e.key==='Enter'&&roundExtraInput.trim()){setRoundExtraMembers(s=>[...s,{name:roundExtraInput.trim()}]);setRoundExtraInput('');}}} style={{flex:1,padding:'7px 10px',borderRadius:8,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none'}}/>
+                <button onClick={()=>{if(roundExtraInput.trim()){setRoundExtraMembers(s=>[...s,{name:roundExtraInput.trim()}]);setRoundExtraInput('');}}} style={{padding:'7px 12px',borderRadius:8,background:C.orange+'20',border:`1.5px solid ${C.orange}50`,color:C.orange,fontWeight:700,fontSize:13,cursor:'pointer'}}>추가</button>
+              </div>
+              <div style={{fontSize:11,color:C.textMid,lineHeight:1.5}}>명단에 빠진 멤버는 명단 관리 화면에서 추가해주세요. 그래야 다음 정산에도 쓸 수 있어요.</div>
+            </div>
+            <div style={{display:'flex',gap:8,marginTop:12}}>
               <Btn variant="ghost" onClick={()=>setAdding(false)} style={{flex:1}}>취소</Btn>
               <Btn onClick={addRound} disabled={!label||!amount||roundMembers.length===0} style={{flex:2}}>추가</Btn>
             </div>
