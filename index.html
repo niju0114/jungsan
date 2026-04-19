@@ -54,7 +54,9 @@ const { useState, useEffect, useRef } = React;
 // Supabase anon key — 클라이언트 전용, RLS로 보호됨
 const SUPA_URL = 'https://jetxfddjunfpykgyurnf.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpldHhmZGRqdW5mcHlrZ3l1cm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMTAwNzMsImV4cCI6MjA5MDg4NjA3M30.Jg9cxDZw_aQ9EDy5bpheT7TEzUo8QZDIk9z5WNHwa1w';
-const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+});
 const ID_DOMAIN = '@jungsan.app';
 
 const C = {
@@ -931,6 +933,10 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
   const [feedbackText,setFeedbackText]=useState('');
   const [feedbackLoading,setFeedbackLoading]=useState(false);
   const [modeSelect,setModeSelect]=useState(false);
+  const [sortLatest,setSortLatest]=useState(()=>{
+    try { const v=localStorage.getItem('jungsan_sort_latest'); return v===null?true:v==='1'; } catch { return true; }
+  });
+  const toggleSortLatest=()=>setSortLatest(v=>{const n=!v;try{localStorage.setItem('jungsan_sort_latest',n?'1':'0');}catch{}return n;});
 
   // FAQ에서 건의 버튼 눌렀을 때
   useEffect(()=>{
@@ -940,7 +946,10 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
   const logout=async()=>{setLoggingOut(true);await api.signOut();nav.setView('home');};
 
   // 진행 중인 정산만 (완료 안 된 것)
-  const activeEvents=events.filter(ev=>!isEventDone(ev));
+  const activeEventsRaw=events.filter(ev=>!isEventDone(ev));
+  const activeEvents=sortLatest
+    ? [...activeEventsRaw].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))
+    : [...activeEventsRaw].sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
   const activeForms=(forms||[]).filter(f=>f.status==='open');
 
   const submitFeedback=async()=>{
@@ -972,7 +981,7 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
             )}
           </div>
         </div>
-        <div style={{display:'flex',gap:10}}>
+        <div style={{display:'flex',gap:10,marginBottom:16}}>
           {[[events.length,'총 정산',C.accent],[activeEvents.length,'진행 중',C.green]].map(([v,l,c])=>(
             <div key={l} style={{background:C.inputBg,borderRadius:16,padding:'14px 18px',flex:1}}>
               <div style={{fontSize:24,fontWeight:900,color:c,letterSpacing:-0.5}}>{v}</div>
@@ -980,12 +989,11 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
             </div>
           ))}
         </div>
+        {/* 새 정산 CTA — 프로필 영역 하단, 스크롤 없이 항상 보이도록 */}
+        <Btn onClick={()=>setModeSelect(true)} style={{padding:'18px',fontSize:17,borderRadius:20}}>＋ 새 정산·신청</Btn>
       </div>
 
       <div style={{padding:'16px 16px 32px'}}>
-        {/* 새 정산 CTA */}
-        <Btn onClick={()=>setModeSelect(true)} style={{marginBottom:16,padding:'18px',fontSize:17,borderRadius:20}}>＋ 새 정산·신청</Btn>
-
         {/* 메뉴 그리드 */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:20}}>
           {[
@@ -1031,7 +1039,15 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
           </div>
         ):(
           <>
-            <div style={{fontSize:11,color:C.textDim,fontWeight:700,marginBottom:12,letterSpacing:1.2,textTransform:'uppercase'}}>진행 중</div>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+              <div style={{fontSize:11,color:C.textDim,fontWeight:700,letterSpacing:1.2,textTransform:'uppercase'}}>진행 중</div>
+              {activeEvents.length>1&&(
+                <button onClick={toggleSortLatest} style={{background:sortLatest?C.accentBg:C.inputBg,border:'none',borderRadius:999,padding:'5px 12px',fontSize:11,fontWeight:700,color:sortLatest?C.accent:C.textMid,cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>
+                  <span className="ms" style={{fontSize:14}}>{sortLatest?'arrow_downward':'arrow_upward'}</span>
+                  {sortLatest?'최신순':'만든 순'}
+                </button>
+              )}
+            </div>
             {activeEvents.map(ev=>{
               const presentMembers=ev.members.filter(k=>ev.attendance[k]!==false);
               const pc=presentMembers.filter(k=>ev.payments?.[k]?.paid).length;
@@ -2875,12 +2891,12 @@ function VerifyTab({form, subs, matchResults, uploading, bankGuideOpen, setBankG
       )}
       <Card style={{padding:'16px'}}>
         <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:12}}>📱 은행별 다운로드 방법</div>
-        <div style={{borderRadius:12,overflow:'hidden',marginBottom:8,border:`1.5px solid ${bankGuideOpen==='toss'?C.accent+'40':C.pageBg}`}}>
-          <button onClick={()=>setBankGuideOpen(v=>v==='toss'?null:'toss')} style={{width:'100%',padding:'12px 14px',background:bankGuideOpen==='toss'?C.accentBg:C.inputBg,border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left'}}>
+        <div style={{borderRadius:12,overflow:'hidden',marginBottom:8,border:`1.5px solid ${bankGuideOpen.has('toss')?C.accent+'40':C.pageBg}`}}>
+          <button onClick={()=>toggleBankGuide('toss')} style={{width:'100%',padding:'12px 14px',background:bankGuideOpen.has('toss')?C.accentBg:C.inputBg,border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left'}}>
             <span style={{fontWeight:700,color:C.text,fontSize:14}}>토스뱅크</span>
-            <span style={{color:C.textDim,fontSize:14}}>{bankGuideOpen==='toss'?'▲':'▼'}</span>
+            <span style={{color:C.textDim,fontSize:14}}>{bankGuideOpen.has('toss')?'▲':'▼'}</span>
           </button>
-          {bankGuideOpen==='toss'&&(
+          {bankGuideOpen.has('toss')&&(
             <div style={{padding:'12px 14px',background:'#fff',fontSize:13,color:C.textMid,lineHeight:2}}>
               <div style={{fontWeight:700,color:C.text,marginBottom:6}}>토스 앱에서:</div>
               1. 하단 <strong>전체</strong> 탭<br/>2. <strong>관리</strong> 메뉴<br/>3. <strong>증명서 발급</strong><br/>4. <strong>거래내역서</strong> 선택<br/>5. 기간 설정 → <strong>엑셀(xlsx) 다운로드</strong>
@@ -2890,11 +2906,11 @@ function VerifyTab({form, subs, matchResults, uploading, bankGuideOpen, setBankG
         </div>
         {[{id:'kakao',bank:'카카오뱅크',steps:'더보기 → 입출금 내역 → 우측 상단 ··· → 엑셀 다운로드'},{id:'kb',bank:'국민은행',steps:'KB Star 앱 → 조회 → 계좌조회 → 거래내역조회 → 하단 "엑셀저장"'},{id:'shinhan',bank:'신한은행',steps:'SOL 앱 → 계좌관리 → 거래내역조회 → 우측 상단 내보내기 → 파일 저장'},{id:'woori',bank:'우리은행',steps:'확인 중 — 은행 앱에서 거래내역 조회 후 엑셀 내보내기를 찾아주세요'},{id:'hana',bank:'하나은행',steps:'확인 중 — 은행 앱에서 거래내역 조회 후 엑셀 내보내기를 찾아주세요'},{id:'nh',bank:'농협',steps:'NH올원뱅크 → 계좌 → 거래내역조회 → 하단 "파일저장" → 엑셀'},].map(({id,bank,steps})=>(
           <div key={id} style={{borderRadius:12,overflow:'hidden',marginBottom:4}}>
-            <button onClick={()=>setBankGuideOpen(v=>v===id?null:id)} style={{width:'100%',padding:'10px 14px',background:C.inputBg,border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left',borderRadius:12}}>
+            <button onClick={()=>toggleBankGuide(id)} style={{width:'100%',padding:'10px 14px',background:C.inputBg,border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left',borderRadius:12}}>
               <span style={{fontWeight:600,color:C.text,fontSize:13}}>{bank}</span>
-              <span style={{color:C.textDim,fontSize:12}}>{bankGuideOpen===id?'▲':'▼'}</span>
+              <span style={{color:C.textDim,fontSize:12}}>{bankGuideOpen.has(id)?'▲':'▼'}</span>
             </button>
-            {bankGuideOpen===id&&<div style={{padding:'10px 14px',fontSize:12,color:C.textMid,lineHeight:1.8,background:'#fff'}}>{steps}</div>}
+            {bankGuideOpen.has(id)&&<div style={{padding:'10px 14px',fontSize:12,color:C.textMid,lineHeight:1.8,background:'#fff'}}>{steps}</div>}
           </div>
         ))}
         <div style={{fontSize:11,color:C.textDim,marginTop:10,lineHeight:1.6}}>* 앱 버전에 따라 메뉴가 다를 수 있어요</div>
@@ -2921,7 +2937,8 @@ function FormShareTab({form, showToast}){
 // ── FormAdminScreen (대규모 관리자 대시보드) ──────────────────
 function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
   const [tab,setTab]=useState('submissions');
-  const [bankGuideOpen,setBankGuideOpen]=useState(null);
+  const [bankGuideOpen,setBankGuideOpen]=useState(()=>new Set());
+  const toggleBankGuide=(id)=>setBankGuideOpen(prev=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;});
   const [uploadMode,setUploadMode]=useState('file');
   const [viewCount,setViewCount]=useState(0);
   const fileRef=useRef(null);
