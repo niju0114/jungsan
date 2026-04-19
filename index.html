@@ -201,6 +201,8 @@ const parseMembers = text => {
   return result;
 };
 const displayName = m => m.sid?`${m.name} (${m.sid})`:m.name;
+const FIELD_LABELS={name:'이름',phone:'연락처',grade:'학년',studentId:'학번'};
+const fieldLabel = key => FIELD_LABELS[key]||key;
 
 // 송금 딥링크
 const BANK_CODES={'카카오뱅크':'090','카카오':'090','국민':'004','국민은행':'004','KB국민':'004','신한':'088','신한은행':'088','우리':'020','우리은행':'020','하나':'081','하나은행':'081','농협':'011','NH농협':'011','기업':'003','IBK기업':'003','SC제일':'023','씨티':'027','대구':'031','부산':'032','경남':'039','광주':'034','전북':'037','제주':'035','수협':'007','새마을금고':'045','새마을':'045','신협':'048','우체국':'071','토스뱅크':'092','토스':'092','케이뱅크':'089','K뱅크':'089'};
@@ -2583,26 +2585,6 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
     else unregisteredCount++;
   });
 
-  const saveSubsToRoster=async()=>{
-    if(!subs.length) return;
-    const newGroups=[...groups];
-    let added=0;
-    subs.forEach(s=>{
-      const name=(s.name||'').trim();
-      if(!name) return;
-      const already=groups.some(g=>(g.members||[]).some(m=>m.name===name));
-      if(!already){
-        const gName=`${form.name}`;
-        let target=newGroups.find(g=>g.name===gName);
-        if(!target){target={id:'g'+Date.now(),name:gName,rawText:'',members:[]};newGroups.push(target);}
-        if(!target.members.find(m=>m.name===name)){target.members.push({name,sid:''});added++;}
-      }
-    });
-    if(added===0){showToast('모두 이미 명단에 있어요');return;}
-    await saveProfile({...profile,groups:newGroups});
-    showToast(`${added}명이 "${form.name}" 그룹에 추가됨`);
-  };
-
   const togglePaid=async(idx)=>{
     const newSubs=[...subs];
     const s=newSubs[idx];
@@ -2654,7 +2636,7 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
   return {
     subs, filteredSubs, groupCounts, unregisteredCount, matchResults, uploading,
     searchQ, setSearchQ, groupFilter, setGroupFilter,
-    handlers:{saveSubsToRoster, togglePaid, handleExcel, applyMatched, copyNudge,
+    handlers:{togglePaid, handleExcel, applyMatched, copyNudge,
       setMatchResults,
       closeForm:async()=>{if(!window.confirm('신청을 마감할까요?')) return; await updateForm({...form,status:'closed'}); showToast('신청이 마감됐어요');},
       reopenForm:async()=>{await updateForm({...form,status:'open'}); showToast('신청이 다시 열렸어요');},
@@ -2669,7 +2651,7 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
 
 function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCount, groups,
                          searchQ, setSearchQ, groupFilter, setGroupFilter,
-                         onTogglePaid, onSaveRoster}){
+                         onTogglePaid}){
   if(subs.length===0) return(
     <div style={{textAlign:'center',padding:'40px 0'}}>
       <div style={{fontSize:40,marginBottom:12}}>📭</div>
@@ -2723,7 +2705,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
             </div>
             {Object.entries(s.data||{}).filter(([k])=>!['name','phone'].includes(k)).map(([k,v])=>(
               <div key={k} style={{fontSize:12,color:C.textMid,marginTop:3}}>
-                <span style={{color:C.textDim}}>{k}:</span> {Array.isArray(v)?v.join(', '):v}
+                <span style={{color:C.textDim}}>{fieldLabel(k)}:</span> {Array.isArray(v)?v.join(', '):v}
               </div>
             ))}
             <div style={{fontSize:11,color:C.textDim,marginTop:4,display:'flex',gap:8}}>
@@ -2734,16 +2716,6 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
           </div>
         );
       })}
-      {subs.length>0&&onSaveRoster&&(
-        <button onClick={onSaveRoster} style={{
-          width:'100%',marginTop:12,padding:'14px',borderRadius:14,
-          background:'#fff',border:`1.5px dashed ${C.accent}50`,
-          color:C.accent,fontWeight:700,fontSize:13,cursor:'pointer',
-          display:'flex',alignItems:'center',justifyContent:'center',gap:8,
-        }}>
-          📋 신청 명단 → 내 명단에 저장
-        </button>
-      )}
     </div>
   );
 }
@@ -2958,7 +2930,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
           <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
             unregisteredCount={unregisteredCount} groups={groups}
             searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
-            onTogglePaid={handlers.togglePaid} onSaveRoster={saveProfile?handlers.saveSubsToRoster:null}/>
+            onTogglePaid={handlers.togglePaid}/>
         )}
         {tab==='verify'&&(
           <VerifyTab form={form} subs={subs} matchResults={matchResults} uploading={uploading}
