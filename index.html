@@ -1436,7 +1436,7 @@ function CreateScreen({nav,profile,events,createEvent}){
               }} className="press" style={{padding:'6px 13px',borderRadius:16,border:`1.5px solid ${selected.length===allMembers.length&&allMembers.length>0?C.accent:C.border}`,background:selected.length===allMembers.length&&allMembers.length>0?C.accent:C.cardBg,color:selected.length===allMembers.length&&allMembers.length>0?'#fff':C.textMid,fontSize:12,fontWeight:700,cursor:'pointer'}}>
                 전체 {selected.length===allMembers.length&&allMembers.length>0?'✓':''}
               </button>
-              {groups.map((g,i)=>{
+              {groups.map((g,i)=>({g,i})).filter(({g})=>(g.members||[]).length>0).map(({g,i})=>{
                 const keys=(g.members||[]).map(m=>m.name+(m.sid?`_${m.sid}`:''));
                 const allSel=keys.length>0&&keys.every(k=>selected.includes(k));
                 return(
