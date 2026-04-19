@@ -305,9 +305,9 @@ const matchEngine = {
   },
 
   match(deposits, subs, expectedAmount) {
-    const nameFreq={};
-    subs.forEach(s=>{const n=this.normalize(s.name||'');nameFreq[n]=(nameFreq[n]||0)+1;});
-    const isDup=s=>(nameFreq[this.normalize(s.name||'')]||0)>1;
+    const dupMap={};
+    subs.forEach(s=>{const n=this.normalize(s.name||'');if(!dupMap[n])dupMap[n]=[];dupMap[n].push({name:s.name,studentId:s.studentId||''});});
+    const getDups=s=>{const arr=dupMap[this.normalize(s.name||'')];return arr&&arr.length>1?arr:null;};
 
     const matched=[], amountMismatch=[], unpaid=[], refund=[];
     const subsCopy=subs.map(s=>({...s,_matched:false}));
@@ -315,21 +315,21 @@ const matchEngine = {
     // 1차: 정확 매칭
     deposits.forEach(dep=>{
       const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='exact'&&dep.amount===expectedAmount);
-      if(idx>=0){matched.push({sub:subsCopy[idx],deposit:dep,type:'exact',isDuplicate:isDup(subsCopy[idx])});subsCopy[idx]._matched=true;dep.matched=true;}
+      if(idx>=0){matched.push({sub:subsCopy[idx],deposit:dep,type:'exact',duplicates:getDups(subsCopy[idx])});subsCopy[idx]._matched=true;dep.matched=true;}
     });
     // 2차: 이름 매칭 + 금액 불일치
     deposits.forEach(dep=>{
       if(dep.matched) return;
       const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='exact');
-      if(idx>=0){amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-expectedAmount,isDuplicate:isDup(subsCopy[idx])});subsCopy[idx]._matched=true;dep.matched=true;}
+      if(idx>=0){amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-expectedAmount,duplicates:getDups(subsCopy[idx])});subsCopy[idx]._matched=true;dep.matched=true;}
     });
     // 3차: 부분 매칭
     deposits.forEach(dep=>{
       if(dep.matched) return;
       const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='partial');
       if(idx>=0){
-        if(dep.amount===expectedAmount) matched.push({sub:subsCopy[idx],deposit:dep,type:'partial',isDuplicate:isDup(subsCopy[idx])});
-        else amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-expectedAmount,isDuplicate:isDup(subsCopy[idx])});
+        if(dep.amount===expectedAmount) matched.push({sub:subsCopy[idx],deposit:dep,type:'partial',duplicates:getDups(subsCopy[idx])});
+        else amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-expectedAmount,duplicates:getDups(subsCopy[idx])});
         subsCopy[idx]._matched=true;dep.matched=true;
       }
     });
@@ -2821,13 +2821,16 @@ function VerifyTab({form, subs, matchResults, uploading, bankGuideOpen, setBankG
           <div style={{marginBottom:16}}>
             <div style={{fontSize:13,fontWeight:800,color:C.green,marginBottom:8}}>✅ 매칭 완료 ({matchResults.matched.length}명)</div>
             {matchResults.matched.map((m,i)=>(
-              <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
-                <div>
-                  <span style={{fontWeight:700,color:C.text,fontSize:14}}>{m.sub.name}</span>
-                  {m.type==='partial'&&<span style={{fontSize:11,color:C.textDim,marginLeft:6}}>≈ {m.deposit.name}</span>}
-                  {m.isDuplicate&&<span style={{fontSize:10,fontWeight:700,color:C.orange,background:C.orangeBg,borderRadius:8,padding:'2px 6px',marginLeft:6}}>동명이인 주의</span>}
+              <div key={i} style={{padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div>
+                    <span style={{fontWeight:700,color:C.text,fontSize:14}}>{m.sub.name}</span>
+                    {m.type==='partial'&&<span style={{fontSize:11,color:C.textDim,marginLeft:6}}>≈ {m.deposit.name}</span>}
+                    {m.duplicates&&<span style={{fontSize:10,fontWeight:700,color:C.orange,background:C.orangeBg,borderRadius:8,padding:'2px 6px',marginLeft:6}}>동명이인 주의</span>}
+                  </div>
+                  <span style={{color:C.green,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
                 </div>
-                <span style={{color:C.green,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
+                {m.duplicates&&<div style={{fontSize:11,color:C.orange,marginTop:4}}>{m.duplicates.every(d=>d.studentId)?m.duplicates.map(d=>`${d.name}(${String(d.studentId).slice(-4)})`).join('와 ')+' 중 누가 입금했는지 확인 필요':`${m.sub.name}가 명단에 ${m.duplicates.length}명 있어요`}</div>}
               </div>
             ))}
           </div>
@@ -2840,13 +2843,14 @@ function VerifyTab({form, subs, matchResults, uploading, bankGuideOpen, setBankG
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                   <div>
                     <span style={{fontWeight:700,color:C.text,fontSize:14}}>{m.sub.name}</span>
-                    {m.isDuplicate&&<span style={{fontSize:10,fontWeight:700,color:C.orange,background:C.orangeBg,borderRadius:8,padding:'2px 6px',marginLeft:6}}>동명이인 주의</span>}
+                    {m.duplicates&&<span style={{fontSize:10,fontWeight:700,color:C.orange,background:C.orangeBg,borderRadius:8,padding:'2px 6px',marginLeft:6}}>동명이인 주의</span>}
                   </div>
                   <div style={{display:'flex',alignItems:'center',gap:8}}>
                     <span style={{color:C.orange,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
                     <button onClick={()=>{const idx=subs.findIndex(s=>s.createdAt===m.sub.createdAt);if(idx>=0){setApprovedKeys(prev=>new Set([...prev,m.sub.createdAt]));onTogglePaid(idx);}}} style={{padding:'5px 10px',borderRadius:8,background:C.greenBg,border:`1px solid ${C.green}40`,color:C.green,fontWeight:700,fontSize:12,cursor:'pointer'}}>수동 처리</button>
                   </div>
                 </div>
+                {m.duplicates&&<div style={{fontSize:11,color:C.orange,marginTop:4}}>{m.duplicates.every(d=>d.studentId)?m.duplicates.map(d=>`${d.name}(${String(d.studentId).slice(-4)})`).join('와 ')+' 중 누가 입금했는지 확인 필요':`${m.sub.name}가 명단에 ${m.duplicates.length}명 있어요`}</div>}
                 <div style={{fontSize:12,color:C.orange,marginTop:4}}>
                   {m.diff>0?`${fmtKRW(m.diff)} 초과 입금`:`${fmtKRW(Math.abs(m.diff))} 부족`}
                   <span style={{color:C.textDim,marginLeft:8}}>예상: {fmtKRW(form.amount)}</span>
