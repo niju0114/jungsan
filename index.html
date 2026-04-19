@@ -1107,26 +1107,26 @@ function ModeSelectModal({profile,nav,onClose}){
         )}
         <div style={{fontWeight:900,color:C.text,fontSize:20,marginBottom:6,textAlign:'center'}}>무엇을 하시나요?</div>
         <div style={{color:C.textMid,fontSize:13,marginBottom:24,textAlign:'center'}}>상황에 맞게 선택하세요</div>
-        <button onClick={()=>{onClose();nav.setView('create');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,marginBottom:12,background:C.accentBg,border:`1px solid ${C.accent}20`,cursor:'pointer',textAlign:'left'}}>
+        <button onClick={()=>{onClose();nav.setView('formCreate');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,marginBottom:12,background:C.orangeBg,border:`1px solid ${C.orange}20`,cursor:'pointer',textAlign:'left'}}>
           <div style={{display:'flex',alignItems:'center',gap:14}}>
-            <div style={{width:48,height:48,borderRadius:14,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🍻</div>
+            <div style={{width:48,height:48,borderRadius:14,background:C.orange,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📝</div>
             <div style={{flex:1}}>
-              <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>술자리·뒷풀이</div>
-              <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>이미 모인 우리끼리 1/N 정산</div>
-              <div style={{fontSize:11,color:C.accent,fontWeight:600}}>명단 선택 → OX 대시보드</div>
-            </div>
-            <span className="ms" style={{color:C.accent}}>chevron_right</span>
-          </div>
-        </button>
-        <button onClick={()=>{onClose();nav.setView('formCreate');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,background:C.orangeBg,border:`1px solid ${C.orange}20`,cursor:'pointer',textAlign:'left'}}>
-          <div style={{display:'flex',alignItems:'center',gap:14}}>
-            <div style={{width:48,height:48,borderRadius:14,background:C.orange,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📋</div>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>행사·야식마차</div>
-              <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>선착순 모집부터 신청서 관리까지</div>
-              <div style={{fontSize:11,color:C.orange,fontWeight:600}}>신청폼 → 선착순 마감 → 엑셀 대조</div>
+              <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>미리 신청 받기</div>
+              <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>신청폼으로 참여자 모집</div>
+              <div style={{fontSize:11,color:C.orange,fontWeight:600}}>MT, 종강파티, 행사</div>
             </div>
             <span className="ms" style={{color:C.orange}}>chevron_right</span>
+          </div>
+        </button>
+        <button onClick={()=>{onClose();nav.setView('create');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,background:C.accentBg,border:`1px solid ${C.accent}20`,cursor:'pointer',textAlign:'left'}}>
+          <div style={{display:'flex',alignItems:'center',gap:14}}>
+            <div style={{width:48,height:48,borderRadius:14,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🧾</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>끝나고 정산하기</div>
+              <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>명단 만들고 바로 정산</div>
+              <div style={{fontSize:11,color:C.accent,fontWeight:600}}>뒷풀이, 회식, 야식마차</div>
+            </div>
+            <span className="ms" style={{color:C.accent}}>chevron_right</span>
           </div>
         </button>
       </div>
@@ -1139,7 +1139,7 @@ function GuideModal({onClose,onFeedback}){
   const faqs=[
     {q:'참여자는 앱 설치나 로그인이 필요한가요?',a:'전혀 필요 없어요. 총무가 공유한 링크만 누르면 바로 본인 금액 화면이 열려요. 앱 설치도, 회원가입도 필요 없이 바로 확인하고 완료 버튼만 누르면 돼요.'},
     {q:'정산해는 어떤 서비스인가요?',a:'정산해는 모임·회식·MT 등에서 총무가 정산을 쉽게 할 수 있도록 도와주는 서비스예요. 명단 등록 → 금액 입력 → 링크 공유 → 실시간 O/X 확인까지, 총무의 정산 업무를 1/10로 줄여줘요.'},
-    {q:'술자리·뒷풀이와 행사·야식마차의 차이는?',a:'술자리·뒷풀이는 이미 모인 우리끼리 1/N 정산이에요. 출석 체크 → 차수별 금액 입력 → O/X 보드 방식이에요.\n행사·야식마차는 선착순 모집부터 신청서 관리까지 가능한 신청폼이에요. 참여자가 직접 신청서를 작성하고 선착순·정원 관리 + 거래내역 엑셀 자동 대조가 돼요.'},
+    {q:'끝나고 정산하기와 미리 신청 받기의 차이는?',a:'끝나고 정산하기는 이미 모인 우리끼리 1/N 정산이에요. 출석 체크 → 차수별 금액 입력 → O/X 보드 방식이에요.\n미리 신청 받기는 참여자가 신청서를 작성하고 총무가 명단을 관리하는 방식이에요. 선착순·정원 관리, 참가비를 걷는 경우 거래내역 엑셀 자동 대조까지 돼요.'},
     {q:'데이터는 안전한가요?',a:'모든 데이터는 암호화된 클라우드 서버(AWS 인프라 기반)에 안전하게 저장돼요. 데이터 전송 시 HTTPS 암호화가 적용되며, 본인의 데이터는 본인만 접근할 수 있어요. 회원 탈퇴 시 모든 데이터가 즉시 삭제됩니다.'},
   ];
   const [open,setOpen]=useState(null);
@@ -2141,7 +2141,7 @@ function HistoryScreen({nav,events,forms,deleteEvent,deleteForm}){
       
       {/* 탭 */}
       <div style={{display:'flex',padding:'12px 18px 0',gap:8}}>
-        {[['events','술자리·뒷풀이'],['forms','행사·야식마차']].map(([key,label])=>(
+        {[['events','정산'],['forms','신청폼']].map(([key,label])=>(
           <button key={key} onClick={()=>setTab(key)} style={{
             flex:1,padding:'10px',borderRadius:10,fontSize:14,fontWeight:700,cursor:'pointer',
             background:tab===key?C.accent:'#fff',color:tab===key?'#fff':C.textMid,
@@ -2209,7 +2209,7 @@ function OnboardingModal({onClose}){
   const [step,setStep]=useState(0);
   const steps=[
     {icon:'⚙',title:'먼저 설정부터',desc:'홈에서 명단·계좌 설정을 눌러\n학년·기수별로 명단을 등록해두세요.\n기존 엑셀 데이터를 그대로 복붙하면 돼요.'},
-    {icon:'➕',title:'정산·신청 만들기',desc:'새 정산·신청을 누르고\n행사명과 날짜를 입력해요.\n명단에서 참여자를 선택하면 끝.'},
+    {icon:'➕',title:'정산·신청 만들기',desc:'돈을 언제 걷느냐에 따라 선택하세요.\n미리 신청 받기: 신청폼으로 참여자 모집 (참가비 받기 가능)\n끝나고 정산하기: 명단 선택 후 즉석 1/N'},
     {icon:'📤',title:'링크 공유하기',desc:'출석 확인 → 금액 입력 → 공유 탭에서\n카톡 메시지를 복사해 단톡방에 올려요.\n안 낸 사람은 콕 찌르기로 해결.'},
     {icon:'📊',title:'실시간 O/X',desc:'참여자가 링크 들어와서 완료 누르면\nO/X 보드가 모두한테 실시간으로 바뀌어요.\n총무는 보기만 하면 끝!'},
   ];
