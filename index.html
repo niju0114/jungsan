@@ -315,6 +315,51 @@ const matchEngine = {
   },
 };
 
+// 법률 텍스트 (AuthScreen 인라인에서 분리)
+const LEGAL_TEXTS = {
+  terms: (<div>
+    <p style={{fontWeight:700,color:'#191F28',marginBottom:8}}>제1조 (목적)</p>
+    <p>본 약관은 정산해(이하 "서비스")가 제공하는 모임 정산 관련 서비스의 이용 조건 및 절차, 이용자와 서비스 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.</p>
+    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>제2조 (서비스의 내용)</p>
+    <p>서비스는 모임 참여자 명단 관리, 정산 금액 계산, 입금 현황 확인 등의 기능을 제공합니다. 서비스의 구체적인 내용은 운영 상황에 따라 변경될 수 있습니다.</p>
+    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>제3조 (이용자의 의무)</p>
+    <p>이용자는 서비스 이용 시 타인의 권리를 침해하거나 관련 법령을 위반하는 행위를 해서는 안 됩니다. 허위 정보 입력, 서비스 악용, 부정 접근 시도 등은 금지됩니다.</p>
+    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>제4조 (서비스의 중단)</p>
+    <p>서비스는 시스템 점검, 장비 교체 등 운영상 필요한 경우 서비스의 전부 또는 일부를 제한하거나 중단할 수 있습니다.</p>
+    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>제5조 (면책)</p>
+    <p>서비스는 이용자 간 정산 과정에서 발생하는 금전적 분쟁에 대해 책임을 지지 않습니다. 서비스는 정산 편의 도구를 제공할 뿐, 금전 거래의 당사자가 아닙니다.</p>
+    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>제6조 (계정 해지)</p>
+    <p>이용자는 언제든지 회원 탈퇴를 통해 계정을 해지할 수 있으며, 탈퇴 시 관련 데이터는 즉시 삭제됩니다.</p>
+  </div>),
+  privacy: (<div>
+    <p style={{fontWeight:700,color:'#191F28',marginBottom:8}}>1. 수집하는 개인정보 항목</p>
+    <p>필수: 아이디, 비밀번호, 이름, 소속(학교·단체), 학과·팀명, 전화번호</p>
+    <p>선택: 행사 규모, 행사 빈도, 기존 정산 방법</p>
+    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>2. 수집 목적</p>
+    <p>서비스 제공 및 운영, 본인 확인, 서비스 개선, 고객 지원</p>
+    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>3. 보유 및 이용 기간</p>
+    <p>회원 탈퇴 시까지 보유하며, 탈퇴 즉시 파기합니다. 단, 관련 법령에 따라 보존이 필요한 경우 해당 기간 동안 보관합니다.</p>
+    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>4. 개인정보의 안전성 확보</p>
+    <p>모든 데이터는 암호화된 전송(HTTPS) 및 저장이 적용되며, 접근 권한을 최소화하여 관리합니다.</p>
+    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>5. 이용자의 권리</p>
+    <p>이용자는 언제든 본인의 개인정보를 조회, 수정, 삭제할 수 있으며, 회원 탈퇴를 통해 처리 정지를 요청할 수 있습니다.</p>
+  </div>),
+  thirdParty: (<div>
+    <p style={{fontWeight:700,color:'#191F28',marginBottom:8}}>제3자 정보 제공 안내</p>
+    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>1. 제공 대상</p>
+    <p>Supabase Inc. (데이터베이스 및 인증 서비스 제공)</p>
+    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>2. 제공 항목</p>
+    <p>아이디(이메일 형식), 비밀번호(암호화), 서비스 이용 데이터</p>
+    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>3. 제공 목적</p>
+    <p>회원 인증, 데이터 저장 및 실시간 동기화 서비스 운영</p>
+    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>4. 보유 기간</p>
+    <p>회원 탈퇴 시까지이며, 탈퇴 시 즉시 삭제 요청합니다.</p>
+  </div>),
+  marketing: (<div>
+    <p>정산해의 새로운 기능, 유용한 팁, 이벤트 안내 등을 받아보실 수 있습니다. 수신 동의는 언제든지 철회할 수 있습니다.</p>
+  </div>),
+};
+
 // ═══════════════════════════════════════════════════════════
 // 4. UI PRIMITIVES — 공통 컴포넌트
 // ═══════════════════════════════════════════════════════════
@@ -835,47 +880,7 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
                     <button onClick={()=>setLegalModal(null)} style={{background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:10,width:32,height:32,cursor:'pointer',color:C.textMid,fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
                   </div>
                   <div style={{overflow:'auto',padding:'16px 24px 32px',fontSize:13,color:C.textMid,lineHeight:2}}>
-                    {legalModal==='terms'&&(<div>
-                      <p style={{fontWeight:700,color:C.text,marginBottom:8}}>제1조 (목적)</p>
-                      <p>본 약관은 정산해(이하 "서비스")가 제공하는 모임 정산 관련 서비스의 이용 조건 및 절차, 이용자와 서비스 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.</p>
-                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>제2조 (서비스의 내용)</p>
-                      <p>서비스는 모임 참여자 명단 관리, 정산 금액 계산, 입금 현황 확인 등의 기능을 제공합니다. 서비스의 구체적인 내용은 운영 상황에 따라 변경될 수 있습니다.</p>
-                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>제3조 (이용자의 의무)</p>
-                      <p>이용자는 서비스 이용 시 타인의 권리를 침해하거나 관련 법령을 위반하는 행위를 해서는 안 됩니다. 허위 정보 입력, 서비스 악용, 부정 접근 시도 등은 금지됩니다.</p>
-                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>제4조 (서비스의 중단)</p>
-                      <p>서비스는 시스템 점검, 장비 교체 등 운영상 필요한 경우 서비스의 전부 또는 일부를 제한하거나 중단할 수 있습니다.</p>
-                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>제5조 (면책)</p>
-                      <p>서비스는 이용자 간 정산 과정에서 발생하는 금전적 분쟁에 대해 책임을 지지 않습니다. 서비스는 정산 편의 도구를 제공할 뿐, 금전 거래의 당사자가 아닙니다.</p>
-                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>제6조 (계정 해지)</p>
-                      <p>이용자는 언제든지 회원 탈퇴를 통해 계정을 해지할 수 있으며, 탈퇴 시 관련 데이터는 즉시 삭제됩니다.</p>
-                    </div>)}
-                    {legalModal==='privacy'&&(<div>
-                      <p style={{fontWeight:700,color:C.text,marginBottom:8}}>1. 수집하는 개인정보 항목</p>
-                      <p>필수: 아이디, 비밀번호, 이름, 소속(학교·단체), 학과·팀명, 전화번호</p>
-                      <p>선택: 행사 규모, 행사 빈도, 기존 정산 방법</p>
-                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>2. 수집 목적</p>
-                      <p>서비스 제공 및 운영, 본인 확인, 서비스 개선, 고객 지원</p>
-                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>3. 보유 및 이용 기간</p>
-                      <p>회원 탈퇴 시까지 보유하며, 탈퇴 즉시 파기합니다. 단, 관련 법령에 따라 보존이 필요한 경우 해당 기간 동안 보관합니다.</p>
-                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>4. 개인정보의 안전성 확보</p>
-                      <p>모든 데이터는 암호화된 전송(HTTPS) 및 저장이 적용되며, 접근 권한을 최소화하여 관리합니다.</p>
-                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>5. 이용자의 권리</p>
-                      <p>이용자는 언제든 본인의 개인정보를 조회, 수정, 삭제할 수 있으며, 회원 탈퇴를 통해 처리 정지를 요청할 수 있습니다.</p>
-                    </div>)}
-                    {legalModal==='thirdParty'&&(<div>
-                      <p style={{fontWeight:700,color:C.text,marginBottom:8}}>제3자 정보 제공 안내</p>
-                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>1. 제공 대상</p>
-                      <p>Supabase Inc. (데이터베이스 및 인증 서비스 제공)</p>
-                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>2. 제공 항목</p>
-                      <p>아이디(이메일 형식), 비밀번호(암호화), 서비스 이용 데이터</p>
-                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>3. 제공 목적</p>
-                      <p>회원 인증, 데이터 저장 및 실시간 동기화 서비스 운영</p>
-                      <p style={{fontWeight:700,color:C.text,margin:'12px 0 8px'}}>4. 보유 기간</p>
-                      <p>회원 탈퇴 시까지이며, 탈퇴 시 즉시 삭제 요청합니다.</p>
-                    </div>)}
-                    {legalModal==='marketing'&&(<div>
-                      <p>정산해의 새로운 기능, 유용한 팁, 이벤트 안내 등을 받아보실 수 있습니다. 수신 동의는 언제든지 철회할 수 있습니다.</p>
-                    </div>)}
+                    {LEGAL_TEXTS[legalModal]}
                   </div>
                 </div>
               </div>
@@ -2863,319 +2868,28 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
       </div>
 
       <div style={{padding:'8px 16px 16px'}}>
-
-        {/* ── 탭1: 신청 목록 ── */}
         {tab==='submissions'&&(
-          <>
-            {subs.length===0?(
-              <div style={{textAlign:'center',padding:'40px 0'}}>
-                <div style={{fontSize:40,marginBottom:12}}>📭</div>
-                <div style={{color:C.textMid,fontSize:14}}>아직 신청이 없어요</div>
-                <div style={{color:C.textDim,fontSize:13,marginTop:4}}>링크를 공유해보세요</div>
-              </div>
-            ):(
-              <div>
-                {/* 검색 */}
-                <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름 또는 연락처 검색"
-                  style={{width:'100%',padding:'10px 14px',background:'#fff',border:'none',borderRadius:12,fontSize:14,outline:'none',marginBottom:8,color:C.text}}
-                  onFocus={e=>e.target.style.boxShadow=`0 0 0 2px ${C.accent}40`}
-                  onBlur={e=>e.target.style.boxShadow='none'}
-                />
-
-                {/* 그룹 필터 칩 */}
-                {groups.length>0&&(
-                  <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:10}}>
-                    <button onClick={()=>setGroupFilter('all')} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter==='all'?C.accent:'#fff',color:groupFilter==='all'?'#fff':C.textMid,border:'none'}}>
-                      전체 {subs.length}
-                    </button>
-                    {groups.map(g=>groupCounts[g.name]?(
-                      <button key={g.name} onClick={()=>setGroupFilter(f=>f===g.name?'all':g.name)} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter===g.name?C.accent:'#fff',color:groupFilter===g.name?'#fff':C.textMid,border:'none'}}>
-                        {g.name} {groupCounts[g.name]}
-                      </button>
-                    ):null)}
-                    {unregisteredCount>0&&(
-                      <button onClick={()=>setGroupFilter(f=>f==='unregistered'?'all':'unregistered')} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter==='unregistered'?C.red:'#fff',color:groupFilter==='unregistered'?'#fff':C.textDim,border:'none'}}>
-                        미등록 {unregisteredCount}
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* 목록 */}
-                {filteredSubs.map(s=>{
-                  const isPaid=s.paid||s.paymentStatus==='matched';
-                  const isRequested=s.paymentStatus==='requested';
-                  return(
-                    <div key={s._idx} style={{background:'#fff',borderRadius:16,padding:'14px 16px',marginBottom:8}}>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
-                        <div style={{display:'flex',alignItems:'center',gap:6,flex:1,minWidth:0}}>
-                          {s._group&&<span style={{padding:'2px 8px',borderRadius:8,fontSize:10,fontWeight:700,background:C.accentBg,color:C.accent,flexShrink:0}}>{s._group}</span>}
-                          {!s._group&&groups.length>0&&<span style={{padding:'2px 8px',borderRadius:8,fontSize:10,fontWeight:700,background:C.redBg,color:C.red,flexShrink:0}}>미등록</span>}
-                          <span style={{fontWeight:800,color:C.text,fontSize:15,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</span>
-                          <span style={{color:C.textDim,fontSize:12,flexShrink:0}}>{s.phone}</span>
-                        </div>
-                        <button onClick={()=>togglePaid(s._idx)} className="press" style={{
-                          padding:'6px 12px',borderRadius:20,fontSize:11,fontWeight:700,cursor:'pointer',flexShrink:0,marginLeft:6,
-                          background:isPaid?C.green:isRequested?C.accentBg:C.orangeBg,
-                          color:isPaid?'#fff':isRequested?C.accent:C.orange,border:'none',
-                        }}>
-                          {isPaid?'✓ 확정':isRequested?'요청됨':'대기'}
-                        </button>
-                      </div>
-                      {Object.entries(s.data||{}).filter(([k])=>!['name','phone'].includes(k)).map(([k,v])=>(
-                      <div key={k} style={{fontSize:12,color:C.textMid,marginTop:3}}>
-                        <span style={{color:C.textDim}}>{k}:</span> {Array.isArray(v)?v.join(', '):v}
-                      </div>
-                    ))}
-                    <div style={{fontSize:11,color:C.textDim,marginTop:4,display:'flex',gap:8}}>
-                      {fmtTime(s.createdAt)}
-                      {s.matchedBy==='auto'&&<span style={{color:C.green}}>자동매칭</span>}
-                      {s.matchedBy==='manual'&&<span style={{color:C.accent}}>수동확인</span>}
-                    </div>
-                  </div>
-                );
-              })}
-
-                {/* 명단 저장 버튼 */}
-                {subs.length>0&&saveProfile&&(
-                  <button onClick={saveSubsToRoster} style={{
-                    width:'100%',marginTop:12,padding:'14px',borderRadius:14,
-                    background:'#fff',border:`1.5px dashed ${C.accent}50`,
-                    color:C.accent,fontWeight:700,fontSize:13,cursor:'pointer',
-                    display:'flex',alignItems:'center',justifyContent:'center',gap:8,
-                  }}>
-                    📋 신청 명단 → 내 명단에 저장
-                  </button>
-                )}
-              </div>
-            )}
-          </>
+          <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
+            unregisteredCount={unregisteredCount} groups={groups}
+            searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
+            onTogglePaid={handlers.togglePaid} onSaveRoster={saveProfile?handlers.saveSubsToRoster:null}/>
         )}
-
-        {/* ── 탭2: 입금 대조 ── */}
         {tab==='verify'&&(
-          <div>
-            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleExcel} style={{display:'none'}}/>
-            
-            {!matchResults?(
-              <div style={{padding:'16px 0'}}>
-                <div style={{textAlign:'center',marginBottom:20}}>
-                  <div style={{fontSize:48,marginBottom:12}}>📊</div>
-                  <div style={{fontWeight:800,color:C.text,fontSize:18,marginBottom:4}}>거래내역 대조</div>
-                  <div style={{color:C.textMid,fontSize:13,lineHeight:1.7}}>은행 거래내역을 업로드하면 자동 대조해요</div>
-                </div>
-
-                {/* 모드 탭 */}
-                <div style={{display:'flex',gap:6,marginBottom:16}}>
-                  {[['file','📁 파일 업로드'],['email','📧 이메일로 받기']].map(([k,l])=>(
-                    <button key={k} onClick={()=>setUploadMode(k)} style={{
-                      flex:1,padding:'10px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',
-                      background:uploadMode===k?C.accent:'#fff',color:uploadMode===k?'#fff':C.textMid,border:'none',
-                    }}>{l}</button>
-                  ))}
-                </div>
-
-                {uploadMode==='file'&&(
-                  <div style={{textAlign:'center',marginBottom:20}}>
-                    <Btn onClick={()=>fileRef.current?.click()} loading={uploading}>파일 선택하기</Btn>
-                    <div style={{marginTop:10,fontSize:12,color:C.textDim}}>지원: .xlsx, .xls, .csv</div>
-                  </div>
-                )}
-
-                {uploadMode==='email'&&(
-                  <Card style={{marginBottom:16}}>
-                    <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:10}}>📧 이메일로 거래내역 받기</div>
-                    <div style={{fontSize:13,color:C.textMid,lineHeight:1.8,marginBottom:14}}>
-                      은행 앱에서 거래내역서를 본인 이메일로 보낸 후,<br/>
-                      첨부된 엑셀 파일을 다운받아 위 "파일 업로드"로 올려주세요.
-                    </div>
-                    <div style={{background:C.accentBg,borderRadius:12,padding:'14px 16px',fontSize:13,lineHeight:1.9}}>
-                      <strong style={{color:C.text}}>방법:</strong><br/>
-                      <span style={{color:C.textMid}}>
-                        1. 은행 앱 → 거래내역서 → "이메일로 보내기"<br/>
-                        2. 본인 이메일 주소 입력 → 전송<br/>
-                        3. 메일함에서 첨부 파일(.xlsx) 다운로드<br/>
-                        4. 위 "파일 업로드" 탭에서 업로드
-                      </span>
-                    </div>
-                    <div style={{marginTop:12}}>
-                      <Btn variant="secondary" onClick={()=>setUploadMode('file')} small>파일 업로드로 이동</Btn>
-                    </div>
-                  </Card>
-                )}
-
-                {/* 은행별 거래내역 다운로드 가이드 */}
-                <Card style={{padding:'16px'}}>
-                  <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:12}}>📱 은행별 다운로드 방법</div>
-                  
-                  {/* 토스뱅크 — 기본 열림, 상세 */}
-                  <div style={{borderRadius:12,overflow:'hidden',marginBottom:8,border:`1.5px solid ${bankGuideOpen==='toss'?C.accent+'40':C.pageBg}`}}>
-                    <button onClick={()=>setBankGuideOpen(v=>v==='toss'?null:'toss')} style={{width:'100%',padding:'12px 14px',background:bankGuideOpen==='toss'?C.accentBg:C.inputBg,border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left'}}>
-                      <span style={{fontWeight:700,color:C.text,fontSize:14}}>토스뱅크</span>
-                      <span style={{color:C.textDim,fontSize:14}}>{bankGuideOpen==='toss'?'▲':'▼'}</span>
-                    </button>
-                    {bankGuideOpen==='toss'&&(
-                      <div style={{padding:'12px 14px',background:'#fff',fontSize:13,color:C.textMid,lineHeight:2}}>
-                        <div style={{fontWeight:700,color:C.text,marginBottom:6}}>토스 앱에서:</div>
-                        1. 하단 <strong>전체</strong> 탭<br/>
-                        2. <strong>관리</strong> 메뉴<br/>
-                        3. <strong>증명서 발급</strong><br/>
-                        4. <strong>거래내역서</strong> 선택<br/>
-                        5. 기간 설정 → <strong>엑셀(xlsx) 다운로드</strong><br/>
-                        <div style={{marginTop:8,padding:'8px 10px',background:C.accentBg,borderRadius:8,fontSize:12}}>
-                          💡 이메일로 받기도 가능해요 (아래 이메일 옵션 참고)
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 나머지 은행 — 토글 */}
-                  {[
-                    {id:'kakao',bank:'카카오뱅크',steps:'더보기 → 입출금 내역 → 우측 상단 ··· → 엑셀 다운로드'},
-                    {id:'kb',bank:'국민은행',steps:'KB Star 앱 → 조회 → 계좌조회 → 거래내역조회 → 하단 "엑셀저장"'},
-                    {id:'shinhan',bank:'신한은행',steps:'SOL 앱 → 계좌관리 → 거래내역조회 → 우측 상단 내보내기 → 파일 저장'},
-                    {id:'woori',bank:'우리은행',steps:'확인 중 — 은행 앱에서 거래내역 조회 후 엑셀 내보내기를 찾아주세요'},
-                    {id:'hana',bank:'하나은행',steps:'확인 중 — 은행 앱에서 거래내역 조회 후 엑셀 내보내기를 찾아주세요'},
-                    {id:'nh',bank:'농협',steps:'NH올원뱅크 → 계좌 → 거래내역조회 → 하단 "파일저장" → 엑셀'},
-                  ].map(({id,bank,steps})=>(
-                    <div key={id} style={{borderRadius:12,overflow:'hidden',marginBottom:4,border:`1px solid ${bankGuideOpen===id?C.pageBg:'transparent'}`}}>
-                      <button onClick={()=>setBankGuideOpen(v=>v===id?null:id)} style={{width:'100%',padding:'10px 14px',background:C.inputBg,border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left',borderRadius:12}}>
-                        <span style={{fontWeight:600,color:C.text,fontSize:13}}>{bank}</span>
-                        <span style={{color:C.textDim,fontSize:12}}>{bankGuideOpen===id?'▲':'▼'}</span>
-                      </button>
-                      {bankGuideOpen===id&&(
-                        <div style={{padding:'10px 14px',fontSize:12,color:C.textMid,lineHeight:1.8,background:'#fff'}}>
-                          {steps}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                  <div style={{fontSize:11,color:C.textDim,marginTop:10,lineHeight:1.6}}>
-                    * 앱 버전에 따라 메뉴가 다를 수 있어요
-                  </div>
-                </Card>
-              </div>
-            ):(
-              <div>
-                {/* 대조 요약 */}
-                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:16}}>
-                  {[
-                    [matchResults.matched.length,'매칭',C.green,C.greenBg],
-                    [matchResults.amountMismatch.length,'금액 확인',C.orange,C.orangeBg],
-                    [matchResults.unpaid.length,'미입금',C.red,C.redBg],
-                    [matchResults.refund.length,'환불 대상','#8B5CF6','#F3F0FF'],
-                  ].map(([n,l,c,bg])=>(
-                    <div key={l} style={{background:bg,borderRadius:12,padding:'10px 4px',textAlign:'center'}}>
-                      <div style={{fontSize:18,fontWeight:900,color:c}}>{n}</div>
-                      <div style={{fontSize:10,color:c,fontWeight:600}}>{l}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* 일괄 반영 버튼 */}
-                {matchResults.matched.length>0&&(
-                  <Btn variant="green" onClick={applyMatched} style={{marginBottom:16}}>
-                    ✓ 매칭 {matchResults.matched.length}명 입금 확인 처리
-                  </Btn>
-                )}
-
-                {/* ✅ 매칭 완료 */}
-                {matchResults.matched.length>0&&(
-                  <div style={{marginBottom:16}}>
-                    <div style={{fontSize:13,fontWeight:800,color:C.green,marginBottom:8}}>✅ 매칭 완료 ({matchResults.matched.length}명)</div>
-                    {matchResults.matched.map((m,i)=>(
-                      <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
-                        <div>
-                          <span style={{fontWeight:700,color:C.text,fontSize:14}}>{m.sub.name}</span>
-                          {m.type==='partial'&&<span style={{fontSize:11,color:C.textDim,marginLeft:6}}>≈ {m.deposit.name}</span>}
-                        </div>
-                        <span style={{color:C.green,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* ⚠️ 금액 불일치 */}
-                {matchResults.amountMismatch.length>0&&(
-                  <div style={{marginBottom:16}}>
-                    <div style={{fontSize:13,fontWeight:800,color:C.orange,marginBottom:8}}>⚠ 금액 불일치 ({matchResults.amountMismatch.length}명)</div>
-                    {matchResults.amountMismatch.map((m,i)=>(
-                      <div key={i} style={{padding:'12px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
-                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                          <span style={{fontWeight:700,color:C.text,fontSize:14}}>{m.sub.name}</span>
-                          <span style={{color:C.orange,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
-                        </div>
-                        <div style={{fontSize:12,color:C.orange,marginTop:4}}>
-                          {m.diff>0?`${fmtKRW(m.diff)} 초과 입금`:`${fmtKRW(Math.abs(m.diff))} 부족`}
-                          <span style={{color:C.textDim,marginLeft:8}}>예상: {fmtKRW(form.amount)}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* ❌ 미입금 */}
-                {matchResults.unpaid.length>0&&(
-                  <div style={{marginBottom:16}}>
-                    <div style={{fontSize:13,fontWeight:800,color:C.red,marginBottom:8}}>❌ 미입금 ({matchResults.unpaid.length}명)</div>
-                    {matchResults.unpaid.map((s,i)=>(
-                      <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
-                        <div>
-                          <span style={{fontWeight:700,color:C.text,fontSize:14}}>{s.name}</span>
-                          <span style={{color:C.textDim,fontSize:12,marginLeft:8}}>{s.phone}</span>
-                        </div>
-                        <span style={{color:C.red,fontWeight:700,fontSize:13}}>{fmtKRW(form.amount)}</span>
-                      </div>
-                    ))}
-                    <Btn variant="secondary" onClick={copyNudge} style={{marginTop:8}} small>콕 찌르기 메시지 복사</Btn>
-                  </div>
-                )}
-
-                {/* 🔄 환불 대상 */}
-                {matchResults.refund.length>0&&(
-                  <div style={{marginBottom:16}}>
-                    <div style={{fontSize:13,fontWeight:800,color:'#8B5CF6',marginBottom:8}}>🔄 환불 대상 ({matchResults.refund.length}명)</div>
-                    <div style={{fontSize:12,color:C.textMid,marginBottom:8,lineHeight:1.6}}>신청 내역 없이 입금한 건이에요</div>
-                    {matchResults.refund.map((d,i)=>(
-                      <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
-                        <span style={{fontWeight:700,color:C.text,fontSize:14}}>{d.name}</span>
-                        <span style={{color:'#8B5CF6',fontWeight:700,fontSize:13}}>{fmtKRW(d.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 다시 업로드 */}
-                <Btn variant="secondary" onClick={()=>{setMatchResults(null);}} style={{marginBottom:8}}>다시 업로드</Btn>
-              </div>
-            )}
-          </div>
+          <VerifyTab form={form} subs={subs} matchResults={matchResults} uploading={uploading}
+            bankGuideOpen={bankGuideOpen} setBankGuideOpen={setBankGuideOpen}
+            uploadMode={uploadMode} setUploadMode={setUploadMode} fileRef={fileRef}
+            onUpload={handlers.handleExcel} onApply={handlers.applyMatched}
+            onReset={()=>handlers.setMatchResults(null)} onCopyNudge={handlers.copyNudge}/>
         )}
-
-        {/* ── 탭3: 공유 ── */}
-        {tab==='share'&&(()=>{
-          const formLink=getLink(`form=${form.code}`);
-          const shareMsg=`[${form.name}] 신청 안내\n\n📅 ${form.date}\n💰 ${fmtKRW(form.amount)}${form.maxPeople?`\n👥 선착순 ${form.maxPeople}명`:''}\n\n아래 링크에서 신청해주세요!\n${formLink}`;
-          return(
-            <div>
-              <div style={{background:C.inputBg,borderRadius:12,padding:'14px 16px',fontSize:13,color:C.textMid,lineHeight:1.85,marginBottom:12,whiteSpace:'pre-wrap'}}>{shareMsg}</div>
-              <div style={{display:'flex',gap:8,marginBottom:8}}>
-                <Btn onClick={async()=>{const shared=await shareText(shareMsg);if(!shared){copyText(shareMsg);showToast('메시지 복사됨');}else showToast('공유 완료');}} small style={{flex:2}}>💬 카톡 공유</Btn>
-                <Btn variant="secondary" onClick={copyLink} small style={{flex:1}}>🔗 링크</Btn>
-              </div>
-              <Btn onClick={()=>{copyText(shareMsg);showToast('메시지 복사됨');}} variant="ghost" small>📋 메시지 복사</Btn>
-            </div>
-          );
-        })()}
+        {tab==='share'&&<FormShareTab form={form} showToast={showToast}/>}
       </div>
 
       {/* 하단 마감 버튼 */}
       <div style={{padding:'0 16px 24px'}}>
         {isClosed?(
-          <Btn variant="secondary" onClick={reopenForm}>신청 다시 열기</Btn>
+          <Btn variant="secondary" onClick={handlers.reopenForm}>신청 다시 열기</Btn>
         ):(
-          <Btn variant="danger" onClick={closeForm}>신청 마감하기</Btn>
+          <Btn variant="danger" onClick={handlers.closeForm}>신청 마감하기</Btn>
         )}
       </div>
     </div>
