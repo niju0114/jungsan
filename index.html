@@ -2899,28 +2899,10 @@ function VerifyTab({form, subs, matchResults, uploading, bankGuideOpen, setBankG
       <div style={{marginBottom:14,padding:'9px 14px',background:C.accentBg,borderRadius:10,fontSize:12,color:C.textMid,display:'flex',alignItems:'center',gap:6}}>
         <span>🔒</span><span>거래내역은 브라우저에서만 처리되며 서버에 저장되지 않아요.</span>
       </div>
-      <div style={{display:'flex',gap:6,marginBottom:16}}>
-        {[['file','📁 파일 업로드'],['email','📧 이메일로 받기']].map(([k,l])=>(
-          <button key={k} onClick={()=>setUploadMode(k)} style={{flex:1,padding:'10px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',background:uploadMode===k?C.accent:'#fff',color:uploadMode===k?'#fff':C.textMid,border:'none'}}>{l}</button>
-        ))}
+      <div style={{textAlign:'center',marginBottom:20}}>
+        <Btn onClick={()=>fileRef.current?.click()} loading={uploading}>파일 선택하기</Btn>
+        <div style={{marginTop:10,fontSize:12,color:C.textDim}}>지원: .xlsx, .xls, .csv</div>
       </div>
-      {uploadMode==='file'&&(
-        <div style={{textAlign:'center',marginBottom:20}}>
-          <Btn onClick={()=>fileRef.current?.click()} loading={uploading}>파일 선택하기</Btn>
-          <div style={{marginTop:10,fontSize:12,color:C.textDim}}>지원: .xlsx, .xls, .csv</div>
-        </div>
-      )}
-      {uploadMode==='email'&&(
-        <Card style={{marginBottom:16}}>
-          <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:10}}>📧 이메일로 거래내역 받기</div>
-          <div style={{fontSize:13,color:C.textMid,lineHeight:1.8,marginBottom:14}}>은행 앱에서 거래내역서를 본인 이메일로 보낸 후,<br/>첨부된 엑셀 파일을 다운받아 위 "파일 업로드"로 올려주세요.</div>
-          <div style={{background:C.accentBg,borderRadius:12,padding:'14px 16px',fontSize:13,lineHeight:1.9}}>
-            <strong style={{color:C.text}}>방법:</strong><br/>
-            <span style={{color:C.textMid}}>1. 은행 앱 → 거래내역서 → "이메일로 보내기"<br/>2. 본인 이메일 주소 입력 → 전송<br/>3. 메일함에서 첨부 파일(.xlsx) 다운로드<br/>4. 위 "파일 업로드" 탭에서 업로드</span>
-          </div>
-          <div style={{marginTop:12}}><Btn variant="secondary" onClick={()=>setUploadMode('file')} small>파일 업로드로 이동</Btn></div>
-        </Card>
-      )}
       <Card style={{padding:'16px'}}>
         <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:12}}>📱 은행별 다운로드 방법</div>
         <div style={{borderRadius:12,overflow:'hidden',marginBottom:8,border:`1.5px solid ${bankGuideOpen.has('toss')?C.accent+'40':C.pageBg}`}}>
