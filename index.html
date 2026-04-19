@@ -1045,87 +1045,86 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
         </button>
       </div>
 
-      {/* 피드백 모달 */}
       {feedbackOpen&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)'}} onClick={()=>setFeedbackOpen(false)}>
-          <div style={{background:C.cardBg,borderRadius:'24px 24px 0 0',padding:'28px 24px 40px',width:'100%',maxWidth:480,animation:'slideUp 0.22s ease'}} onClick={e=>e.stopPropagation()}>
-            <div style={{width:40,height:4,background:C.border,borderRadius:2,margin:'0 auto 20px'}}/>
-            <div style={{fontWeight:900,color:C.text,fontSize:18,marginBottom:6}}>건의사항 · 질문</div>
-            <div style={{color:C.textMid,fontSize:13,marginBottom:18,lineHeight:1.9}}>
-              남들이 지기 싫어하는 책임을 지지만<br/>그만큼 모두에게 신뢰받는 사람이 총무라는 것을<br/>알고 있습니다.<br/>
-              <strong style={{color:C.accent}}>그런 여러분의 진짜 고민과 문제를 들려주세요.</strong>
-            </div>
-            <textarea value={feedbackText} onChange={e=>setFeedbackText(e.target.value)}
-              placeholder={"예) 진짜 총무 문제는 엑셀파일로 정리하는 거에요 너무 힘들어요"} rows={5}
-              style={{width:'100%',padding:'14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:14,fontSize:14,color:C.text,outline:'none',resize:'none',lineHeight:1.75,marginBottom:16}}
-              onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
-              onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
-            />
-            <div style={{display:'flex',gap:10}}>
-              <Btn variant="ghost" onClick={()=>setFeedbackOpen(false)} style={{flex:1}}>취소</Btn>
-              <Btn onClick={submitFeedback} loading={feedbackLoading} disabled={!feedbackText.trim()} style={{flex:2}}>전달하기 →</Btn>
-            </div>
-          </div>
-        </div>
+        <FeedbackModal
+          user={user} feedbackText={feedbackText} setFeedbackText={setFeedbackText}
+          feedbackLoading={feedbackLoading} onSubmit={submitFeedback} onClose={()=>setFeedbackOpen(false)}
+        />
       )}
-
-      {/* 모드 선택 모달 */}
       {modeSelect&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)'}} onClick={()=>setModeSelect(false)}>
-          <div style={{background:C.cardBg,borderRadius:'24px 24px 0 0',padding:'28px 24px 40px',width:'100%',maxWidth:480,animation:'slideUp 0.22s ease'}} onClick={e=>e.stopPropagation()}>
-            <div style={{width:40,height:4,background:C.border,borderRadius:2,margin:'0 auto 20px'}}/>
-
-            {/* 계좌·명단 미설정 안내 */}
-            {(!profile.account?.bank||!(profile.groups||[]).some(g=>(g.members||[]).length>0))&&(
-              <div style={{background:C.orangeBg,borderRadius:16,padding:'18px 20px',marginBottom:20,border:`1px solid ${C.orange}20`}}>
-                <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:6}}>⚡ 먼저 설정을 완료해주세요</div>
-                <div style={{fontSize:13,color:C.textMid,lineHeight:1.7,marginBottom:14}}>
-                  {!profile.account?.bank&&'입금 계좌가 아직 등록되지 않았어요.\n'}
-                  {!(profile.groups||[]).some(g=>(g.members||[]).length>0)&&'명단을 등록하면 매번 이름 입력 없이 바로 선택할 수 있어요.'}
-                </div>
-                <Btn variant="orange" onClick={()=>{setModeSelect(false);nav.setView('setup');}} small>명단·계좌 설정하러 가기</Btn>
-              </div>
-            )}
-
-            <div style={{fontWeight:900,color:C.text,fontSize:20,marginBottom:6,textAlign:'center'}}>무엇을 하시나요?</div>
-            <div style={{color:C.textMid,fontSize:13,marginBottom:24,textAlign:'center'}}>상황에 맞게 선택하세요</div>
-            
-            {/* 술자리·뒷풀이 */}
-            <button onClick={()=>{setModeSelect(false);nav.setView('create');}} className="press" style={{
-              width:'100%',padding:'20px',borderRadius:16,marginBottom:12,
-              background:C.accentBg,border:`1px solid ${C.accent}20`,
-              cursor:'pointer',textAlign:'left',
-            }}>
-              <div style={{display:'flex',alignItems:'center',gap:14}}>
-                <div style={{width:48,height:48,borderRadius:14,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🍻</div>
-                <div style={{flex:1}}>
-                  <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>술자리·뒷풀이</div>
-                  <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>이미 모인 우리끼리 1/N 정산</div>
-                  <div style={{fontSize:11,color:C.accent,fontWeight:600}}>명단 선택 → OX 대시보드</div>
-                </div>
-                <span className="ms" style={{color:C.accent}}>chevron_right</span>
-              </div>
-            </button>
-            
-            {/* 행사·야식마차 */}
-            <button onClick={()=>{setModeSelect(false);nav.setView('formCreate');}} className="press" style={{
-              width:'100%',padding:'20px',borderRadius:16,
-              background:C.orangeBg,border:`1px solid ${C.orange}20`,
-              cursor:'pointer',textAlign:'left',
-            }}>
-              <div style={{display:'flex',alignItems:'center',gap:14}}>
-                <div style={{width:48,height:48,borderRadius:14,background:C.orange,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📋</div>
-                <div style={{flex:1}}>
-                  <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>행사·야식마차</div>
-                  <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>선착순 모집부터 신청서 관리까지</div>
-                  <div style={{fontSize:11,color:C.orange,fontWeight:600}}>신청폼 → 선착순 마감 → 엑셀 대조</div>
-                </div>
-                <span className="ms" style={{color:C.orange}}>chevron_right</span>
-              </div>
-            </button>
-          </div>
-        </div>
+        <ModeSelectModal profile={profile} nav={nav} onClose={()=>setModeSelect(false)}/>
       )}
+    </div>
+  );
+}
+
+// ── FeedbackModal ──────────────────────────────────────────
+function FeedbackModal({feedbackText,setFeedbackText,feedbackLoading,onSubmit,onClose}){
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)'}} onClick={onClose}>
+      <div style={{background:C.cardBg,borderRadius:'24px 24px 0 0',padding:'28px 24px 40px',width:'100%',maxWidth:480,animation:'slideUp 0.22s ease'}} onClick={e=>e.stopPropagation()}>
+        <div style={{width:40,height:4,background:C.border,borderRadius:2,margin:'0 auto 20px'}}/>
+        <div style={{fontWeight:900,color:C.text,fontSize:18,marginBottom:6}}>건의사항 · 질문</div>
+        <div style={{color:C.textMid,fontSize:13,marginBottom:18,lineHeight:1.9}}>
+          남들이 지기 싫어하는 책임을 지지만<br/>그만큼 모두에게 신뢰받는 사람이 총무라는 것을<br/>알고 있습니다.<br/>
+          <strong style={{color:C.accent}}>그런 여러분의 진짜 고민과 문제를 들려주세요.</strong>
+        </div>
+        <textarea value={feedbackText} onChange={e=>setFeedbackText(e.target.value)}
+          placeholder="예) 진짜 총무 문제는 엑셀파일로 정리하는 거에요 너무 힘들어요" rows={5}
+          style={{width:'100%',padding:'14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:14,fontSize:14,color:C.text,outline:'none',resize:'none',lineHeight:1.75,marginBottom:16}}
+          onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
+          onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
+        />
+        <div style={{display:'flex',gap:10}}>
+          <Btn variant="ghost" onClick={onClose} style={{flex:1}}>취소</Btn>
+          <Btn onClick={onSubmit} loading={feedbackLoading} disabled={!feedbackText.trim()} style={{flex:2}}>전달하기 →</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── ModeSelectModal ─────────────────────────────────────────
+function ModeSelectModal({profile,nav,onClose}){
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)'}} onClick={onClose}>
+      <div style={{background:C.cardBg,borderRadius:'24px 24px 0 0',padding:'28px 24px 40px',width:'100%',maxWidth:480,animation:'slideUp 0.22s ease'}} onClick={e=>e.stopPropagation()}>
+        <div style={{width:40,height:4,background:C.border,borderRadius:2,margin:'0 auto 20px'}}/>
+        {(!profile.account?.bank||!(profile.groups||[]).some(g=>(g.members||[]).length>0))&&(
+          <div style={{background:C.orangeBg,borderRadius:16,padding:'18px 20px',marginBottom:20,border:`1px solid ${C.orange}20`}}>
+            <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:6}}>⚡ 먼저 설정을 완료해주세요</div>
+            <div style={{fontSize:13,color:C.textMid,lineHeight:1.7,marginBottom:14}}>
+              {!profile.account?.bank&&'입금 계좌가 아직 등록되지 않았어요.\n'}
+              {!(profile.groups||[]).some(g=>(g.members||[]).length>0)&&'명단을 등록하면 매번 이름 입력 없이 바로 선택할 수 있어요.'}
+            </div>
+            <Btn variant="orange" onClick={()=>{onClose();nav.setView('setup');}} small>명단·계좌 설정하러 가기</Btn>
+          </div>
+        )}
+        <div style={{fontWeight:900,color:C.text,fontSize:20,marginBottom:6,textAlign:'center'}}>무엇을 하시나요?</div>
+        <div style={{color:C.textMid,fontSize:13,marginBottom:24,textAlign:'center'}}>상황에 맞게 선택하세요</div>
+        <button onClick={()=>{onClose();nav.setView('create');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,marginBottom:12,background:C.accentBg,border:`1px solid ${C.accent}20`,cursor:'pointer',textAlign:'left'}}>
+          <div style={{display:'flex',alignItems:'center',gap:14}}>
+            <div style={{width:48,height:48,borderRadius:14,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🍻</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>술자리·뒷풀이</div>
+              <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>이미 모인 우리끼리 1/N 정산</div>
+              <div style={{fontSize:11,color:C.accent,fontWeight:600}}>명단 선택 → OX 대시보드</div>
+            </div>
+            <span className="ms" style={{color:C.accent}}>chevron_right</span>
+          </div>
+        </button>
+        <button onClick={()=>{onClose();nav.setView('formCreate');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,background:C.orangeBg,border:`1px solid ${C.orange}20`,cursor:'pointer',textAlign:'left'}}>
+          <div style={{display:'flex',alignItems:'center',gap:14}}>
+            <div style={{width:48,height:48,borderRadius:14,background:C.orange,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📋</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>행사·야식마차</div>
+              <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>선착순 모집부터 신청서 관리까지</div>
+              <div style={{fontSize:11,color:C.orange,fontWeight:600}}>신청폼 → 선착순 마감 → 엑셀 대조</div>
+            </div>
+            <span className="ms" style={{color:C.orange}}>chevron_right</span>
+          </div>
+        </button>
+      </div>
     </div>
   );
 }

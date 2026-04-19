@@ -9,14 +9,21 @@
 - **배포**: Netlify 정적 호스팅
 - **CDN**: React 18, ReactDOM, Babel Standalone, Supabase JS, SheetJS (XLSX)
 
-## 아키텍처 (5-layer, 단일 파일 내부)
+## 아키텍처 (7-layer, 단일 파일 내부)
 ```
-1. CONFIG (58~66)       → Supabase 설정, 색상(C), ID_DOMAIN, BANK_CODES
-2. API LAYER (72~135)   → 모든 DB/Auth 호출 중앙 관리 (api 객체), views 추적
-3. UTILITIES (140~275)  → 순수 함수 (변환, 포맷, matchEngine, 딥링크, copyText, shareText)
-4. UI PRIMITIVES (280~370) → Spinner, Btn, Field, Header, Card, Badge, Toast, SelectGrid
-5. SCREENS (370~)       → App, Landing, Auth, Home, Setup, Create, AdminEvent, FormCreate, FormAdmin, FormSubmit, History, Guide, Onboarding
+1. CONFIG (51~70)          → Supabase 설정, 색상(C), ID_DOMAIN, BANK_CODES, LEGAL_TEXTS
+2. API LAYER (71~140)      → 모든 DB/Auth 호출 중앙 관리 (api 객체), views 추적
+3. UTILITIES (141~363)     → 순수 함수 (변환, 포맷, matchEngine, 딥링크, copyText, shareText)
+4. UI PRIMITIVES (364~461) → Spinner, Btn, Field, Header, Card, Badge, Toast, SelectGrid
+5. HOOKS (2467~)           → useFormAdmin (FormAdmin 전용 로직 분리)
+6. SUB COMPONENTS (1062~)  → FeedbackModal, ModeSelectModal, SubmissionsTab, VerifyTab, FormShareTab
+7. SCREENS (462~)          → App, Landing, Auth, Home, Setup, Create, AdminEvent, FormCreate, FormAdmin, FormSubmit, History, Guide, Onboarding
 ```
+
+### Layer 구분 원칙
+- **Layer 5 (HOOKS)**: 화면 로직만, JSX 없음. 상태·핸들러 묶음을 반환
+- **Layer 6 (SUB COMPONENTS)**: 특정 Screen에서 분리된 탭/모달. 단독 라우팅 없음
+- **Layer 7 (SCREENS)**: 라우팅 가능한 최상위 화면. Hook + SubComponent를 조합만 함
 
 ## Supabase 테이블
 - `events` — 소규모 정산 (code, name, date, members, rounds, payments, attendance 등)
@@ -25,7 +32,9 @@
 - `views` — 조회수 추적 (event_code, form_code, viewer_key, viewed_at)
 
 ## 핵심 규칙
-- **단일 HTML 유지**: Netlify 정적 배포 제약. 파일 분리하지 않음
+- **단일 HTML 유지**: Netlify 정적 배포 제약. 파일 분리하지 않음 (레이어 분리는 파일 내 논리적 구조로만)
+- **새 로직은 Hook에**: 화면 로직 추가 시 Screen 비대화 방지를 위해 useXxx Hook으로 분리
+- **새 탭/모달은 Sub Component에**: 100줄 이상 탭은 별도 컴포넌트로 추출 후 Screen에서 호출
 - **sb.from() 직접 호출 금지**: 반드시 api 객체를 통해서만 DB 접근
 - **한국어 UI**: 모든 사용자 노출 텍스트는 한국어
 - **모바일 퍼스트**: 토스 UX 패턴, 480px max-width
