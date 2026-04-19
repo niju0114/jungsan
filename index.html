@@ -263,7 +263,7 @@ const matchEngine = {
   NAME_COLS: ['적요','입금자','입금자명','보내는분','거래내용','기재내용','통장표시','비고','내용','메모','받는분'],
   AMT_COLS: ['입금','입금액','입금금액','거래금액','금액'],
 
-  normalize: s => (s||'').replace(/\s+/g,'').replace(/[()]/g,''),
+  normalize: s => (s||'').replace(/[（(][^)）]*[)）]/g,'').replace(/[\s·\-]/g,''),
 
   compareName(depositor, applicant) {
     const d=this.normalize(depositor), a=this.normalize(applicant);
@@ -305,27 +305,31 @@ const matchEngine = {
   },
 
   match(deposits, subs, expectedAmount) {
+    const nameFreq={};
+    subs.forEach(s=>{const n=this.normalize(s.name||'');nameFreq[n]=(nameFreq[n]||0)+1;});
+    const isDup=s=>(nameFreq[this.normalize(s.name||'')]||0)>1;
+
     const matched=[], amountMismatch=[], unpaid=[], refund=[];
     const subsCopy=subs.map(s=>({...s,_matched:false}));
 
     // 1차: 정확 매칭
     deposits.forEach(dep=>{
       const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='exact'&&dep.amount===expectedAmount);
-      if(idx>=0){matched.push({sub:subsCopy[idx],deposit:dep,type:'exact'});subsCopy[idx]._matched=true;dep.matched=true;}
+      if(idx>=0){matched.push({sub:subsCopy[idx],deposit:dep,type:'exact',isDuplicate:isDup(subsCopy[idx])});subsCopy[idx]._matched=true;dep.matched=true;}
     });
     // 2차: 이름 매칭 + 금액 불일치
     deposits.forEach(dep=>{
       if(dep.matched) return;
       const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='exact');
-      if(idx>=0){amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-expectedAmount});subsCopy[idx]._matched=true;dep.matched=true;}
+      if(idx>=0){amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-expectedAmount,isDuplicate:isDup(subsCopy[idx])});subsCopy[idx]._matched=true;dep.matched=true;}
     });
     // 3차: 부분 매칭
     deposits.forEach(dep=>{
       if(dep.matched) return;
       const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='partial');
       if(idx>=0){
-        if(dep.amount===expectedAmount) matched.push({sub:subsCopy[idx],deposit:dep,type:'partial'});
-        else amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-expectedAmount});
+        if(dep.amount===expectedAmount) matched.push({sub:subsCopy[idx],deposit:dep,type:'partial',isDuplicate:isDup(subsCopy[idx])});
+        else amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-expectedAmount,isDuplicate:isDup(subsCopy[idx])});
         subsCopy[idx]._matched=true;dep.matched=true;
       }
     });
@@ -2791,73 +2795,94 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
   );
 }
 
-function VerifyTab({form, subs, matchResults, uploading, bankGuideOpen, setBankGuideOpen, uploadMode, setUploadMode, fileRef, onUpload, onApply, onReset, onCopyNudge}){
-  if(matchResults) return(
-    <div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:16}}>
-        {[[matchResults.matched.length,'매칭',C.green,C.greenBg],[matchResults.amountMismatch.length,'금액 확인',C.orange,C.orangeBg],[matchResults.unpaid.length,'미입금',C.red,C.redBg],[matchResults.refund.length,'환불 대상','#8B5CF6','#F3F0FF']].map(([n,l,c,bg])=>(
-          <div key={l} style={{background:bg,borderRadius:12,padding:'10px 4px',textAlign:'center'}}>
-            <div style={{fontSize:18,fontWeight:900,color:c}}>{n}</div>
-            <div style={{fontSize:10,color:c,fontWeight:600}}>{l}</div>
+function VerifyTab({form, subs, matchResults, uploading, bankGuideOpen, setBankGuideOpen, uploadMode, setUploadMode, fileRef, onUpload, onApply, onReset, onCopyNudge, onTogglePaid}){
+  const [approvedKeys,setApprovedKeys]=useState(()=>new Set());
+  const [unpaidOnly,setUnpaidOnly]=useState(false);
+
+  if(matchResults){
+    const pendingMismatch=matchResults.amountMismatch.filter(m=>!approvedKeys.has(m.sub.createdAt));
+    return(
+      <div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:12}}>
+          {[[matchResults.matched.length,'매칭',C.green,C.greenBg],[pendingMismatch.length,'수동확인',C.orange,C.orangeBg],[matchResults.unpaid.length,'미입금',C.red,C.redBg],[matchResults.refund.length,'환불 대상','#8B5CF6','#F3F0FF']].map(([n,l,c,bg])=>(
+            <div key={l} style={{background:bg,borderRadius:12,padding:'10px 4px',textAlign:'center'}}>
+              <div style={{fontSize:18,fontWeight:900,color:c}}>{n}</div>
+              <div style={{fontSize:10,color:c,fontWeight:600}}>{l}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:'flex',justifyContent:'flex-end',marginBottom:12}}>
+          <button onClick={()=>setUnpaidOnly(v=>!v)} style={{padding:'5px 14px',borderRadius:20,background:unpaidOnly?C.red:C.inputBg,color:unpaidOnly?'#fff':C.textMid,border:'none',cursor:'pointer',fontSize:12,fontWeight:700}}>
+            {unpaidOnly?'전체 보기':'미입금자만 보기'}
+          </button>
+        </div>
+        {matchResults.matched.length>0&&<Btn variant="green" onClick={onApply} style={{marginBottom:16}}>✓ 매칭 {matchResults.matched.length}명 입금 확인 처리</Btn>}
+        {!unpaidOnly&&matchResults.matched.length>0&&(
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:13,fontWeight:800,color:C.green,marginBottom:8}}>✅ 매칭 완료 ({matchResults.matched.length}명)</div>
+            {matchResults.matched.map((m,i)=>(
+              <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+                <div>
+                  <span style={{fontWeight:700,color:C.text,fontSize:14}}>{m.sub.name}</span>
+                  {m.type==='partial'&&<span style={{fontSize:11,color:C.textDim,marginLeft:6}}>≈ {m.deposit.name}</span>}
+                  {m.isDuplicate&&<span style={{fontSize:10,fontWeight:700,color:C.orange,background:C.orangeBg,borderRadius:8,padding:'2px 6px',marginLeft:6}}>동명이인 주의</span>}
+                </div>
+                <span style={{color:C.green,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
+        {!unpaidOnly&&pendingMismatch.length>0&&(
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:13,fontWeight:800,color:C.orange,marginBottom:8}}>⚠ 수동 확인 필요 ({pendingMismatch.length}명)</div>
+            {pendingMismatch.map((m,i)=>(
+              <div key={i} style={{padding:'12px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div>
+                    <span style={{fontWeight:700,color:C.text,fontSize:14}}>{m.sub.name}</span>
+                    {m.isDuplicate&&<span style={{fontSize:10,fontWeight:700,color:C.orange,background:C.orangeBg,borderRadius:8,padding:'2px 6px',marginLeft:6}}>동명이인 주의</span>}
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <span style={{color:C.orange,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
+                    <button onClick={()=>{const idx=subs.findIndex(s=>s.createdAt===m.sub.createdAt);if(idx>=0){setApprovedKeys(prev=>new Set([...prev,m.sub.createdAt]));onTogglePaid(idx);}}} style={{padding:'5px 10px',borderRadius:8,background:C.greenBg,border:`1px solid ${C.green}40`,color:C.green,fontWeight:700,fontSize:12,cursor:'pointer'}}>수동 처리</button>
+                  </div>
+                </div>
+                <div style={{fontSize:12,color:C.orange,marginTop:4}}>
+                  {m.diff>0?`${fmtKRW(m.diff)} 초과 입금`:`${fmtKRW(Math.abs(m.diff))} 부족`}
+                  <span style={{color:C.textDim,marginLeft:8}}>예상: {fmtKRW(form.amount)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {matchResults.unpaid.length>0&&(
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:13,fontWeight:800,color:C.red,marginBottom:8}}>❌ 미입금 ({matchResults.unpaid.length}명)</div>
+            {matchResults.unpaid.map((s,i)=>(
+              <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+                <div><span style={{fontWeight:700,color:C.text,fontSize:14}}>{s.name}</span><span style={{color:C.textDim,fontSize:12,marginLeft:8}}>{s.phone}</span></div>
+                <span style={{color:C.red,fontWeight:700,fontSize:13}}>{fmtKRW(form.amount)}</span>
+              </div>
+            ))}
+            <Btn variant="secondary" onClick={onCopyNudge} style={{marginTop:8}} small>콕 찌르기 메시지 복사</Btn>
+          </div>
+        )}
+        {!unpaidOnly&&matchResults.refund.length>0&&(
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:13,fontWeight:800,color:'#8B5CF6',marginBottom:8}}>🔄 환불 대상 ({matchResults.refund.length}명)</div>
+            <div style={{fontSize:12,color:C.textMid,marginBottom:8,lineHeight:1.6}}>신청 내역 없이 입금한 건이에요</div>
+            {matchResults.refund.map((d,i)=>(
+              <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+                <span style={{fontWeight:700,color:C.text,fontSize:14}}>{d.name}</span>
+                <span style={{color:'#8B5CF6',fontWeight:700,fontSize:13}}>{fmtKRW(d.amount)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <Btn variant="secondary" onClick={onReset} style={{marginBottom:8}}>다시 업로드</Btn>
       </div>
-      {matchResults.matched.length>0&&<Btn variant="green" onClick={onApply} style={{marginBottom:16}}>✓ 매칭 {matchResults.matched.length}명 입금 확인 처리</Btn>}
-      {matchResults.matched.length>0&&(
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:13,fontWeight:800,color:C.green,marginBottom:8}}>✅ 매칭 완료 ({matchResults.matched.length}명)</div>
-          {matchResults.matched.map((m,i)=>(
-            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
-              <div><span style={{fontWeight:700,color:C.text,fontSize:14}}>{m.sub.name}</span>{m.type==='partial'&&<span style={{fontSize:11,color:C.textDim,marginLeft:6}}>≈ {m.deposit.name}</span>}</div>
-              <span style={{color:C.green,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {matchResults.amountMismatch.length>0&&(
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:13,fontWeight:800,color:C.orange,marginBottom:8}}>⚠ 금액 불일치 ({matchResults.amountMismatch.length}명)</div>
-          {matchResults.amountMismatch.map((m,i)=>(
-            <div key={i} style={{padding:'12px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <span style={{fontWeight:700,color:C.text,fontSize:14}}>{m.sub.name}</span>
-                <span style={{color:C.orange,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
-              </div>
-              <div style={{fontSize:12,color:C.orange,marginTop:4}}>
-                {m.diff>0?`${fmtKRW(m.diff)} 초과 입금`:`${fmtKRW(Math.abs(m.diff))} 부족`}
-                <span style={{color:C.textDim,marginLeft:8}}>예상: {fmtKRW(form.amount)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {matchResults.unpaid.length>0&&(
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:13,fontWeight:800,color:C.red,marginBottom:8}}>❌ 미입금 ({matchResults.unpaid.length}명)</div>
-          {matchResults.unpaid.map((s,i)=>(
-            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
-              <div><span style={{fontWeight:700,color:C.text,fontSize:14}}>{s.name}</span><span style={{color:C.textDim,fontSize:12,marginLeft:8}}>{s.phone}</span></div>
-              <span style={{color:C.red,fontWeight:700,fontSize:13}}>{fmtKRW(form.amount)}</span>
-            </div>
-          ))}
-          <Btn variant="secondary" onClick={onCopyNudge} style={{marginTop:8}} small>콕 찌르기 메시지 복사</Btn>
-        </div>
-      )}
-      {matchResults.refund.length>0&&(
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:13,fontWeight:800,color:'#8B5CF6',marginBottom:8}}>🔄 환불 대상 ({matchResults.refund.length}명)</div>
-          <div style={{fontSize:12,color:C.textMid,marginBottom:8,lineHeight:1.6}}>신청 내역 없이 입금한 건이에요</div>
-          {matchResults.refund.map((d,i)=>(
-            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
-              <span style={{fontWeight:700,color:C.text,fontSize:14}}>{d.name}</span>
-              <span style={{color:'#8B5CF6',fontWeight:700,fontSize:13}}>{fmtKRW(d.amount)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      <Btn variant="secondary" onClick={onReset} style={{marginBottom:8}}>다시 업로드</Btn>
-    </div>
-  );
+    );
+  }
 
   return(
     <div style={{padding:'16px 0'}}>
@@ -2866,6 +2891,9 @@ function VerifyTab({form, subs, matchResults, uploading, bankGuideOpen, setBankG
         <div style={{fontSize:48,marginBottom:12}}>📊</div>
         <div style={{fontWeight:800,color:C.text,fontSize:18,marginBottom:4}}>거래내역 대조</div>
         <div style={{color:C.textMid,fontSize:13,lineHeight:1.7}}>은행 거래내역을 업로드하면 자동 대조해요</div>
+      </div>
+      <div style={{marginBottom:14,padding:'9px 14px',background:C.accentBg,borderRadius:10,fontSize:12,color:C.textMid,display:'flex',alignItems:'center',gap:6}}>
+        <span>🔒</span><span>거래내역은 브라우저에서만 처리되며 서버에 저장되지 않아요.</span>
       </div>
       <div style={{display:'flex',gap:6,marginBottom:16}}>
         {[['file','📁 파일 업로드'],['email','📧 이메일로 받기']].map(([k,l])=>(
@@ -3009,7 +3037,8 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
             bankGuideOpen={bankGuideOpen} setBankGuideOpen={setBankGuideOpen}
             uploadMode={uploadMode} setUploadMode={setUploadMode} fileRef={fileRef}
             onUpload={handlers.handleExcel} onApply={handlers.applyMatched}
-            onReset={()=>handlers.setMatchResults(null)} onCopyNudge={handlers.copyNudge}/>
+            onReset={()=>handlers.setMatchResults(null)} onCopyNudge={handlers.copyNudge}
+            onTogglePaid={handlers.togglePaid}/>
         )}
         {tab==='share'&&<FormShareTab form={form} showToast={showToast}/>}
       </div>
