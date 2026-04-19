@@ -1915,7 +1915,15 @@ function StatusSection({event,updateEvent}){
         ))}
       </div>
       {surplus>0&&<div style={{fontSize:11,color:C.textMid,textAlign:'center',marginBottom:10}}>소수점을 올림해서 총액보다 <span style={{color:C.text,fontWeight:700}}>{fmtKRW(surplus)}</span> 더 걷혀요 <span style={{color:C.textDim}}>(총무 손해 방지)</span></div>}
-      {presentMembers.map(k=>{
+      {(()=>{
+        const paidMembers=presentMembers.filter(k=>event.payments?.[k]?.paid).sort((a,b)=>{
+          const ta=event.payments[a]?.time, tb=event.payments[b]?.time;
+          if(!ta&&!tb) return 0; if(!ta) return 1; if(!tb) return -1;
+          return new Date(tb)-new Date(ta);
+        });
+        const unpaidMembers=presentMembers.filter(k=>!event.payments?.[k]?.paid);
+        return [...paidMembers,...unpaidMembers];
+      })().map(k=>{
         const p=event.payments?.[k]; const paid=p?.paid;
         return(
           <div key={k} onClick={()=>toggle(k)} className="press" style={{background:C.cardBg,borderRadius:12,padding:'11px 14px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:paid?`0 0 0 2px ${C.green}40`:C.shadow,cursor:'pointer'}}>
@@ -2078,12 +2086,20 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
           </div>
           {myRounds.length>0&&(
             <div style={{borderTop:`1.5px solid ${C.border}`,paddingTop:12,marginBottom:14}}>
-              {myRounds.map(r=>(
-                <div key={r.id} style={{display:'flex',justifyContent:'space-between',marginBottom:7}}>
-                  <span style={{fontSize:13,color:C.textMid}}>{r.label} ({r.members.length}명 균등)</span>
-                  <span style={{fontSize:13,color:C.text,fontWeight:800}}>{fmtKRW(Math.ceil(r.amount/r.members.length))}</span>
-                </div>
-              ))}
+              {myRounds.map(r=>{
+                const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0)||1;
+                const share=Math.ceil(r.amount/totalCount);
+                const roundSurplus=share*totalCount-r.amount;
+                return(
+                  <div key={r.id} style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:7}}>
+                    <div>
+                      <div style={{fontSize:13,color:C.textMid}}>{r.label} ({totalCount}명 균등)</div>
+                      <div style={{fontSize:11,color:C.textDim,marginTop:2}}>총 {fmtKRW(r.amount)}{roundSurplus>0?` · 올림 +${roundSurplus}원`:''}</div>
+                    </div>
+                    <span style={{fontSize:13,color:C.text,fontWeight:800}}>{fmtKRW(share)}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
           {event.account?.bank&&!isPaid&&(()=>{
@@ -2143,7 +2159,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
                 <span style={{fontSize:14,flexShrink:0}}>⚠️</span>
                 <div style={{fontSize:12,color:C.orange,fontWeight:700,lineHeight:1.5}}>반드시 본인 이름으로 입금해주세요</div>
               </div>
-              <Btn variant="green" onClick={()=>setDialog('confirm')} style={{fontSize:18,padding:'18px'}}>완료하기</Btn>
+              <Btn variant="primary" onClick={()=>setDialog('confirm')} style={{fontSize:18,padding:'18px'}}>완료하기</Btn>
             </div>
           )}
         </Card>
