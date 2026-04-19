@@ -1870,9 +1870,24 @@ function StatusSection({event,updateEvent}){
 
 // ── ParticipantScreen ──────────────────────────────────────
 function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showToast}){
+  // participantKey(이름 또는 전체 키)를 실제 member key로 해석
+  const getBaseName=k=>k.includes('_')?k.substring(0,k.lastIndexOf('_')):k;
+  const resolveKey=()=>{
+    const pk=participantKey;
+    if(!pk) return {key:'',isDup:false};
+    if((initEvent.members||[]).includes(pk)) return {key:pk,isDup:false};
+    const attending=(initEvent.members||[]).filter(k=>initEvent.attendance[k]!==false);
+    const matches=attending.filter(k=>getBaseName(k)===pk);
+    if(matches.length===1) return {key:matches[0],isDup:false};
+    if(matches.length>1) return {key:'',isDup:true};
+    return {key:'',isDup:false};
+  };
+  const resolved=resolveKey();
+
   const [event,setEvent]=useState(initEvent);
-  const [selectedKey,setSelectedKey]=useState(participantKey||'');
-  const [searchQ,setSearchQ]=useState('');
+  const [selectedKey,setSelectedKey]=useState(resolved.key);
+  const [dupWarning,setDupWarning]=useState(resolved.isDup);
+  const [searchQ,setSearchQ]=useState(resolved.isDup?participantKey:'');
   const [dialog,setDialog]=useState(false);
 
   useEffect(()=>setEvent(initEvent),[initEvent]);
@@ -1893,34 +1908,60 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   };
 
   if(!selectedKey){
-    const filtered=event.members.filter(k=>{
-      if(event.attendance[k]===false) return false; // 불참자 제외
-      if(!searchQ) return true;
-      return (mm[k]||k).includes(searchQ);
+    const attendingMembers=event.members.filter(k=>event.attendance[k]!==false);
+    // 동명이인 감지: 이름 → [키] 맵
+    const nameToKeys={};
+    attendingMembers.forEach(k=>{
+      const name=getBaseName(k);
+      if(!nameToKeys[name]) nameToKeys[name]=[];
+      nameToKeys[name].push(k);
+    });
+    const getChipLabel=k=>{
+      const name=getBaseName(k);
+      const dupes=nameToKeys[name]||[];
+      if(dupes.length<=1) return name;
+      const sid=k.includes('_')?k.substring(k.lastIndexOf('_')+1):'';
+      if(sid) return `${name} (${sid.slice(-4)})`;
+      const noSidKeys=dupes.filter(d=>!d.includes('_'));
+      if(noSidKeys.length>1) return `${name} (${noSidKeys.indexOf(k)+1}번째)`;
+      return `${name} (학번 없음)`;
+    };
+
+    const filtered=attendingMembers.filter(k=>{
+      if(!searchQ) return false; // 입력 없으면 전체 숨김
+      return getChipLabel(k).includes(searchQ)||getBaseName(k).includes(searchQ);
     });
 
     return(
       <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
         <Header title={event.name} onBack={()=>nav.setView('home')}/>
         <div style={{padding:20}}>
-          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'10px 14px',background:C.accentBg,borderRadius:12,border:`1px solid ${C.accent}20`}}>
-            <span style={{fontSize:16}}>🍻</span>
-            <span style={{fontSize:13,color:C.accent,fontWeight:700}}>입금 후 완료 버튼 누르면 끝!</span>
-          </div>
+          {dupWarning&&(
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'10px 14px',background:C.orangeBg,borderRadius:12,border:`1px solid ${C.orange}30`}}>
+              <span style={{fontSize:15}}>⚠️</span>
+              <span style={{fontSize:13,color:C.orange,fontWeight:700}}>동명이인이 있어요. 이름을 검색하고 선택해주세요</span>
+            </div>
+          )}
+          {!dupWarning&&(
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'10px 14px',background:C.accentBg,borderRadius:12,border:`1px solid ${C.accent}20`}}>
+              <span style={{fontSize:16}}>🍻</span>
+              <span style={{fontSize:13,color:C.accent,fontWeight:700}}>입금 후 완료 버튼 누르면 끝!</span>
+            </div>
+          )}
           <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:12}}>이름을 검색해주세요</div>
-          <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름 입력..."
+          <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="내 이름 검색"
             autoFocus
-            style={{width:'100%',padding:'13px 14px',background:C.cardBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:15,outline:'none',marginBottom:12,boxShadow:C.shadow}}
+            style={{width:'100%',padding:'13px 14px',background:C.cardBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:15,outline:'none',marginBottom:8,boxShadow:C.shadow}}
             onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
             onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
           />
+          {!searchQ&&<div style={{fontSize:12,color:C.textDim,textAlign:'center',marginBottom:14}}>이름을 검색해서 본인을 선택해주세요</div>}
 
           <div style={{display:'flex',flexDirection:'column',gap:6}}>
             {filtered.map(k=>{
               const paid=event.payments?.[k]?.paid;
               return(
                 <button key={k} onClick={async()=>{
-                  // 참여자 입장 시 자동 출석 처리
                   if(event.attendance[k]===undefined||event.attendance[k]===null){
                     const att={...event.attendance,[k]:true};
                     await updateEvent({...event,attendance:att});
@@ -1932,12 +1973,12 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
                   textAlign:'left',fontFamily:'inherit',display:'flex',justifyContent:'space-between',alignItems:'center',
                   boxShadow:C.shadow,
                 }}>
-                  <span>{mm[k]||k}</span>
+                  <span>{getChipLabel(k)}</span>
                   {paid&&<span style={{color:C.green,fontSize:12,fontWeight:800,background:C.greenBg,padding:'3px 8px',borderRadius:8}}>✓ 완료</span>}
                 </button>
               );
             })}
-            {searchQ&&filtered.length===0&&<div style={{color:C.textDim,fontSize:13,textAlign:'center',padding:'20px 0'}}>검색 결과가 없어요</div>}
+            {searchQ&&filtered.length===0&&<div style={{color:C.textDim,fontSize:13,textAlign:'center',padding:'20px 0'}}>일치하는 이름이 없어요</div>}
           </div>
         </div>
       </div>
@@ -2049,6 +2090,9 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
               </div>
             );
           })}
+        </div>
+        <div style={{textAlign:'center',paddingTop:4,paddingBottom:8}}>
+          <button onClick={()=>setSelectedKey('')} style={{background:'none',border:'none',color:C.textDim,fontSize:12,cursor:'pointer',textDecoration:'underline',padding:'4px 8px'}}>다른 이름으로 검색</button>
         </div>
       </div>
 
