@@ -186,12 +186,17 @@ const copyText = async (text) => {
 const parseMembers = text => {
   const lines=text.split(/\n/).map(l=>l.trim()).filter(Boolean);
   const result=[]; const seen=new Set();
+  const isSid=t=>/^\d{4,12}$/.test(t);
   lines.forEach(line=>{
-    const parts=line.split(/[\t,，]+|  +/).map(p=>p.trim()).filter(Boolean);
-    const name=parts[0]; const sid=parts[1]||'';
-    if(!name) return;
-    const key=name+(sid?`_${sid}`:'');
-    if(!seen.has(key)){seen.add(key);result.push({name,sid});}
+    const tokens=line.split(/[\t,，\s]+/).map(t=>t.trim()).filter(Boolean);
+    const names=tokens.filter(t=>!isSid(t));
+    const sids=tokens.filter(t=>isSid(t));
+    // 이름 1개일 때만 sid 매핑, 이름 2개 이상이면 sid 무시
+    names.forEach((name,i)=>{
+      const sid=names.length===1?(sids[0]||''):'';
+      const key=name+(sid?`_${sid}`:'');
+      if(!seen.has(key)){seen.add(key);result.push({name,sid});}
+    });
   });
   return result;
 };
@@ -641,7 +646,7 @@ function App() {
       {user&&view==='setup'&&<SetupScreen nav={nav} profile={profile} saveProfile={saveProfile}/>}
       {user&&view==='create'&&<CreateScreen nav={nav} profile={profile} events={events} createEvent={createEvent}/>}
       {user&&view==='formCreate'&&<FormCreateScreen nav={nav} profile={profile} createForm={createForm}/>}
-      {user&&view==='adminEvent'&&currentEvent&&<AdminEventScreen nav={nav} event={currentEvent} updateEvent={updateEvent} showToast={showToast}/>}
+      {user&&view==='adminEvent'&&currentEvent&&<AdminEventScreen nav={nav} event={currentEvent} updateEvent={updateEvent} showToast={showToast} profile={profile}/>}
       {user&&view==='formAdmin'&&currentForm&&<FormAdminScreen nav={nav} form={currentForm} updateForm={updateForm} showToast={showToast} profile={profile} saveProfile={saveProfile}/>}
       {user&&view==='history'&&<HistoryScreen nav={nav} events={events} forms={forms} deleteEvent={deleteEvent} deleteForm={deleteForm}/>}
       {showGuide&&<GuideModal onClose={()=>setShowGuide(false)} onFeedback={()=>{setShowGuide(false);setShowFeedback(true);}}/>}
@@ -1257,11 +1262,14 @@ function SetupScreen({nav,profile,saveProfile}){
                 <div style={{fontSize:13,fontWeight:700,color:C.textMid}}>{cur.name} 명단</div>
                 {groups.length>1&&<button onClick={()=>delGroup(activeG)} style={{color:C.red,background:'none',border:'none',fontSize:12,cursor:'pointer',fontWeight:600}}>그룹 삭제</button>}
               </div>
-              <div style={{marginBottom:8,padding:'10px 12px',background:'#FFFBF0',borderRadius:10,border:`1px solid ${C.orange}30`,fontSize:12,color:C.textMid,lineHeight:1.8}}>
-                💡 엑셀·카톡 명단을 그대로 복붙해도 돼요
+              <div style={{marginBottom:8,padding:'10px 12px',background:'#FFFBF0',borderRadius:10,border:`1px solid ${C.orange}30`,fontSize:12,color:C.textMid,lineHeight:1.9}}>
+                💡 아래 형식으로 붙여넣으세요<br/>
+                <span style={{fontFamily:'monospace',color:C.text}}>홍길동 20211234</span><br/>
+                <span style={{fontFamily:'monospace',color:C.text}}>김철수, 20221111</span><br/>
+                <span style={{fontFamily:'monospace',color:C.text}}>이영희 20231234</span>
               </div>
               <textarea ref={textareaRef} value={cur.rawText} onChange={e=>updateRaw(activeG,e.target.value)}
-                placeholder={`${cur.name} 명단 붙여넣기`} rows={9}
+                placeholder={`${cur.name} 명단 붙여넣기\n이름·학번, 탭·쉼표·공백 모두 인식`} rows={9}
                 style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:14,outline:'none',resize:'vertical',lineHeight:1.75}}
                 onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
                 onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
@@ -1269,13 +1277,20 @@ function SetupScreen({nav,profile,saveProfile}){
               {cur.members.length>0&&(
                 <div style={{marginTop:12}}>
                   <div style={{fontSize:12,color:C.green,fontWeight:700,marginBottom:8}}>✓ {cur.members.length}명 인식됐어요</div>
-                  <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                    {cur.members.map(m=>(
-                      <span key={m.name+(m.sid||'')} style={{
-                        display:'inline-flex',alignItems:'center',padding:'5px 12px',
-                        borderRadius:20,fontSize:12,fontWeight:600,
-                        background:C.accentBg,color:C.accent,border:`1.5px solid ${C.accent}30`,
-                      }}>{displayName(m)}</span>
+                  <div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',background:C.inputBg,padding:'6px 12px',borderBottom:`1px solid ${C.border}`}}>
+                      <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>이름</span>
+                      <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>학번</span>
+                    </div>
+                    {cur.members.map((m,i)=>(
+                      <div key={m.name+(m.sid||'')} style={{
+                        display:'grid',gridTemplateColumns:'1fr 1fr',padding:'7px 12px',
+                        borderBottom:i<cur.members.length-1?`1px solid ${C.border}`:'none',
+                        background:i%2===0?'#fff':C.pageBg,
+                      }}>
+                        <span style={{fontSize:13,fontWeight:600,color:C.text}}>{m.name}</span>
+                        <span style={{fontSize:13,color:m.sid?C.textMid:C.textDim}}>{m.sid||'—'}</span>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -1463,7 +1478,7 @@ function CreateScreen({nav,profile,events,createEvent}){
 }
 
 // ── AdminEventScreen (플로우 구조) ───────────────────────
-function AdminEventScreen({nav,event:initEvent,updateEvent,showToast}){
+function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
   const [event,setEvent]=useState(initEvent);
   const [viewCount,setViewCount]=useState(0);
   const getInitSlide=ev=>{
@@ -1539,7 +1554,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast}){
         <div style={{padding:'16px 18px'}}>
           {slide===0&&(
             <div className="fade-up">
-              <AttendanceSection event={event} updateEvent={update} onDone={()=>setSlide(1)}/>
+              <AttendanceSection event={event} updateEvent={update} onDone={()=>setSlide(1)} groups={profile?.groups}/>
             </div>
           )}
           {slide===1&&(
@@ -1574,7 +1589,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast}){
 
 
 // ── AttendanceSection ──────────────────────────────────────
-function AttendanceSection({event,updateEvent,onDone}){
+function AttendanceSection({event,updateEvent,onDone,groups}){
   const [search,setSearch]=useState('');
   const mm=event.memberMap||{};
 
@@ -1583,9 +1598,43 @@ function AttendanceSection({event,updateEvent,onDone}){
     updateEvent({...event,attendance:{...event.attendance,[k]:isAbsent?true:false}});
   };
   const allPresent=event.members.every(k=>event.attendance[k]!==false);
-  const present=event.members.filter(k=>event.attendance[k]!==false);
-  const absent=event.members.filter(k=>event.attendance[k]===false);
   const filtered=event.members.filter(k=>!search||(mm[k]||k).includes(search));
+
+  // groups가 2개 이상일 때만 그룹 묶음 표시
+  const useGroupView=(groups||[]).length>1&&!search;
+  const groupSections=React.useMemo(()=>{
+    if(!useGroupView) return null;
+    const assigned=new Set();
+    const sections=(groups||[]).map(g=>{
+      const gKeys=new Set((g.members||[]).map(m=>m.name+(m.sid?`_${m.sid}`:'')));
+      const keys=event.members.filter(k=>gKeys.has(k));
+      keys.forEach(k=>assigned.add(k));
+      return {name:g.name,keys};
+    }).filter(s=>s.keys.length>0);
+    const unassigned=event.members.filter(k=>!assigned.has(k));
+    if(unassigned.length>0) sections.push({name:'미분류',keys:unassigned});
+    return sections;
+  },[useGroupView,groups,event.members]);
+
+  const MemberRow=({k})=>{
+    const att=event.attendance[k];
+    const isAbsent=att===false;
+    return(
+      <div key={k} onClick={()=>toggleAtt(k)} className="press" style={{
+        background:isAbsent?C.inputBg:C.cardBg,borderRadius:12,padding:'12px 14px',marginBottom:6,
+        display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',
+        border:`1.5px solid ${isAbsent?C.red+'40':C.green+'40'}`,
+        opacity:isAbsent?0.6:1,transition:'all 0.15s',
+      }}>
+        <div style={{fontWeight:600,color:isAbsent?C.textDim:C.text,fontSize:14,textDecoration:isAbsent?'line-through':'none'}}>{mm[k]||k}</div>
+        <div style={{
+          width:28,height:28,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',
+          background:isAbsent?C.redBg:C.green,
+          color:isAbsent?C.red:'#fff',fontWeight:900,fontSize:14,transition:'all 0.15s',
+        }}>{isAbsent?'✕':'○'}</div>
+      </div>
+    );
+  };
 
   return(
     <div>
@@ -1608,26 +1657,19 @@ function AttendanceSection({event,updateEvent,onDone}){
         style={{width:'100%',padding:'10px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:13,outline:'none',marginBottom:10}}
       />
 
-      <div style={{maxHeight:320,overflowY:'auto'}}>
-        {filtered.map(k=>{
-          const att=event.attendance[k];
-          const isAbsent=att===false;
-          return(
-            <div key={k} onClick={()=>toggleAtt(k)} className="press" style={{
-              background:isAbsent?C.inputBg:C.cardBg,borderRadius:12,padding:'12px 14px',marginBottom:6,
-              display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',
-              border:`1.5px solid ${isAbsent?C.red+'40':C.green+'40'}`,
-              opacity:isAbsent?0.6:1,transition:'all 0.15s',
-            }}>
-              <div style={{fontWeight:600,color:isAbsent?C.textDim:C.text,fontSize:14,textDecoration:isAbsent?'line-through':'none'}}>{mm[k]||k}</div>
-              <div style={{
-                width:28,height:28,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',
-                background:isAbsent?C.redBg:C.green,
-                color:isAbsent?C.red:'#fff',fontWeight:900,fontSize:14,transition:'all 0.15s',
-              }}>{isAbsent?'✕':'○'}</div>
+      <div style={{maxHeight:380,overflowY:'auto'}}>
+        {useGroupView?(
+          groupSections.map(section=>(
+            <div key={section.name} style={{marginBottom:8}}>
+              <div style={{fontSize:11,fontWeight:700,color:C.textDim,padding:'4px 4px 6px',letterSpacing:0.5}}>
+                {section.name} ({section.keys.filter(k=>event.attendance[k]!==false).length}/{section.keys.length})
+              </div>
+              {section.keys.map(k=><MemberRow key={k} k={k}/>)}
             </div>
-          );
-        })}
+          ))
+        ):(
+          filtered.map(k=><MemberRow key={k} k={k}/>)
+        )}
       </div>
 
       <div style={{marginTop:4,fontSize:11,color:C.textDim,textAlign:'center'}}>탭하면 불참 처리돼요</div>
@@ -2247,6 +2289,7 @@ function FormCreateScreen({nav,profile,createForm}){
     {label:'교통편',type:'select',options:['자차','버스','카풀']},
     {label:'참여 일정',type:'select',options:['1박2일','당일']},
     {label:'요청사항',type:'textarea'},
+    {label:'기타 (자유 서술)',type:'textarea'},
   ];
   const usedLabels=fields.map(f=>f.label);
   const availPresets=presets.filter(p=>!usedLabels.includes(p.label));
