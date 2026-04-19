@@ -24,7 +24,8 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; background: #F2F3F5; padding: env(safe-area-inset-top) 0 0 0; }
-    #root { max-width: 480px; margin: 0 auto; min-height: 100vh; background: #F2F3F5; padding-bottom: env(safe-area-inset-bottom); }
+    #root { max-width: 480px; margin: 0 auto; min-height: 100vh; min-height: -webkit-fill-available; min-height: 100dvh; background: #F2F3F5; padding-bottom: env(safe-area-inset-bottom); }
+    .screen { min-height: 100vh; min-height: -webkit-fill-available; min-height: 100dvh; }
     input, textarea, button { font-family: inherit; }
     input::placeholder, textarea::placeholder { color: #A0AEC0; }
     ::-webkit-scrollbar { width: 3px; }
@@ -647,7 +648,7 @@ function App() {
   const currentEvent=events.find(e=>e.code===currentCode);
 
   if(!ready) return(
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',background:'#fff',gap:12}}>
+    <div className="screen" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'#fff',gap:12}}>
       <div style={{fontSize:48,marginBottom:4}}>🍻</div>
       <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:-0.5}}>정산해</div>
       <div style={{marginTop:8}}><Spinner size={24} color={C.accent}/></div>
@@ -657,7 +658,7 @@ function App() {
   const currentForm=forms.find(f=>f.code===currentFormCode);
 
   return(
-    <div style={{fontFamily:"'Pretendard',-apple-system,sans-serif",background:C.pageBg,minHeight:'100vh',maxWidth:480,margin:'0 auto',color:C.text,paddingBottom:60}}>
+    <div className="screen" style={{fontFamily:"'Pretendard',-apple-system,sans-serif",background:C.pageBg,maxWidth:480,margin:'0 auto',color:C.text,paddingBottom:60}}>
       {!user&&view==='home'&&<LandingScreen nav={nav}/>}
       {!user&&view==='auth'&&<AuthScreen nav={nav} showToast={showToast} setShowOnboarding={setShowOnboarding}/>}
       {view==='participantEvent'&&currentEvent&&<ParticipantScreen nav={nav} event={currentEvent} updateEvent={updateEvent} participantKey={participantKey} showToast={showToast}/>}
@@ -679,7 +680,7 @@ function App() {
 // ── LandingScreen ──────────────────────────────────────────
 function LandingScreen({nav}){
   return(
-    <div className="fade-up" style={{background:'#fff',minHeight:'100vh',display:'flex',flexDirection:'column'}}>
+    <div className="fade-up screen" style={{background:'#fff',display:'flex',flexDirection:'column'}}>
       <div style={{background:`linear-gradient(145deg,#6366F1 0%,#8B5CF6 100%)`,padding:'72px 28px 56px',textAlign:'center',position:'relative',overflow:'hidden'}}>
         <div style={{position:'absolute',inset:0,opacity:0.05,backgroundImage:'radial-gradient(circle,#fff 1px,transparent 1px)',backgroundSize:'24px 24px'}}/>
         <div style={{position:'relative'}}>
@@ -809,7 +810,7 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
   };
 
   return(
-    <div className="fade-up" style={{minHeight:'100vh',background:C.pageBg}}>
+    <div className="fade-up screen" style={{background:C.pageBg}}>
       <Header title={mode==='login'?'로그인':'회원가입'} onBack={()=>nav.setView('home')}/>
       <div style={{padding:'16px 16px calc(40px + env(safe-area-inset-bottom))'}}>
 
@@ -966,7 +967,7 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
   };
 
   return(
-    <div className="fade-up" style={{minHeight:'100vh',background:C.pageBg}}>
+    <div className="fade-up screen" style={{background:C.pageBg}}>
       {/* 프로필 영역 */}
       <div style={{background:'#FFFFFF',borderRadius:'0 0 24px 24px',padding:'24px 24px 20px'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
@@ -1250,7 +1251,7 @@ function SetupScreen({nav,profile,saveProfile}){
   const cur=groups[activeG]||groups[0];
 
   return(
-    <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+    <div className="fade-up screen" style={{background:C.pageBg}}>
       <Header title="명단·계좌 설정" onBack={()=>nav.setView('home')}/>
       <div style={{padding:'16px 16px 24px'}}>
         <Card>
@@ -1433,7 +1434,7 @@ function CreateScreen({nav,profile,events,createEvent}){
   const hasAccount=profile.account?.bank&&profile.account?.number;
 
   return(
-    <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+    <div className="fade-up screen" style={{background:C.pageBg}}>
       <Header title="새 정산 만들기" onBack={()=>nav.setView('home')}/>
       <div style={{padding:'16px 16px 24px'}}>
         <Card>
@@ -1548,7 +1549,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
   };
 
   return(
-    <div style={{background:C.pageBg,minHeight:'100vh',display:'flex',flexDirection:'column'}}>
+    <div className="screen" style={{background:C.pageBg,display:'flex',flexDirection:'column'}}>
       {/* 헤더 */}
       <div style={{display:'flex',alignItems:'center',padding:'16px 20px',background:C.cardBg,position:'sticky',top:0,zIndex:10,gap:12}}>
         <button onClick={()=>nav.setView('home')} style={{background:'transparent',border:'none',color:C.text,cursor:'pointer',width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,padding:0,margin:'-8px'}}><span className="ms" style={{fontSize:24}}>arrow_back</span></button>
@@ -2008,7 +2009,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
     });
 
     return(
-      <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+      <div className="fade-up screen" style={{background:C.pageBg}}>
         <Header title={event.name} onBack={()=>nav.setView('home')}/>
         <div style={{padding:20}}>
           {dupWarning&&(
@@ -2061,7 +2062,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   }
 
   return(
-    <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+    <div className="fade-up screen" style={{background:C.pageBg}}>
       <Header title={event.name} onBack={()=>setSelectedKey('')}/>
       <div style={{padding:'16px 16px 24px'}}>
         <Card style={{background:isPaid?C.greenBg:C.cardBg,border:`1.5px solid ${isPaid?C.green+'40':C.border}`}}>
@@ -2219,7 +2220,7 @@ function HistoryScreen({nav,events,forms,deleteEvent,deleteForm}){
     const pc=presentMembers.filter(k=>ev.payments?.[k]?.paid).length;
     const totalAmt=ev.rounds.reduce((s,r)=>s+r.amount,0);
     return(
-      <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+      <div className="fade-up screen" style={{background:C.pageBg}}>
         <Header title={ev.name} onBack={()=>setSel(null)}/>
         <div style={{padding:'16px 16px 24px'}}>
           <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:surplus>0?8:16}}>
@@ -2257,7 +2258,7 @@ function HistoryScreen({nav,events,forms,deleteEvent,deleteForm}){
   }
 
   return(
-    <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+    <div className="fade-up screen" style={{background:C.pageBg}}>
       <Header title="정산 내역" onBack={()=>nav.setView('home')}/>
       
       {/* 탭 */}
@@ -2455,7 +2456,7 @@ function FormCreateScreen({nav,profile,createForm}){
   };
 
   return(
-    <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh',display:'flex',flexDirection:'column'}}>
+    <div className="fade-up screen" style={{background:C.pageBg,display:'flex',flexDirection:'column'}}>
       <Header title="신청폼 만들기" onBack={()=>nav.setView('home')}/>
       <div style={{flex:1,padding:'8px 16px 16px',overflow:'auto'}}>
         {/* 기본 정보 */}
@@ -2967,7 +2968,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
          searchQ,setSearchQ,groupFilter,setGroupFilter,handlers}=useFormAdmin(form,updateForm,profile,saveProfile,showToast);
 
   return(
-    <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+    <div className="fade-up screen" style={{background:C.pageBg}}>
       <Header title={form.name} onBack={()=>nav.setView('home')}/>
       
       {/* 상단 요약 */}
@@ -3139,7 +3140,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
     const myNumber=subIdx>=0?subIdx+1:(form.submissions||[]).length;
 
     return(
-      <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh',padding:'48px 20px',textAlign:'center'}}>
+      <div className="fade-up screen" style={{background:C.pageBg,padding:'48px 20px',textAlign:'center'}}>
         <div style={{fontSize:56,marginBottom:16}}>{isConfirmed?'✅':'🎉'}</div>
         <div style={{fontSize:24,fontWeight:900,color:C.text,marginBottom:6}}>
           {isConfirmed?'입금 확정!':'신청 완료!'}
@@ -3224,7 +3225,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
   // 마감/정원 초과
   if(isClosed||isFull){
     return(
-      <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh',padding:'60px 20px',textAlign:'center'}}>
+      <div className="fade-up screen" style={{background:C.pageBg,padding:'60px 20px',textAlign:'center'}}>
         <div style={{fontSize:64,marginBottom:20}}>{isClosed?'🔒':'😢'}</div>
         <div style={{fontSize:24,fontWeight:900,color:C.text,marginBottom:8}}>{isClosed?'신청이 마감됐어요':'정원이 마감됐어요'}</div>
         <div style={{fontSize:14,color:C.textMid,lineHeight:1.7}}>
@@ -3235,7 +3236,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
   }
 
   return(
-    <div className="fade-up" style={{background:C.pageBg,minHeight:'100vh'}}>
+    <div className="fade-up screen" style={{background:C.pageBg}}>
       {/* 헤더 */}
       <div style={{background:C.orange,padding:'32px 20px 24px',textAlign:'center'}}>
         <div style={{fontSize:36,marginBottom:10}}>📋</div>
