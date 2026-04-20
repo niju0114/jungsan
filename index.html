@@ -760,22 +760,13 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
   const [idAvail,setIdAvail]=useState(null);
   const [err,setErr]=useState('');
 
-  const [idChecking,setIdChecking]=useState(false);
-
   const toEmail = id => id.trim().toLowerCase()+ID_DOMAIN;
 
-  const checkId = async(val)=>{
+  const checkId = (val)=>{
     const v=(val||userId).trim();
     if(!v||v.length<3) return;
     if(!/^[a-zA-Z0-9_]{3,20}$/.test(v)){setIdAvail(false);setIdChecked(true);setErr('영문, 숫자, _ 3~20자');return;}
-    setIdChecking(true);
-    const {data}=await api.checkUsername(v.toLowerCase());
-    if(data){
-      setIdAvail(false);setIdChecked(true);setErr('이미 사용 중인 아이디예요');
-    } else {
-      setIdAvail(true);setIdChecked(true);setErr('');
-    }
-    setIdChecking(false);
+    setIdAvail(true);setIdChecked(true);setErr('');
   };
 
   const submit=async()=>{
@@ -866,8 +857,7 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
               onFocus={e=>!idChecked&&(e.target.style.border=`1.5px solid ${C.accent}`)}
             />
           </div>
-          {idChecking&&<div style={{color:C.accent,fontSize:12,marginTop:-10,marginBottom:10}}>확인 중...</div>}
-          {idChecked&&idAvail&&!idChecking&&<div style={{color:C.green,fontSize:12,marginTop:-10,marginBottom:10}}>✓ 사용 가능한 아이디예요</div>}
+          {idChecked&&idAvail&&<div style={{color:C.green,fontSize:12,marginTop:-10,marginBottom:10}}>✓ 사용 가능한 형식이에요</div>}
           <Field label="비밀번호" value={pw} onChange={setPw} placeholder="6자 이상" type="password" onEnter={mode==='login'?submit:undefined}/>
           {mode==='signup'&&(
             <div style={{position:'relative'}}>
@@ -1940,7 +1930,7 @@ function ShareSection({event,showToast}){
 
   const directLink=getLink(`code=${event.code}`);
   const nl='\n';
-  const kakaoMsg=['['+event.date+' '+event.name+'] 정산 안내',nl,'아래 링크에서 본인 분담금을 확인하고 입금해주세요.',directLink,nl,'(정산해 · 간편한 모임 정산 서비스)'].join(nl);
+  const kakaoMsg=['['+event.date+' '+event.name+'] 정산 안내',nl,'아래 링크에서 내가 낼 돈을 확인하고 입금해주세요.',directLink,nl,'(정산해 · 간편한 모임 정산 서비스)'].join(nl);
 
   return(
     <div>
@@ -2211,7 +2201,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
     return(
       <div className="fade-up screen" style={{background:C.pageBg}}>
         <Header title={event.name} onBack={()=>nav.setView('home')}/>
-        <div style={{fontSize:11,color:C.textDim,textAlign:'center',padding:'4px 0 2px'}}>정산해로 진행 중인 정산</div>
+        <div style={{fontSize:12,color:C.textMid,textAlign:'center',padding:'5px 0 3px',fontWeight:600}}>정산해로 진행 중인 정산</div>
         <div style={{padding:20}}>
           {dupWarning&&(
             <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'10px 14px',background:C.orangeBg,borderRadius:12,border:`1px solid ${C.orange}30`}}>
@@ -2265,7 +2255,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   return(
     <div className="fade-up screen" style={{background:C.pageBg}}>
       <Header title={event.name} onBack={()=>setSelectedKey('')}/>
-      <div style={{fontSize:11,color:C.textDim,textAlign:'center',padding:'4px 0 2px'}}>정산해로 진행 중인 정산</div>
+      <div style={{fontSize:12,color:C.textMid,textAlign:'center',padding:'5px 0 3px',fontWeight:600}}>정산해로 진행 중인 정산</div>
       <div style={{padding:'16px 16px 24px'}}>
         <Card style={{background:isPaid?C.greenBg:C.cardBg,border:`1.5px solid ${isPaid?C.green+'40':C.border}`}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16}}>
