@@ -1940,7 +1940,7 @@ function ShareSection({event,showToast}){
 
   const directLink=getLink(`code=${event.code}`);
   const nl='\n';
-  const kakaoMsg=['['+event.date+' '+event.name+'] 정산 안내',nl,'아래 링크를 누르시면 바로 확인할 수 있어요.',directLink,nl,'오늘까지 입금 부탁드립니다.'].join(nl);
+  const kakaoMsg=['['+event.date+' '+event.name+'] 정산 안내',nl,'아래 링크에서 본인 분담금을 확인하고 입금해주세요.',directLink,nl,'(정산해 · 간편한 모임 정산 서비스)'].join(nl);
 
   return(
     <div>
@@ -2122,6 +2122,24 @@ function StatusSection({event,updateEvent,groups}){
   );
 }
 
+// ── ParticipantSplashScreen ────────────────────────────────
+function ParticipantSplashScreen({onDone}){
+  const [fading,setFading]=useState(false);
+  useEffect(()=>{
+    const t1=setTimeout(()=>setFading(true),1000);
+    const t2=setTimeout(onDone,1200);
+    return()=>{clearTimeout(t1);clearTimeout(t2);};
+  },[]);
+  return(
+    <div className="screen" style={{background:`linear-gradient(145deg,#6366F1 0%,#8B5CF6 100%)`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',transition:'opacity 0.2s',opacity:fading?0:1,position:'relative'}}>
+      <button onClick={onDone} style={{position:'absolute',top:20,right:20,background:'rgba(255,255,255,0.2)',border:'none',borderRadius:20,padding:'6px 14px',color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer'}}>건너뛰기</button>
+      <div style={{fontSize:64,marginBottom:16}}>🍻</div>
+      <div style={{fontSize:28,fontWeight:900,color:'#fff',letterSpacing:-1,marginBottom:8}}>정산해</div>
+      <div style={{fontSize:14,color:'rgba(255,255,255,0.8)',fontWeight:500}}>간편한 모임 정산</div>
+    </div>
+  );
+}
+
 // ── ParticipantScreen ──────────────────────────────────────
 function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showToast}){
   // participantKey(이름 또는 전체 키)를 실제 member key로 해석
@@ -2143,10 +2161,14 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   const [dupWarning,setDupWarning]=useState(resolved.isDup);
   const [searchQ,setSearchQ]=useState(resolved.isDup?participantKey:'');
   const [dialog,setDialog]=useState(false);
+  const [splashDone,setSplashDone]=useState(()=>!!sessionStorage.getItem('jungsan_splash_seen'));
 
   useEffect(()=>setEvent(initEvent),[initEvent]);
   useRealtimeEvent(event.code,ev=>setEvent(ev));
   useEffect(()=>{api.trackView(event.code,null,participantKey||'anonymous');},[]);
+
+  if(!splashDone) return <ParticipantSplashScreen onDone={()=>{sessionStorage.setItem('jungsan_splash_seen','1');setSplashDone(true);}}/>;
+
 
   const mm=event.memberMap||{};
   const amounts=calcAmounts(event);
@@ -2189,6 +2211,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
     return(
       <div className="fade-up screen" style={{background:C.pageBg}}>
         <Header title={event.name} onBack={()=>nav.setView('home')}/>
+        <div style={{fontSize:11,color:C.textDim,textAlign:'center',padding:'4px 0 2px'}}>정산해로 진행 중인 정산</div>
         <div style={{padding:20}}>
           {dupWarning&&(
             <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'10px 14px',background:C.orangeBg,borderRadius:12,border:`1px solid ${C.orange}30`}}>
@@ -2242,6 +2265,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   return(
     <div className="fade-up screen" style={{background:C.pageBg}}>
       <Header title={event.name} onBack={()=>setSelectedKey('')}/>
+      <div style={{fontSize:11,color:C.textDim,textAlign:'center',padding:'4px 0 2px'}}>정산해로 진행 중인 정산</div>
       <div style={{padding:'16px 16px 24px'}}>
         <Card style={{background:isPaid?C.greenBg:C.cardBg,border:`1.5px solid ${isPaid?C.green+'40':C.border}`}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16}}>
@@ -2518,7 +2542,7 @@ function OnboardingModal({onClose}){
   const steps=[
     {icon:'⚙',title:'먼저 설정부터',desc:'홈에서 명단·계좌 설정을 눌러\n학년·기수별로 명단을 등록해두세요.\n기존 엑셀 데이터를 그대로 복붙하면 돼요.'},
     {icon:'➕',title:'정산·신청 만들기',desc:'돈을 언제 걷느냐에 따라 선택하세요.\n미리 신청 받기: 신청폼으로 참여자 모집 (참가비 받기 가능)\n끝나고 정산하기: 명단 선택 후 즉석 1/N'},
-    {icon:'📤',title:'링크 공유하기',desc:'출석 확인 → 금액 입력 → 공유 탭에서\n카톡 메시지를 복사해 단톡방에 올려요.\n안 낸 사람은 콕 찌르기로 해결.'},
+    {icon:'🎯',title:'어떤 상황에 쓰나요?',desc:'SCENARIOS'},
     {icon:'📊',title:'실시간 O/X',desc:'참여자가 링크 들어와서 완료 누르면\nO/X 보드가 모두한테 실시간으로 바뀌어요.\n총무는 보기만 하면 끝!'},
   ];
   const cur=steps[step];
@@ -2546,7 +2570,25 @@ function OnboardingModal({onClose}){
         <div style={{textAlign:'center',marginBottom:24}}>
           <div style={{fontSize:48,marginBottom:16}}>{cur.icon}</div>
           <div style={{fontWeight:900,color:C.text,fontSize:20,marginBottom:10,letterSpacing:-0.5}}>{cur.title}</div>
-          <div style={{fontSize:14,color:C.textMid,lineHeight:1.9,whiteSpace:'pre-wrap'}}>{cur.desc}</div>
+          {step===2?(
+            <div style={{textAlign:'left'}}>
+              {[
+                {icon:'🍻',title:'뒷풀이·종강총회',desc:'이름 추가 → 금액 입력 → 카톡 공유. 1분이면 끝.'},
+                {icon:'🏕',title:'MT·야식마차',desc:'신청부터 입금까지 한 번에.'},
+                {icon:'📋',title:'명단 재사용',desc:'한 번 저장하면 다음 모임부터는 선택만!'},
+              ].map(s=>(
+                <div key={s.title} style={{display:'flex',gap:12,marginBottom:14,alignItems:'flex-start'}}>
+                  <div style={{width:36,height:36,borderRadius:10,background:C.accentBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{s.icon}</div>
+                  <div>
+                    <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:2}}>{s.title}</div>
+                    <div style={{fontSize:12,color:C.textDim,lineHeight:1.5}}>{s.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ):(
+            <div style={{fontSize:14,color:C.textMid,lineHeight:1.9,whiteSpace:'pre-wrap'}}>{cur.desc}</div>
+          )}
         </div>
         <div style={{display:'flex',gap:10}}>
           {step>0&&<Btn variant="ghost" onClick={()=>setStep(s=>s-1)} style={{flex:1}}>이전</Btn>}
@@ -3175,7 +3217,18 @@ function VerifyTab({form, subs, groups, matchResults, uploading, bankGuideOpen, 
 
 function FormShareTab({form, showToast}){
   const formLink=getLink(`form=${form.code}`);
-  const shareMsg=`[${form.name}] 신청 안내\n\n📅 ${form.date}\n💰 ${fmtKRW(form.amount)}${form.maxPeople?`\n👥 선착순 ${form.maxPeople}명`:''}\n\n아래 링크에서 신청해주세요!\n${formLink}`;
+  const shareMsg=[
+    `[${form.name}] 신청 안내`,
+    '',
+    `📅 ${form.date}`,
+    form.amount>0?`💰 참가비 ${fmtKRW(form.amount)}`:`💰 참가비 없음`,
+    form.maxPeople?`👥 선착순 ${form.maxPeople}명`:null,
+    '',
+    '아래 링크에서 신청해주세요!',
+    formLink,
+    '',
+    '(정산해 · 간편한 모임 정산 서비스)',
+  ].filter(l=>l!==null).join('\n');
   return(
     <div>
       <div style={{background:C.inputBg,borderRadius:12,padding:'14px 16px',fontSize:13,color:C.textMid,lineHeight:1.85,marginBottom:12,whiteSpace:'pre-wrap'}}>{shareMsg}</div>
@@ -3287,12 +3340,15 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
   const [loading,setLoading]=useState(false);
   const [submitted,setSubmitted]=useState(false);
   const [mySubmission,setMySubmission]=useState(null);
+  const [splashDone,setSplashDone]=useState(()=>!!sessionStorage.getItem('jungsan_splash_seen'));
 
   const isClosed=form.status==='closed';
   const isFull=form.maxPeople&&(form.submissions||[]).length>=form.maxPeople;
 
   // 조회수 추적
   useEffect(()=>{api.trackView(null,form.code,'anonymous');},[]);
+
+  if(!splashDone) return <ParticipantSplashScreen onDone={()=>{sessionStorage.setItem('jungsan_splash_seen','1');setSplashDone(true);}}/>;
 
   // 재방문 시 이전 신청 확인 (localStorage)
   useEffect(()=>{
@@ -3478,6 +3534,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
     <div className="fade-up screen" style={{background:C.pageBg}}>
       {/* 헤더 */}
       <div style={{background:C.orange,padding:'32px 20px 24px',textAlign:'center'}}>
+        <div style={{fontSize:11,color:'rgba(255,255,255,0.6)',marginBottom:12}}>정산해로 진행 중인 신청</div>
         <div style={{fontSize:36,marginBottom:10}}>📋</div>
         <div style={{fontSize:22,fontWeight:900,color:'#fff',marginBottom:6}}>{form.name}</div>
         <div style={{display:'flex',justifyContent:'center',gap:12,fontSize:13,color:'rgba(255,255,255,0.9)'}}>
