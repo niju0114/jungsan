@@ -759,14 +759,22 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
   const [idChecked,setIdChecked]=useState(false);
   const [idAvail,setIdAvail]=useState(null);
   const [err,setErr]=useState('');
+  const [idChecking,setIdChecking]=useState(false);
 
   const toEmail = id => id.trim().toLowerCase()+ID_DOMAIN;
 
-  const checkId = (val)=>{
+  const checkId = async(val)=>{
     const v=(val||userId).trim();
     if(!v||v.length<3) return;
     if(!/^[a-zA-Z0-9_]{3,20}$/.test(v)){setIdAvail(false);setIdChecked(true);setErr('영문, 숫자, _ 3~20자');return;}
-    setIdAvail(true);setIdChecked(true);setErr('');
+    setIdChecking(true);
+    const {data}=await api.checkUsername(v.toLowerCase());
+    if(data){
+      setIdAvail(false);setIdChecked(true);setErr('이미 사용 중인 아이디예요');
+    } else {
+      setIdAvail(true);setIdChecked(true);setErr('');
+    }
+    setIdChecking(false);
   };
 
   const submit=async()=>{
@@ -857,7 +865,9 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
               onFocus={e=>!idChecked&&(e.target.style.border=`1.5px solid ${C.accent}`)}
             />
           </div>
-          {idChecked&&idAvail&&<div style={{color:C.green,fontSize:12,marginTop:-10,marginBottom:10}}>✓ 사용 가능한 형식이에요</div>}
+          {idChecking&&<div style={{color:C.accent,fontSize:12,marginTop:-10,marginBottom:10}}>확인 중...</div>}
+          {!idChecking&&idChecked&&idAvail&&<div style={{color:C.green,fontSize:12,marginTop:-10,marginBottom:10}}>✓ 사용 가능한 아이디예요</div>}
+          {!idChecking&&idChecked&&!idAvail&&err==='이미 사용 중인 아이디예요'&&<div style={{color:C.red,fontSize:12,marginTop:-10,marginBottom:10}}>✗ 사용 불가능한 아이디예요</div>}
           <Field label="비밀번호" value={pw} onChange={setPw} placeholder="6자 이상" type="password" onEnter={mode==='login'?submit:undefined}/>
           {mode==='signup'&&(
             <div style={{position:'relative'}}>
