@@ -108,6 +108,7 @@ const api = {
   getProfileFields: (uid, fields) => sb.from('profiles').select(fields).eq('id',uid).single(),
   upsertProfile: (data) => sb.from('profiles').upsert(data),
   updateProfile: (uid, data) => sb.from('profiles').update(data).eq('id',uid),
+  checkUsername: (username) => sb.from('profiles').select('id').eq('username',username).maybeSingle(),
 
   // Views (조회수 추적)
   trackView: async(eventCode, formCode, viewerKey) => {
@@ -258,6 +259,16 @@ const isEventDone = ev => {
   const presentMembers=(ev.members||[]).filter(k=>ev.attendance[k]!==false);
   if(presentMembers.length===0) return false;
   return presentMembers.every(k=>ev.payments?.[k]?.paid);
+};
+
+const translateAuthError = err => {
+  const m=err?.message||'';
+  if(m.includes('User already registered')||m.includes('already_registered')) return 'ALREADY_REGISTERED';
+  if(m.includes('Invalid login credentials')) return '아이디 또는 비밀번호가 맞지 않아요.';
+  if(m.includes('Password should be at least')||m.includes('weak_password')) return '비밀번호는 6자 이상으로 설정해주세요.';
+  if(m.includes('rate_limit')||m.includes('too many')) return '요청이 너무 잦아요. 잠시 후 다시 시도해주세요.';
+  if(m.includes('signup_disabled')) return '현재 가입이 제한됐어요. 잠시 후 다시 시도해주세요.';
+  return '문제가 생겼어요. 잠시 후 다시 시도해주세요.';
 };
 
 // 입금 완료(시각 최신순) → 미입금(원래 순서) 정렬
@@ -758,11 +769,11 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
     if(!v||v.length<3) return;
     if(!/^[a-zA-Z0-9_]{3,20}$/.test(v)){setIdAvail(false);setIdChecked(true);setErr('영문, 숫자, _ 3~20자');return;}
     setIdChecking(true);
-    const {error}=await api.signIn(toEmail(v),'__check__');
-    if(error?.message?.includes('Invalid login credentials')){
-      setIdAvail(true);setIdChecked(true);setErr('');
-    } else {
+    const {data}=await api.checkUsername(v.toLowerCase());
+    if(data){
       setIdAvail(false);setIdChecked(true);setErr('이미 사용 중인 아이디예요');
+    } else {
+      setIdAvail(true);setIdChecked(true);setErr('');
     }
     setIdChecking(false);
   };
@@ -798,7 +809,16 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
       }
     } else {
       const {data,error}=await api.signUp(email,pw);
-      if(error){setErr(error.message);setLoading(false);return;}
+      if(error){
+        const msg=translateAuthError(error);
+        if(msg==='ALREADY_REGISTERED'){
+          setErr('이미 가입된 계정이에요. 로그인을 시도해보세요.');
+          setMode('login');
+        } else {
+          setErr(msg);
+        }
+        setLoading(false);return;
+      }
       const uid=data?.user?.id;
       if(uid){
         // profile 저장
