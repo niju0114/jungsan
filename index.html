@@ -110,10 +110,20 @@ const api = {
   updateProfile: (uid, data) => sb.from('profiles').update(data).eq('id',uid),
   checkUsername: (username) => sb.from('profiles').select('id').eq('username',username).maybeSingle(),
 
+  // 참여자 전용 RPC (RLS 우회, 지정 필드만 업데이트)
+  markEventAttendance: (code, memberKey, present) => sb.rpc('mark_event_attendance',{p_code:code,p_member_key:memberKey,p_present:present}),
+  markEventPaid: (code, memberKey, paid) => sb.rpc('mark_event_paid',{p_code:code,p_member_key:memberKey,p_paid:paid}),
+  appendFormSubmission: (code, submission) => sb.rpc('append_form_submission',{p_code:code,p_submission:submission}),
+  requestFormPayment: (code, createdAt) => sb.rpc('request_form_payment',{p_code:code,p_created_at:createdAt}),
+
   // Views (조회수 추적)
   trackView: async(eventCode, formCode, viewerKey) => {
-    try { await sb.from('views').insert({event_code:eventCode||null, form_code:formCode||null, viewer_key:viewerKey||null}); }
-    catch(e) {} // 테이블 미존재 시 무시
+    const sessionKey=`view_tracked_${eventCode||formCode}`;
+    if(sessionStorage.getItem(sessionKey)) return;
+    try {
+      await sb.from('views').insert({event_code:eventCode||null, form_code:formCode||null, viewer_key:viewerKey||null});
+      sessionStorage.setItem(sessionKey,'1');
+    } catch(e) {}
   },
   getViewCount: async(eventCode, formCode) => {
     try {
@@ -2177,9 +2187,8 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   const myRounds=(event.rounds||[]).filter(r=>r.members.includes(selectedKey));
 
   const markPaid=async()=>{
-    const payments={...event.payments,[selectedKey]:{paid:true,time:new Date().toISOString(),by:'self'}};
-    const updated={...event,payments};
-    setEvent(updated);await updateEvent(updated);
+    await api.markEventPaid(event.code,selectedKey,true);
+    setEvent(ev=>({...ev,payments:{...ev.payments,[selectedKey]:{paid:true,time:new Date().toISOString(),by:'self'}}}));
     setDialog(false);showToast('입금 완료 처리됐어요 ✓');
   };
 
@@ -2240,8 +2249,8 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
               return(
                 <button key={k} onClick={async()=>{
                   if(event.attendance[k]===undefined||event.attendance[k]===null){
-                    const att={...event.attendance,[k]:true};
-                    await updateEvent({...event,attendance:att});
+                    await api.markEventAttendance(event.code,k,true);
+                    setEvent(ev=>({...ev,attendance:{...ev.attendance,[k]:true}}));
                   }
                   setSelectedKey(k);
                 }} className="press" style={{
@@ -2340,9 +2349,8 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
                 </div>
               )}
               <button onClick={async()=>{
-                const payments={...event.payments,[selectedKey]:{paid:false,time:null,by:null}};
-                const updated={...event,payments};
-                setEvent(updated);await updateEvent(updated);
+                await api.markEventPaid(event.code,selectedKey,false);
+                setEvent(ev=>({...ev,payments:{...ev.payments,[selectedKey]:{paid:false,time:null,by:null}}}));
               }} style={{width:'100%',color:C.textDim,background:'none',border:'none',fontSize:12,cursor:'pointer',textDecoration:'underline',padding:'4px 0'}}>
                 앗, 실수로 눌렀어요
               </button>
@@ -3401,9 +3409,14 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
       paymentStatus:'pending',
       createdAt:new Date().toISOString(),
     };
-    const newSubs=[...existingSubs,submission];
     try{
-      await updateForm({...form,submissions:newSubs});
+      const {data,error}=await api.appendFormSubmission(form.code,submission);
+      if(error||data?.error){
+        if(data?.error==='full') showToast('정원이 마감됐어요',C.orange);
+        else if(data?.error==='closed') showToast('신청이 마감됐어요',C.orange);
+        else showToast('신청 실패: 다시 시도해주세요',C.red);
+        setLoading(false);return;
+      }
       setMySubmission(submission);
       setSubmitted(true);
       localStorage.setItem('form_sub_'+form.code,submission.createdAt);
@@ -3416,12 +3429,9 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
   // 제출 완료 화면
   const markPaidRequest=async()=>{
     if(!mySubmission) return;
-    const idx=(form.submissions||[]).findIndex(s=>s.createdAt===mySubmission.createdAt);
-    if(idx===-1) return;
-    const newSubs=[...(form.submissions||[])];
-    newSubs[idx]={...newSubs[idx],paymentStatus:'requested',requestedAt:new Date().toISOString()};
-    await updateForm({...form,submissions:newSubs});
-    setMySubmission(newSubs[idx]);
+    await api.requestFormPayment(form.code,mySubmission.createdAt);
+    const updated={...mySubmission,paymentStatus:'requested',requestedAt:new Date().toISOString()};
+    setMySubmission(updated);
     showToast('입금 완료 요청이 전달됐어요');
   };
 
@@ -3559,6 +3569,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
                 <input
                   value={values[f.id]||''}
                   onChange={e=>setValue(f.id,e.target.value)}
+                  maxLength={f.id==='name'?50:f.id==='phone'?20:f.id==='grade'||f.id==='studentId'?20:200}
                   style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,background:C.inputBg}}
                   placeholder={f.label}
                 />
@@ -3568,6 +3579,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
                   value={values[f.id]||''}
                   onChange={e=>setValue(f.id,e.target.value)}
                   rows={3}
+                  maxLength={500}
                   style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,background:C.inputBg,resize:'vertical'}}
                   placeholder={f.label}
                 />
@@ -3577,6 +3589,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
                   type="number"
                   value={values[f.id]||''}
                   onChange={e=>setValue(f.id,e.target.value)}
+                  maxLength={10}
                   style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,background:C.inputBg}}
                   placeholder="0"
                 />
