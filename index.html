@@ -270,6 +270,10 @@ const sortByPaid = (keys, payments) => [
   ...keys.filter(k=>!payments?.[k]?.paid),
 ];
 
+// 임시 인원 key (roundId + em.id 조합, legacy는 index fallback)
+const extraKey = (roundId, em, ei) =>
+  `__extra__${roundId}__${em.id || 'legacyidx_'+ei}`;
+
 // 입금 대조 매칭 엔진 (순수 함수)
 const matchEngine = {
   NAME_COLS: ['적요','입금자','입금자명','보내는분','거래내용','기재내용','통장표시','비고','내용','메모','받는분'],
@@ -1837,8 +1841,8 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups}){
                     ))}
                   </div>}
                   <div style={{display:'flex',gap:6}}>
-                    <input value={extraInput} onChange={e=>setExtraInput(e.target.value)} placeholder="이름 입력" onKeyDown={e=>{if(e.key==='Enter'&&extraInput.trim()){updateRound(r.id,{extraMembers:[...(r.extraMembers||[]),{name:extraInput.trim()}]});setExtraInput('');}}} style={{flex:1,padding:'7px 10px',borderRadius:8,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none'}}/>
-                    <button onClick={()=>{if(extraInput.trim()){updateRound(r.id,{extraMembers:[...(r.extraMembers||[]),{name:extraInput.trim()}]});setExtraInput('');}}} style={{padding:'7px 12px',borderRadius:8,background:C.orange+'20',border:`1.5px solid ${C.orange}50`,color:C.orange,fontWeight:700,fontSize:13,cursor:'pointer'}}>추가</button>
+                    <input value={extraInput} onChange={e=>setExtraInput(e.target.value)} placeholder="이름 입력" onKeyDown={e=>{if(e.key==='Enter'&&extraInput.trim()){updateRound(r.id,{extraMembers:[...(r.extraMembers||[]),{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:extraInput.trim()}]});setExtraInput('');}}} style={{flex:1,padding:'7px 10px',borderRadius:8,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none'}}/>
+                    <button onClick={()=>{if(extraInput.trim()){updateRound(r.id,{extraMembers:[...(r.extraMembers||[]),{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:extraInput.trim()}]});setExtraInput('');}}} style={{padding:'7px 12px',borderRadius:8,background:C.orange+'20',border:`1.5px solid ${C.orange}50`,color:C.orange,fontWeight:700,fontSize:13,cursor:'pointer'}}>추가</button>
                   </div>
                   <div style={{marginTop:7,fontSize:11,color:C.textMid,lineHeight:1.5}}>명단에 빠진 멤버는 명단 관리 화면에서 추가해주세요. 그래야 다음 정산에도 쓸 수 있어요.</div>
                 </div>
@@ -1884,8 +1888,8 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups}){
                 ))}
               </div>}
               <div style={{display:'flex',gap:6,marginBottom:6}}>
-                <input value={roundExtraInput} onChange={e=>setRoundExtraInput(e.target.value)} placeholder="이름 입력" onKeyDown={e=>{if(e.key==='Enter'&&roundExtraInput.trim()){setRoundExtraMembers(s=>[...s,{name:roundExtraInput.trim()}]);setRoundExtraInput('');}}} style={{flex:1,padding:'7px 10px',borderRadius:8,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none'}}/>
-                <button onClick={()=>{if(roundExtraInput.trim()){setRoundExtraMembers(s=>[...s,{name:roundExtraInput.trim()}]);setRoundExtraInput('');}}} style={{padding:'7px 12px',borderRadius:8,background:C.orange+'20',border:`1.5px solid ${C.orange}50`,color:C.orange,fontWeight:700,fontSize:13,cursor:'pointer'}}>추가</button>
+                <input value={roundExtraInput} onChange={e=>setRoundExtraInput(e.target.value)} placeholder="이름 입력" onKeyDown={e=>{if(e.key==='Enter'&&roundExtraInput.trim()){setRoundExtraMembers(s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:roundExtraInput.trim()}]);setRoundExtraInput('');}}} style={{flex:1,padding:'7px 10px',borderRadius:8,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none'}}/>
+                <button onClick={()=>{if(roundExtraInput.trim()){setRoundExtraMembers(s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:roundExtraInput.trim()}]);setRoundExtraInput('');}}} style={{padding:'7px 12px',borderRadius:8,background:C.orange+'20',border:`1.5px solid ${C.orange}50`,color:C.orange,fontWeight:700,fontSize:13,cursor:'pointer'}}>추가</button>
               </div>
               <div style={{fontSize:11,color:C.textMid,lineHeight:1.5}}>명단에 빠진 멤버는 명단 관리 화면에서 추가해주세요. 그래야 다음 정산에도 쓸 수 있어요.</div>
             </div>
@@ -1933,11 +1937,32 @@ function ShareSection({event,showToast}){
 
 // ── StatusSection ──────────────────────────────────────────
 function StatusSection({event,updateEvent,groups}){
+  const [sortByTime,setSortByTime]=useState(true);
   const mm=event.memberMap||{};
   const amounts=calcAmounts(event);
   const surplus=calcSurplus(event);
-  const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
-  const pc=presentMembers.filter(k=>event.payments?.[k]?.paid).length;
+  const attendingMembers=event.members.filter(k=>event.attendance[k]!==false);
+  const presentMembers=attendingMembers.filter(k=>(amounts[k]||0)>0);
+  const zeroMembers=attendingMembers.filter(k=>(amounts[k]||0)===0);
+
+  // 임시 인원 합산
+  const extraAmounts={};
+  const allExtraEntries=[]; // {key, name}
+  (event.rounds||[]).forEach(r=>{
+    if(!r.amount) return;
+    const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0);
+    if(!totalCount) return;
+    const share=Math.ceil(r.amount/totalCount);
+    (r.extraMembers||[]).forEach((em,ei)=>{
+      const k=extraKey(r.id,em,ei);
+      extraAmounts[k]=(extraAmounts[k]||0)+share;
+      if(!allExtraEntries.find(e=>e.key===k))
+        allExtraEntries.push({key:k,name:em.name});
+    });
+  });
+
+  const pc=presentMembers.filter(k=>event.payments?.[k]?.paid).length
+           +allExtraEntries.filter(e=>event.payments?.[e.key]?.paid).length;
   const unpaidList=presentMembers.filter(k=>!event.payments?.[k]?.paid);
   const directLink=getLink(`code=${event.code}`);
   const nl='\n';
@@ -1952,41 +1977,72 @@ function StatusSection({event,updateEvent,groups}){
   const useGroupView=(groups||[]).length>1;
   const groupSections=React.useMemo(()=>{
     if(!useGroupView) return null;
-    const pMembers=event.members.filter(k=>event.attendance[k]!==false);
+    const pMembers=event.members.filter(k=>event.attendance[k]!==false).filter(k=>(amounts[k]||0)>0);
     const assigned=new Set();
+    const sortSection=(keys)=>sortByTime
+      ? sortByPaid(keys,event.payments)
+      : [...keys.filter(k=>event.payments?.[k]?.paid),...keys.filter(k=>!event.payments?.[k]?.paid)];
     const sections=(groups||[]).map(g=>{
       const gKeys=new Set((g.members||[]).map(m=>m.name+(m.sid?`_${m.sid}`:'')));
       const keys=pMembers.filter(k=>gKeys.has(k));
       keys.forEach(k=>assigned.add(k));
-      return {name:g.name,keys:sortByPaid(keys,event.payments)};
+      return {name:g.name,keys:sortSection(keys)};
     }).filter(s=>s.keys.length>0);
     const unassigned=pMembers.filter(k=>!assigned.has(k));
-    if(unassigned.length>0) sections.push({name:'미분류',keys:sortByPaid(unassigned,event.payments)});
+    if(unassigned.length>0) sections.push({name:'미분류',keys:sortSection(unassigned)});
+    // 임시 인원 섹션 추가 (useMemo 내부에서 직접 계산)
+    const localExtraEntries=[];
+    (event.rounds||[]).forEach(r=>{
+      if(!r.amount) return;
+      const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0);
+      if(!totalCount) return;
+      (r.extraMembers||[]).forEach((em,ei)=>{
+        const k=extraKey(r.id,em,ei);
+        if(!localExtraEntries.find(e=>e.key===k)) localExtraEntries.push({key:k});
+      });
+    });
+    if(localExtraEntries.length>0){
+      const extraKeys=sortSection(localExtraEntries.map(e=>e.key));
+      sections.push({name:'임시 인원',keys:extraKeys,isExtra:true});
+    }
     return sections;
-  },[useGroupView,groups,event.members,event.attendance,event.payments]);
+  },[useGroupView,groups,event.members,event.attendance,event.payments,event.rounds,sortByTime]);
 
-  const sortedMembers=useGroupView?null:sortByPaid(presentMembers,event.payments);
+  const sortList=(keys)=>sortByTime
+    ? sortByPaid(keys,event.payments)
+    : [...keys.filter(k=>event.payments?.[k]?.paid),...keys.filter(k=>!event.payments?.[k]?.paid)];
+  const sortedMain=useGroupView?null:sortList(presentMembers);
+  const sortedExtra=useGroupView?null:sortList(allExtraEntries.map(e=>e.key));
 
-  const MemberCard=({k})=>{
+  const MemberCard=({k,isExtra=false})=>{
     const p=event.payments?.[k]; const paid=p?.paid;
+    const displayName=isExtra
+      ? (allExtraEntries.find(e=>e.key===k)?.name || k)
+      : (mm[k]||k);
+    const displayAmount=isExtra ? (extraAmounts[k]||0) : (amounts[k]||0);
     return(
       <div onClick={()=>toggle(k)} className="press" style={{background:C.cardBg,borderRadius:12,padding:'11px 14px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:paid?`0 0 0 2px ${C.green}40`:C.shadow,cursor:'pointer'}}>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
           <div style={{width:32,height:32,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:paid?C.green:C.redBg,color:paid?'#fff':C.red,fontWeight:900,fontSize:14}}>{paid?'O':'X'}</div>
           <div>
-            <div style={{fontWeight:600,color:C.text,fontSize:13}}>{mm[k]||k}</div>
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              <span style={{fontWeight:600,color:C.text,fontSize:13}}>{displayName}</span>
+              {isExtra&&<span style={{fontSize:10,fontWeight:800,color:C.orange,background:C.orange+'20',borderRadius:6,padding:'1px 5px'}}>임시</span>}
+            </div>
             {paid&&p?.time&&<div style={{fontSize:11,color:C.textDim}}>{fmtTime(p.time)}{p.by==='admin'?' · 관리자':p.by==='archive'?' · 종료처리':''}</div>}
           </div>
         </div>
-        <div style={{color:C.accent,fontWeight:900,fontSize:13}}>{fmtKRW(amounts[k]||0)}</div>
+        <div style={{color:C.accent,fontWeight:900,fontSize:13}}>{fmtKRW(displayAmount)}</div>
       </div>
     );
   };
 
+  const totalCount=presentMembers.length+allExtraEntries.length;
+
   return(
     <div>
       <div style={{display:'flex',gap:8,marginBottom:12}}>
-        {[[pc,'완료',C.green,C.greenBg],[presentMembers.length-pc,'미완료',C.red,C.redBg]].map(([v,l,c,bg])=>(
+        {[[pc,'완료',C.green,C.greenBg],[totalCount-pc,'미입금',C.red,C.redBg]].map(([v,l,c,bg])=>(
           <div key={l} style={{flex:1,background:bg,borderRadius:12,padding:'11px 8px',textAlign:'center',border:`1.5px solid ${c}30`}}>
             <div style={{fontSize:20,fontWeight:900,color:c}}>{v}</div>
             <div style={{fontSize:11,color:c,marginTop:2,fontWeight:600}}>{l}</div>
@@ -1994,20 +2050,46 @@ function StatusSection({event,updateEvent,groups}){
         ))}
       </div>
       {surplus>0&&<div style={{fontSize:11,color:C.textMid,textAlign:'center',marginBottom:10}}>소수점을 올림해서 총액보다 <span style={{color:C.text,fontWeight:700}}>{fmtKRW(surplus)}</span> 더 걷혀요 <span style={{color:C.textDim}}>(총무 손해 방지)</span></div>}
+      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:8}}>
+        <span style={{fontSize:11,color:C.textDim}}>
+          {sortByTime?'⏱ 최신 입금순':'📋 명단 순'}
+          {' · '}
+          <button onClick={()=>setSortByTime(v=>!v)} style={{background:'none',border:'none',padding:0,fontSize:11,color:C.textMid,cursor:'pointer',textDecoration:'underline'}}>
+            {sortByTime?'명단 순으로 보기':'최신 입금순으로 보기'}
+          </button>
+        </span>
+      </div>
       {useGroupView?(
         groupSections.map(section=>(
           <div key={section.name} style={{marginBottom:4}}>
             <div style={{fontSize:11,fontWeight:700,color:C.textDim,padding:'8px 4px 4px',letterSpacing:0.5}}>
               {section.name} ({section.keys.filter(k=>event.payments?.[k]?.paid).length}/{section.keys.length})
             </div>
-            {section.keys.map(k=><MemberCard key={k} k={k}/>)}
+            {section.isExtra&&<div style={{fontSize:11,color:C.textMid,marginBottom:6,paddingLeft:4}}>카톡 공유가 안 되니 여기서 직접 체크해주세요</div>}
+            {section.keys.map(k=><MemberCard key={k} k={k} isExtra={!!section.isExtra}/>)}
           </div>
         ))
       ):(
-        sortedMembers.map(k=><MemberCard key={k} k={k}/>)
+        <>
+          {sortedMain.map(k=><MemberCard key={k} k={k}/>)}
+          {allExtraEntries.length>0&&(
+            <div style={{marginTop:8}}>
+              <div style={{fontSize:11,fontWeight:700,color:C.textDim,padding:'8px 4px 4px',letterSpacing:0.5}}>
+                임시 인원 ({allExtraEntries.filter(e=>event.payments?.[e.key]?.paid).length}/{allExtraEntries.length})
+              </div>
+              <div style={{fontSize:11,color:C.textMid,marginBottom:6,paddingLeft:4}}>카톡 공유가 안 되니 여기서 직접 체크해주세요</div>
+              {sortedExtra.map(k=><MemberCard key={k} k={k} isExtra={true}/>)}
+            </div>
+          )}
+        </>
       )}
 
       {/* 콕 찌르기 */}
+      {zeroMembers.length>0&&(
+        <div style={{fontSize:11,color:C.textDim,textAlign:'center',marginTop:12,marginBottom:8}}>
+          이번 정산에 참여하지 않은 {zeroMembers.length}명 ({zeroMembers.map(k=>mm[k]||k).join(', ')})
+        </div>
+      )}
       {unpaidList.length>0&&(
         <div style={{marginTop:16}}>
           <div style={{fontWeight:700,color:C.text,fontSize:13,marginBottom:8}}>콕 찌르기 <span style={{color:C.red}}>({unpaidList.length}명)</span></div>
@@ -2823,6 +2905,7 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
 function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCount, groups,
                          searchQ, setSearchQ, groupFilter, setGroupFilter,
                          onTogglePaid}){
+  const [sortByTime,setSortByTime]=useState(true);
   if(subs.length===0) return(
     <div style={{textAlign:'center',padding:'40px 0'}}>
       <div style={{fontSize:40,marginBottom:12}}>📭</div>
@@ -2830,6 +2913,9 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
       <div style={{color:C.textDim,fontSize:13,marginTop:4}}>링크를 공유해보세요</div>
     </div>
   );
+  const displaySubs=sortByTime
+    ? filteredSubs
+    : [...filteredSubs].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
   return(
     <div>
       <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름 또는 연락처 검색"
@@ -2837,6 +2923,15 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
         onFocus={e=>e.target.style.boxShadow=`0 0 0 2px ${C.accent}40`}
         onBlur={e=>e.target.style.boxShadow='none'}
       />
+      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:8}}>
+        <span style={{fontSize:11,color:C.textDim}}>
+          {sortByTime?'⏱ 최신 입금순':'📋 신청 순'}
+          {' · '}
+          <button onClick={()=>setSortByTime(v=>!v)} style={{background:'none',border:'none',padding:0,fontSize:11,color:C.textMid,cursor:'pointer',textDecoration:'underline'}}>
+            {sortByTime?'신청 순으로 보기':'최신 입금순으로 보기'}
+          </button>
+        </span>
+      </div>
       {groups.length>0&&(
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:10}}>
           <button onClick={()=>setGroupFilter('all')} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter==='all'?C.accent:'#fff',color:groupFilter==='all'?'#fff':C.textMid,border:'none'}}>
@@ -2854,7 +2949,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
           )}
         </div>
       )}
-      {filteredSubs.map(s=>{
+      {displaySubs.map(s=>{
         const isPaid=s.paid||s.paymentStatus==='matched';
         const isRequested=s.paymentStatus==='requested';
         return(
