@@ -2348,12 +2348,6 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
                   </div>
                 </div>
               )}
-              <button onClick={async()=>{
-                await api.markEventPaid(event.code,selectedKey,false);
-                setEvent(ev=>({...ev,payments:{...ev.payments,[selectedKey]:{paid:false,time:null,by:null}}}));
-              }} style={{width:'100%',color:C.textDim,background:'none',border:'none',fontSize:12,cursor:'pointer',textDecoration:'underline',padding:'4px 0'}}>
-                앗, 실수로 눌렀어요
-              </button>
             </div>
           ):(
             <div>
