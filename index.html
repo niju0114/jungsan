@@ -2189,7 +2189,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   const markPaid=async()=>{
     await api.markEventPaid(event.code,selectedKey,true);
     setEvent(ev=>({...ev,payments:{...ev.payments,[selectedKey]:{paid:true,time:new Date().toISOString(),by:'self'}}}));
-    setDialog(false);showToast('입금 완료 처리됐어요 ✓');
+    setDialog(false);showToast('확인 대기 중이에요 ✓');
   };
 
   if(!selectedKey){
@@ -2260,7 +2260,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
                   boxShadow:C.shadow,
                 }}>
                   <span>{getChipLabel(k)}</span>
-                  {paid&&<span style={{color:C.green,fontSize:12,fontWeight:800,background:C.greenBg,padding:'3px 8px',borderRadius:8}}>✓ 완료</span>}
+                  {paid&&<span style={{color:C.textMid,fontSize:12,fontWeight:800,background:C.inputBg,padding:'3px 8px',borderRadius:8}}>⏳ 확인 대기</span>}
                 </button>
               );
             })}
@@ -2336,7 +2336,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
           {isPaid?(
             <div>
               <div style={{textAlign:'center',color:C.green,fontWeight:900,fontSize:15,padding:'8px 0 12px',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-                ✓ 완료 {event.payments[selectedKey]?.time?'· '+fmtTime(event.payments[selectedKey].time):''}
+                ⏳ 확인 대기 {event.payments[selectedKey]?.time?'· '+fmtTime(event.payments[selectedKey].time):''}
               </div>
               {event.account?.bank&&(
                 <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',border:`1.5px solid ${C.border}`,marginBottom:10}}>
@@ -2355,7 +2355,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
                 <span style={{fontSize:14,flexShrink:0}}>⚠️</span>
                 <div style={{fontSize:12,color:C.orange,fontWeight:700,lineHeight:1.5}}>반드시 본인 이름으로 입금해주세요</div>
               </div>
-              <Btn variant="primary" onClick={()=>setDialog('confirm')} style={{fontSize:18,padding:'18px'}}>완료하기</Btn>
+              <Btn variant="primary" onClick={()=>setDialog('confirm')} style={{fontSize:18,padding:'18px'}}>보냈어요</Btn>
             </div>
           )}
         </Card>
@@ -2389,12 +2389,12 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
           <div className="fade-up" style={{background:C.cardBg,borderRadius:20,padding:'28px 24px',width:'100%',maxWidth:360,boxShadow:'0 8px 32px rgba(0,0,0,0.2)'}} onClick={e=>e.stopPropagation()}>
             <div style={{textAlign:'center',marginBottom:20}}>
               <div style={{fontSize:32,marginBottom:10}}>💳</div>
-              <div style={{fontWeight:900,color:C.text,fontSize:18,marginBottom:6}}>입금 완료 하셨습니까?</div>
-              <div style={{fontSize:13,color:C.textMid}}>확인 후 O로 처리됩니다</div>
+              <div style={{fontWeight:900,color:C.text,fontSize:18,marginBottom:6}}>송금 하셨나요?</div>
+              <div style={{fontSize:13,color:C.textMid}}>총무가 확인 후 최종 처리돼요</div>
             </div>
             <div style={{display:'flex',gap:10}}>
               <Btn variant="ghost" onClick={()=>setDialog(false)} style={{flex:1}}>아니요</Btn>
-              <Btn variant="green" onClick={markPaid} style={{flex:2}}>네, 완료!</Btn>
+              <Btn variant="green" onClick={markPaid} style={{flex:2}}>네, 보냈어요!</Btn>
             </div>
           </div>
         </div>
