@@ -1,2 +1,4 @@
 .claude/
 *.sql
+!sql/*.sql
+parse_check.js
