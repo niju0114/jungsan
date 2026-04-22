@@ -2344,7 +2344,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
                   <div style={{fontSize:14,color:C.text,fontWeight:700,marginBottom:4}}>{event.account.bank} · {event.account.holder}</div>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                     <div style={{fontSize:16,color:C.accent,fontWeight:900,letterSpacing:0.5}}>{event.account.number}</div>
-                    <button onClick={()=>copyText(event.account.number)} style={{background:C.accentBg,border:`1.5px solid ${C.accent}30`,borderRadius:10,padding:'6px 12px',color:C.accent,fontSize:12,fontWeight:700,cursor:'pointer'}}>복사</button>
+                    <button onClick={async()=>{await copyText(event.account.number);showToast('계좌번호 복사됐어요');}} style={{background:C.accentBg,border:`1.5px solid ${C.accent}30`,borderRadius:10,padding:'6px 12px',color:C.accent,fontSize:12,fontWeight:700,cursor:'pointer'}}>복사</button>
                   </div>
                 </div>
               )}
@@ -3235,10 +3235,10 @@ function FormShareTab({form, showToast}){
     <div>
       <div style={{background:C.inputBg,borderRadius:12,padding:'14px 16px',fontSize:13,color:C.textMid,lineHeight:1.85,marginBottom:12,whiteSpace:'pre-wrap'}}>{shareMsg}</div>
       <div style={{display:'flex',gap:8,marginBottom:8}}>
-        <Btn onClick={async()=>{const shared=await shareText(shareMsg);if(!shared){copyText(shareMsg);showToast('메시지 복사됨');}else showToast('공유 완료');}} small style={{flex:2}}>💬 카톡 공유</Btn>
-        <Btn variant="secondary" onClick={()=>{copyText(getLink(`form=${form.code}`));showToast('링크가 복사됐어요!');}} small style={{flex:1}}>🔗 링크</Btn>
+        <Btn onClick={async()=>{const shared=await shareText(shareMsg);if(!shared){await copyText(shareMsg);showToast('메시지 복사됨');}else showToast('공유 완료');}} small style={{flex:2}}>💬 카톡 공유</Btn>
+        <Btn variant="secondary" onClick={async()=>{await copyText(getLink(`form=${form.code}`));showToast('링크가 복사됐어요!');}} small style={{flex:1}}>🔗 링크</Btn>
       </div>
-      <Btn onClick={()=>{copyText(shareMsg);showToast('메시지 복사됨');}} variant="ghost" small>📋 메시지 복사</Btn>
+      <Btn onClick={async()=>{await copyText(shareMsg);showToast('메시지 복사됨');}} variant="ghost" small>📋 메시지 복사</Btn>
     </div>
   );
 }
@@ -3350,8 +3350,6 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
   // 조회수 추적
   useEffect(()=>{api.trackView(null,form.code,'anonymous');},[]);
 
-  if(!splashDone) return <ParticipantSplashScreen onDone={()=>{sessionStorage.setItem('jungsan_splash_seen','1');setSplashDone(true);}}/>;
-
   // 재방문 시 이전 신청 확인 (localStorage)
   useEffect(()=>{
     const savedKey=localStorage.getItem('form_sub_'+form.code);
@@ -3371,6 +3369,9 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
       }
     }
   },[form.submissions]);
+
+  if(!splashDone) return <ParticipantSplashScreen onDone={()=>{sessionStorage.setItem('jungsan_splash_seen','1');setSplashDone(true);}}/>;
+
 
   const setValue=(id,val)=>setValues(v=>({...v,[id]:val}));
 
