@@ -19,9 +19,9 @@
 2. API LAYER (71~140)      → 모든 DB/Auth 호출 중앙 관리 (api 객체), views 추적
 3. UTILITIES (141~363)     → 순수 함수 (변환, 포맷, matchEngine, 딥링크, copyText, shareText)
 4. UI PRIMITIVES (364~461) → Spinner, Btn, Field, Header, Card, Badge, Toast, SelectGrid
-5. HOOKS (2467~)           → useFormAdmin (FormAdmin 전용 로직 분리)
-6. SUB COMPONENTS (1062~)  → FeedbackModal, ModeSelectModal, SubmissionsTab, VerifyTab, FormShareTab
-7. SCREENS (462~)          → App, Landing, Auth, Home, Setup, Create, AdminEvent, FormCreate, FormAdmin, FormSubmit, History, Guide, Onboarding
+5. HOOKS (2859~)           → useFormAdmin (FormAdmin 전용 로직 분리)
+6. SUB COMPONENTS (2966~)  → SubmissionsTab, VerifyTab, FormShareTab
+7. SCREENS (520~)          → App, Landing, Auth, Home, Setup, Create, AdminEvent, FormCreate, FormAdmin, FormSubmit, History, Guide, Onboarding, FeedbackModal, ModeSelectModal, GuideModal, OnboardingModal
 ```
 
 ### Layer 구분 원칙
