@@ -2171,13 +2171,13 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   const [dupWarning,setDupWarning]=useState(resolved.isDup);
   const [searchQ,setSearchQ]=useState(resolved.isDup?participantKey:'');
   const [dialog,setDialog]=useState(false);
-  const [splashDone,setSplashDone]=useState(()=>!!sessionStorage.getItem('jungsan_splash_seen'));
+  const [splashDone,setSplashDone]=useState(()=>!!localStorage.getItem('splash_event_'+initEvent.code));
 
   useEffect(()=>setEvent(initEvent),[initEvent]);
   useRealtimeEvent(event.code,ev=>setEvent(ev));
   useEffect(()=>{api.trackView(event.code,null,participantKey||'anonymous');},[]);
 
-  if(!splashDone) return <ParticipantSplashScreen onDone={()=>{sessionStorage.setItem('jungsan_splash_seen','1');setSplashDone(true);}}/>;
+  if(!splashDone) return <ParticipantSplashScreen onDone={()=>{localStorage.setItem('splash_event_'+initEvent.code,'1');setSplashDone(true);}}/>;
 
 
   const mm=event.memberMap||{};
@@ -3342,7 +3342,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
   const [loading,setLoading]=useState(false);
   const [submitted,setSubmitted]=useState(false);
   const [mySubmission,setMySubmission]=useState(null);
-  const [splashDone,setSplashDone]=useState(()=>!!sessionStorage.getItem('jungsan_splash_seen'));
+  const [splashDone,setSplashDone]=useState(()=>!!localStorage.getItem('splash_form_'+form.code));
 
   const isClosed=form.status==='closed';
   const isFull=form.maxPeople&&(form.submissions||[]).length>=form.maxPeople;
@@ -3370,7 +3370,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
     }
   },[form.submissions]);
 
-  if(!splashDone) return <ParticipantSplashScreen onDone={()=>{sessionStorage.setItem('jungsan_splash_seen','1');setSplashDone(true);}}/>;
+  if(!splashDone) return <ParticipantSplashScreen onDone={()=>{localStorage.setItem('splash_form_'+form.code,'1');setSplashDone(true);}}/>;
 
 
   const setValue=(id,val)=>setValues(v=>({...v,[id]:val}));
