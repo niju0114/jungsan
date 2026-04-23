@@ -2629,6 +2629,7 @@ function FormCreateScreen({nav,profile,createForm}){
   const [customLabel,setCustomLabel]=useState('');
   const [customType,setCustomType]=useState('text');
   const [showCustom,setShowCustom]=useState(false);
+  const [showPreview,setShowPreview]=useState(false);
 
   const hasAccount=profile.account?.bank&&profile.account?.number;
 
@@ -2689,6 +2690,7 @@ function FormCreateScreen({nav,profile,createForm}){
     <div className="fade-up screen" style={{background:C.pageBg,display:'flex',flexDirection:'column'}}>
       <Header title="신청폼 만들기" onBack={()=>nav.setView('home')}/>
       <div style={{flex:1,padding:'8px 16px 16px',overflow:'auto'}}>
+        <div style={{fontSize:13,color:C.textDim,fontWeight:600,marginBottom:12,marginTop:4}}>참여자에게 받고 싶은 정보를 설정하세요</div>
         {/* 기본 정보 */}
         <Card>
           <Field label="행사명" value={name} onChange={setName} placeholder="5월 MT, 개강총회…"/>
@@ -2851,6 +2853,45 @@ function FormCreateScreen({nav,profile,createForm}){
         {err&&<div style={{color:C.red,fontSize:13,textAlign:'center',marginBottom:10,fontWeight:600}}>⚠ {err}</div>}
         <Btn onClick={create} loading={loading}>신청폼 만들기</Btn>
       </div>
+
+      {/* 플로팅 미리보기 버튼 */}
+      <button onClick={()=>setShowPreview(true)} className="press" style={{
+        position:'fixed',bottom:88,right:20,
+        display:'flex',alignItems:'center',gap:6,
+        padding:'12px 18px',borderRadius:40,border:'none',cursor:'pointer',
+        background:`linear-gradient(135deg,${C.accent},${C.accentDark})`,
+        color:'#fff',fontSize:14,fontWeight:700,
+        boxShadow:`0 4px 16px ${C.accent}55`,zIndex:50,
+      }}>👀 미리보기</button>
+
+      {/* 프리뷰 오버레이 */}
+      {showPreview&&(
+        <div style={{position:'fixed',inset:0,background:C.pageBg,zIndex:200,overflowY:'auto',animation:'slideUp 0.22s ease'}}>
+          <Header
+            title="👀 참여자에게는 이렇게 보여요"
+            onBack={()=>setShowPreview(false)}
+          />
+          <FormSubmitScreen
+            form={{
+              code:'PREVIEW',
+              name:name.trim()||'행사명',
+              date,
+              amount:Number(amount)||0,
+              account:{
+                bank:bank||profile.account?.bank||'',
+                number:number||profile.account?.number||'',
+                holder:holder||profile.account?.holder||'',
+              },
+              fields,
+              submissions:[],
+              status:'open',
+              maxPeople:useLimit&&maxPeople?Number(maxPeople):null,
+            }}
+            isPreview={true}
+            showToast={()=>{}}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -3337,7 +3378,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
 }
 
 // ── FormSubmitScreen (참여자용 신청폼) ──────────────────
-function FormSubmitScreen({nav,form,updateForm,showToast}){
+function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
   const [values,setValues]=useState({});
   const [loading,setLoading]=useState(false);
   const [submitted,setSubmitted]=useState(false);
@@ -3348,7 +3389,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
   const isFull=form.maxPeople&&(form.submissions||[]).length>=form.maxPeople;
 
   // 조회수 추적
-  useEffect(()=>{api.trackView(null,form.code,'anonymous');},[]);
+  useEffect(()=>{if(!isPreview)api.trackView(null,form.code,'anonymous');},[]);
 
   // 재방문 시 이전 신청 확인 (localStorage)
   useEffect(()=>{
@@ -3370,12 +3411,13 @@ function FormSubmitScreen({nav,form,updateForm,showToast}){
     }
   },[form.submissions]);
 
-  if(!splashDone) return <ParticipantSplashScreen onDone={()=>{localStorage.setItem('splash_form_'+form.code,'1');setSplashDone(true);}}/>;
+  if(!splashDone&&!isPreview) return <ParticipantSplashScreen onDone={()=>{localStorage.setItem('splash_form_'+form.code,'1');setSplashDone(true);}}/>;
 
 
   const setValue=(id,val)=>setValues(v=>({...v,[id]:val}));
 
   const submit=async()=>{
+    if(isPreview) return;
     for(const f of form.fields){
       if(f.required&&!values[f.id]){
         showToast(`${f.label}을(를) 입력해주세요`,C.red);return;
