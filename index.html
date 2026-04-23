@@ -1925,7 +1925,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups}){
             </div>
             <div style={{display:'flex',gap:8,marginTop:12}}>
               <Btn variant="ghost" onClick={()=>setAdding(false)} style={{flex:1}}>취소</Btn>
-              <Btn onClick={addRound} disabled={!label||!amount||roundMembers.length===0} style={{flex:2}}>추가</Btn>
+              <Btn onClick={addRound} disabled={!label||!(Number(amount)>0)||roundMembers.length===0} style={{flex:2}}>추가</Btn>
             </div>
           </div>
         ):(
