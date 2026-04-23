@@ -2620,7 +2620,7 @@ function FormCreateScreen({nav,profile,createForm}){
   const [holder,setHolder]=useState(profile.account?.holder||'');
   const [fields,setFields]=useState([
     {id:'name',type:'text',label:'이름',required:true},
-    {id:'phone',type:'text',label:'연락처',required:true},
+    {id:'phone',type:'text',label:'연락처',required:false},
     {id:'grade',type:'select',label:'학년',required:false,options:['1학년','2학년','3학년','4학년']},
     {id:'studentId',type:'text',label:'학번',required:false},
   ]);
@@ -2690,7 +2690,6 @@ function FormCreateScreen({nav,profile,createForm}){
     <div className="fade-up screen" style={{background:C.pageBg,display:'flex',flexDirection:'column'}}>
       <Header title="신청폼 만들기" onBack={()=>nav.setView('home')}/>
       <div style={{flex:1,padding:'8px 16px 16px',overflow:'auto'}}>
-        <div style={{fontSize:13,color:C.textDim,fontWeight:600,marginBottom:12,marginTop:4}}>참여자에게 받고 싶은 정보를 설정하세요</div>
         {/* 기본 정보 */}
         <Card>
           <Field label="행사명" value={name} onChange={setName} placeholder="5월 MT, 개강총회…"/>
@@ -2743,56 +2742,34 @@ function FormCreateScreen({nav,profile,createForm}){
 
         {/* 신청폼 항목 */}
         <Card>
-          <div style={{fontWeight:800,color:C.text,marginBottom:14,fontSize:15}}>📋 신청 항목</div>
+          <div style={{display:'flex',alignItems:'baseline',gap:8,marginBottom:14}}>
+            <div style={{fontWeight:800,color:C.text,fontSize:15}}>📋 신청 항목</div>
+            <div style={{fontSize:12,color:C.textDim,fontWeight:500}}>참여자에게 받고 싶은 정보를 설정하세요</div>
+          </div>
 
           {/* 현재 항목 리스트 */}
           {fields.map(f=>(
-            <div key={f.id} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',background:C.inputBg,borderRadius:12,marginBottom:6}}>
-              <div style={{flex:1}}>
-                <span style={{fontWeight:700,color:C.text,fontSize:14}}>{f.label}</span>
-                {f.required&&<span style={{fontSize:11,color:C.red,marginLeft:4}}>*</span>}
-                {f.type==='select'&&<span style={{fontSize:11,color:C.accent,marginLeft:6}}>선택형</span>}
-                {f.type==='textarea'&&<span style={{fontSize:11,color:C.accent,marginLeft:6}}>서술형</span>}
-              </div>
-              <button onClick={()=>updateField(f.id,'required',!f.required)} style={{background:f.required?C.redBg:'none',border:`1px solid ${f.required?C.red+'30':C.border}`,borderRadius:8,padding:'3px 8px',fontSize:10,fontWeight:700,color:f.required?C.red:C.textDim,cursor:'pointer'}}>
-                {f.required?'필수':'선택'}
-              </button>
-              <button onClick={()=>removeField(f.id)} style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'flex'}}>
-                <span className="ms ms-sm" style={{color:C.textDim}}>close</span>
-              </button>
-            </div>
-          ))}
-
-          {/* 선택형 항목의 옵션 편집 */}
-          {fields.filter(f=>['select','multiselect'].includes(f.type)).map(f=>(
-            <div key={f.id+'opt'} style={{padding:'14px 16px',background:'#fff',borderRadius:14,marginBottom:8,border:`1.5px solid ${C.accentBg}`}}>
-              <div style={{fontSize:13,color:C.text,marginBottom:10,fontWeight:700}}>{f.label} 옵션</div>
-              {(f.options||[]).map((opt,idx)=>(
-                <div key={idx} style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                  <div style={{width:20,height:20,borderRadius:f.type==='select'?'50%':4,border:`2px solid ${C.textDim}`,flexShrink:0}}/>
-                  <input
-                    value={opt}
-                    onChange={e=>updateOption(f.id,idx,e.target.value)}
-                    placeholder={`옵션 ${idx+1}`}
-                    style={{flex:1,padding:'10px 12px',background:C.inputBg,border:'none',borderRadius:10,fontSize:14,color:C.text,outline:'none',borderBottom:`1.5px solid transparent`}}
-                    onFocus={e=>e.target.style.borderBottom=`1.5px solid ${C.accent}`}
-                    onBlur={e=>e.target.style.borderBottom='1.5px solid transparent'}
-                  />
-                  {(f.options||[]).length>1&&(
-                    <button onClick={()=>removeOption(f.id,idx)} style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'flex',flexShrink:0}}>
-                      <span className="ms ms-sm" style={{color:C.textDim}}>close</span>
-                    </button>
-                  )}
+            <div key={f.id} style={{padding:'12px 14px',background:C.inputBg,borderRadius:12,marginBottom:6}}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <div style={{flex:1}}>
+                  <span style={{fontWeight:700,color:C.text,fontSize:14}}>{f.label}</span>
+                  {f.required&&<span style={{fontSize:11,color:C.red,marginLeft:4}}>*</span>}
+                  {f.type==='textarea'&&<span style={{fontSize:11,color:C.accent,marginLeft:6}}>서술형</span>}
                 </div>
-              ))}
-              <button onClick={()=>addOption(f.id)} style={{
-                display:'flex',alignItems:'center',gap:8,padding:'10px 12px',
-                background:'none',border:'none',cursor:'pointer',color:C.accent,fontSize:14,fontWeight:600,
-                width:'100%',borderRadius:10,
-              }}>
-                <div style={{width:20,height:20,borderRadius:f.type==='select'?'50%':4,border:`2px dashed ${C.accent}60`,flexShrink:0}}/>
-                옵션 추가
-              </button>
+                <button onClick={()=>updateField(f.id,'required',!f.required)} style={{background:f.required?C.redBg:'none',border:`1px solid ${f.required?C.red+'30':C.border}`,borderRadius:8,padding:'3px 8px',fontSize:10,fontWeight:700,color:f.required?C.red:C.textDim,cursor:'pointer'}}>
+                  {f.required?'필수':'선택'}
+                </button>
+                <button onClick={()=>removeField(f.id)} style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'flex'}}>
+                  <span className="ms ms-sm" style={{color:C.textDim}}>close</span>
+                </button>
+              </div>
+              {['select','multiselect'].includes(f.type)&&(f.options||[]).length>0&&(
+                <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>
+                  {(f.options||[]).map(opt=>(
+                    <span key={opt} style={{padding:'4px 12px',borderRadius:16,fontSize:12,fontWeight:600,background:C.accentBg,color:C.accent,border:`1px solid ${C.accent}30`}}>{opt}</span>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
 
