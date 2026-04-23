@@ -177,11 +177,13 @@ const rowToForm = r => ({
   maxPeople:r.max_people||null, account:r.account||{},
   fields:r.fields||[], submissions:r.submissions||[],
   status:r.status||'open', createdAt:r.created_at,
+  time:r.time||null, place:r.place||null, extraMessage:r.extra_message||null,
 });
 const formToRow = (f, uid) => ({
   code:f.code, name:f.name, date:f.date, amount:f.amount,
   max_people:f.maxPeople, account:f.account, fields:f.fields,
   submissions:f.submissions, status:f.status,
+  time:f.time||null, place:f.place||null, extra_message:f.extraMessage||null,
   ...(uid?{user_id:uid}:{}),
 });
 
@@ -2619,11 +2621,12 @@ function FormCreateScreen({nav,profile,createForm}){
   const [number,setNumber]=useState(profile.account?.number||'');
   const [holder,setHolder]=useState(profile.account?.holder||'');
   const [fields,setFields]=useState([
-    {id:'name',type:'text',label:'이름',required:true},
-    {id:'phone',type:'text',label:'연락처',required:false},
+    {id:'name',type:'text',label:'이름',required:false},
     {id:'grade',type:'select',label:'학년',required:false,options:['1학년','2학년','3학년','4학년']},
-    {id:'studentId',type:'text',label:'학번',required:false},
   ]);
+  const [time,setTime]=useState('');
+  const [place,setPlace]=useState('');
+  const [extraMessage,setExtraMessage]=useState('');
   const [err,setErr]=useState('');
   const [loading,setLoading]=useState(false);
   const [customLabel,setCustomLabel]=useState('');
@@ -2635,20 +2638,15 @@ function FormCreateScreen({nav,profile,createForm}){
 
   // 빠른 추가용 프리셋
   const presets=[
-    {label:'소속',type:'text'},
-    {label:'학과',type:'text'},
-    {label:'비상연락처',type:'text'},
-    {label:'식사 선택',type:'select',options:['고기','해산물','채식']},
-    {label:'교통편',type:'select',options:['자차','버스','카풀']},
-    {label:'참여 일정',type:'select',options:['1박2일','당일']},
-    {label:'요청사항',type:'textarea'},
-    {label:'기타 (자유 서술)',type:'textarea'},
+    {id:'phone',label:'연락처',type:'text'},
+    {id:'studentId',label:'학번',type:'text'},
+    {id:'f_extra',label:'기타 (자유 기재)',type:'textarea'},
   ];
   const usedLabels=fields.map(f=>f.label);
   const availPresets=presets.filter(p=>!usedLabels.includes(p.label));
 
   const addPreset=p=>{
-    setFields(fs=>[...fs,{id:'f'+Date.now(),type:p.type,label:p.label,required:false,options:p.options||[]}]);
+    setFields(fs=>[...fs,{id:p.id||'f'+Date.now(),type:p.type,label:p.label,required:false,options:p.options||[]}]);
   };
   const addCustom=()=>{
     if(!customLabel.trim()) return;
@@ -2679,7 +2677,8 @@ function FormCreateScreen({nav,profile,createForm}){
       code,name:name.trim(),date,amount:Number(amount),
       maxPeople:useLimit&&maxPeople?Number(maxPeople):null,
       account:{bank:b,number:n,holder:h},fields:cleanFields,
-      submissions:[],status:'open',createdAt:new Date().toISOString()
+      submissions:[],status:'open',createdAt:new Date().toISOString(),
+      time:time||null,place:place.trim()||null,extraMessage:extraMessage.trim()||null,
     };
     const ok=await createForm(form);
     setLoading(false);
@@ -2715,6 +2714,16 @@ function FormCreateScreen({nav,profile,createForm}){
                 style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:15,outline:'none'}}
               />
             )}
+          </div>
+          <Field label="시간 (선택)" value={time} onChange={setTime} type="time"/>
+          <Field label="장소 (선택)" value={place} onChange={setPlace} placeholder="강남 OO식당, 동아리방…"/>
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:6}}>추가 안내 (선택)</div>
+            <textarea value={extraMessage} onChange={e=>setExtraMessage(e.target.value)}
+              placeholder="참여자에게 전달할 내용을 입력하세요"
+              rows={3}
+              style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:14,outline:'none',resize:'none',lineHeight:1.6,boxSizing:'border-box'}}
+            />
           </div>
         </Card>
 
@@ -2867,6 +2876,7 @@ function FormCreateScreen({nav,profile,createForm}){
                   submissions:[],
                   status:'open',
                   maxPeople:useLimit&&maxPeople?Number(maxPeople):null,
+                  time:time||null,place:place.trim()||null,extraMessage:extraMessage.trim()||null,
                 }}
                 isPreview={true}
                 showToast={()=>{}}
@@ -3247,8 +3257,11 @@ function FormShareTab({form, showToast}){
     `[${form.name}] 신청 안내`,
     '',
     `📅 ${form.date}`,
+    form.time?`🕐 ${form.time}`:null,
+    form.place?`📍 ${form.place}`:null,
     form.amount>0?`💰 참가비 ${fmtKRW(form.amount)}`:`💰 참가비 없음`,
     form.maxPeople?`👥 선착순 ${form.maxPeople}명`:null,
+    form.extraMessage?`\n${form.extraMessage}`:null,
     '',
     '아래 링크에서 신청해주세요!',
     formLink,
@@ -3579,6 +3592,12 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
       </div>
 
       <div style={{padding:'20px 16px'}}>
+        {form.extraMessage&&(
+          <Card style={{marginBottom:12}}>
+            <div style={{fontWeight:800,color:C.text,marginBottom:8,fontSize:15}}>📢 안내사항</div>
+            <div style={{fontSize:14,color:C.textMid,lineHeight:1.6,whiteSpace:'pre-wrap'}}>{form.extraMessage}</div>
+          </Card>
+        )}
         <Card>
           {form.fields.map(f=>(
             <div key={f.id} style={{marginBottom:14}}>
