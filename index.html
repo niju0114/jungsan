@@ -2843,30 +2843,36 @@ function FormCreateScreen({nav,profile,createForm}){
 
       {/* 프리뷰 오버레이 */}
       {showPreview&&(
-        <div style={{position:'fixed',inset:0,background:C.pageBg,zIndex:200,overflowY:'auto',animation:'slideUp 0.22s ease'}}>
-          <Header
-            title="👀 참여자에게는 이렇게 보여요"
-            onBack={()=>setShowPreview(false)}
-          />
-          <FormSubmitScreen
-            form={{
-              code:'PREVIEW',
-              name:name.trim()||'행사명',
-              date,
-              amount:Number(amount)||0,
-              account:{
-                bank:bank||profile.account?.bank||'',
-                number:number||profile.account?.number||'',
-                holder:holder||profile.account?.holder||'',
-              },
-              fields,
-              submissions:[],
-              status:'open',
-              maxPeople:useLimit&&maxPeople?Number(maxPeople):null,
-            }}
-            isPreview={true}
-            showToast={()=>{}}
-          />
+        <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.5)',zIndex:200,display:'flex',alignItems:'flex-end',justifyContent:'center'}}
+          onClick={()=>setShowPreview(false)}>
+          <div style={{width:'100%',maxWidth:480,height:'90dvh',background:C.pageBg,borderRadius:'20px 20px 0 0',overflowY:'auto',animation:'slideUp 0.22s ease',display:'flex',flexDirection:'column'}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{display:'flex',alignItems:'center',gap:10,padding:'14px 16px',background:C.cardBg,borderRadius:'20px 20px 0 0',position:'sticky',top:0,zIndex:10,borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+              <button onClick={()=>setShowPreview(false)} style={{background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:10,color:C.textMid,cursor:'pointer',width:34,height:34,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>‹</button>
+              <div style={{flex:1,fontSize:14,fontWeight:800,color:C.text,letterSpacing:-0.3}}>👀 참여자에게는 이렇게 보여요</div>
+            </div>
+            <div style={{flex:1,overflowY:'auto'}}>
+              <FormSubmitScreen
+                form={{
+                  code:'PREVIEW',
+                  name:name.trim()||'행사명',
+                  date,
+                  amount:Number(amount)||0,
+                  account:{
+                    bank:bank||profile.account?.bank||'',
+                    number:number||profile.account?.number||'',
+                    holder:holder||profile.account?.holder||'',
+                  },
+                  fields,
+                  submissions:[],
+                  status:'open',
+                  maxPeople:useLimit&&maxPeople?Number(maxPeople):null,
+                }}
+                isPreview={true}
+                showToast={()=>{}}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>
