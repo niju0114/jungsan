@@ -267,12 +267,21 @@ const calcAmounts = ev => {
   const presentMembers=(ev.members||[]).filter(k=>ev.attendance[k]!==false);
   const a={};
   presentMembers.forEach(k=>a[k]=0);
+  const fc=ev.feeConfig;
   (ev.rounds||[]).forEach(r=>{
-    if(!r.amount) return;
+    const isFeeRound=r.id==='round_1'&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
+    if(!isFeeRound&&!r.amount) return;
     const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0);
     if(!totalCount) return;
-    const share=Math.ceil(r.amount/totalCount);
-    (r.members||[]).forEach(k=>{if(a[k]!==undefined)a[k]+=share;});
+    if(isFeeRound){
+      (r.members||[]).forEach(k=>{
+        if(a[k]!==undefined)
+          a[k]+=ev.memberMeta?.[k]?.paidFee?(fc.paidFeeAmount||0):(fc.unpaidFeeAmount||0);
+      });
+    } else {
+      const share=Math.ceil(r.amount/totalCount);
+      (r.members||[]).forEach(k=>{if(a[k]!==undefined)a[k]+=share;});
+    }
   });
   return a;
 };
@@ -1777,6 +1786,114 @@ function AttendanceSection({event,updateEvent,onDone,groups}){
   );
 }
 
+// ── FeeConfigSection ───────────────────────────────────────
+function FeeConfigSection({event,updateEvent}){
+  const fc=event.feeConfig;
+  const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
+  const totalMembers=presentMembers.length||1;
+
+  const [totalCostInput,setTotalCostInput]=useState(String(fc?.totalCost||''));
+  const [subsidyInput,setSubsidyInput]=useState(String(fc?.subsidyPerPaid||''));
+  const [paidInput,setPaidInput]=useState(String(fc?.paidFeeAmount||''));
+  const [unpaidInput,setUnpaidInput]=useState(String(fc?.unpaidFeeAmount||''));
+
+  useEffect(()=>{
+    if(fc){
+      setTotalCostInput(String(fc.totalCost||''));
+      setSubsidyInput(String(fc.subsidyPerPaid||''));
+      setPaidInput(String(fc.paidFeeAmount||''));
+      setUnpaidInput(String(fc.unpaidFeeAmount||''));
+    }
+  },[event.code]);
+
+  const previewAuto=()=>{
+    const total=Number(totalCostInput)||0;
+    const sub=Number(subsidyInput)||0;
+    const unpaid=total?Math.ceil(total/totalMembers):0;
+    return {unpaid,paid:Math.max(0,unpaid-sub)};
+  };
+
+  const saveFeeConfig=(mode)=>{
+    if(mode==='auto'){
+      const {unpaid,paid}=previewAuto();
+      const newFc={mode:'auto',totalCost:Number(totalCostInput)||0,subsidyPerPaid:Number(subsidyInput)||0,paidFeeAmount:paid,unpaidFeeAmount:unpaid};
+      const rounds=event.rounds.map(r=>r.id==='round_1'?{...r,amount:Number(totalCostInput)||0}:r);
+      updateEvent({...event,feeConfig:newFc,rounds});
+    } else {
+      const newFc={mode:'manual',totalCost:null,subsidyPerPaid:null,paidFeeAmount:Number(paidInput)||0,unpaidFeeAmount:Number(unpaidInput)||0};
+      updateEvent({...event,feeConfig:newFc});
+    }
+  };
+
+  const switchMode=(newMode)=>{
+    if(fc?.mode===newMode) return;
+    if(newMode==='auto'&&fc?.mode==='manual'){
+      if(!window.confirm('자동 계산 값으로 변경됩니다. 직접 입력한 금액은 초기화됩니다.')) return;
+    }
+    if(newMode==='manual'&&fc?.mode==='auto'){
+      const {unpaid,paid}=previewAuto();
+      setPaidInput(String(paid));
+      setUnpaidInput(String(unpaid));
+    }
+    saveFeeConfig(newMode);
+  };
+
+  const activate=()=>updateEvent({...event,feeConfig:{mode:'auto',totalCost:0,subsidyPerPaid:0,paidFeeAmount:0,unpaidFeeAmount:0}});
+  const deactivate=()=>{
+    if(!window.confirm('정산 방식 설정을 해제할까요? 기본 1/n 계산으로 돌아갑니다.')) return;
+    updateEvent({...event,feeConfig:null});
+  };
+
+  const {unpaid:pvUnpaid,paid:pvPaid}=previewAuto();
+
+  return(
+    <div style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:12,border:`1.5px solid ${C.accent}30`,boxShadow:C.shadow}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:fc?12:6}}>
+        <div style={{fontWeight:800,fontSize:14,color:C.text}}>정산 방식</div>
+        {fc?(
+          <button onClick={deactivate} style={{fontSize:11,color:C.textMid,background:'none',border:'none',cursor:'pointer',padding:'2px 4px'}}>해제</button>
+        ):(
+          <button onClick={activate} style={{fontSize:12,color:C.accent,fontWeight:700,background:C.accentBg,border:'none',borderRadius:8,padding:'5px 12px',cursor:'pointer'}}>설정하기</button>
+        )}
+      </div>
+      {!fc&&<div style={{fontSize:12,color:C.textDim,lineHeight:1.5}}>학생회비 납부 여부에 따라 금액을 다르게 설정할 수 있어요</div>}
+      {fc&&(
+        <>
+          <div style={{display:'flex',gap:6,marginBottom:14}}>
+            {[['auto','자동 계산'],['manual','직접 입력']].map(([m,label])=>(
+              <button key={m} onClick={()=>switchMode(m)} style={{flex:1,padding:'9px',borderRadius:10,fontSize:13,fontWeight:700,cursor:'pointer',border:'none',background:fc.mode===m?C.accent:C.inputBg,color:fc.mode===m?'#fff':C.textMid}}>{label}</button>
+            ))}
+          </div>
+          {fc.mode==='auto'&&(
+            <div className="fade-up">
+              <Field label="총 행사비 (원)" value={totalCostInput} onChange={v=>setTotalCostInput(v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="300000"/>
+              <Field label="학생회비 지원 단가 (납부자당)" value={subsidyInput} onChange={v=>setSubsidyInput(v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="5000"/>
+              <div style={{background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
+                  <span style={{fontSize:13,color:C.textMid}}>학생회비 납부자</span>
+                  <span style={{fontSize:15,fontWeight:900,color:C.accent}}>{fmtKRW(pvPaid)}</span>
+                </div>
+                <div style={{display:'flex',justifyContent:'space-between'}}>
+                  <span style={{fontSize:13,color:C.textMid}}>학생회비 미납부자</span>
+                  <span style={{fontSize:15,fontWeight:900,color:C.red}}>{fmtKRW(pvUnpaid)}</span>
+                </div>
+              </div>
+              <Btn onClick={()=>saveFeeConfig('auto')} small>적용</Btn>
+            </div>
+          )}
+          {fc.mode==='manual'&&(
+            <div className="fade-up">
+              <Field label="납부자 공지 금액 (원)" value={paidInput} onChange={v=>setPaidInput(v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="8000"/>
+              <Field label="미납부자 공지 금액 (원)" value={unpaidInput} onChange={v=>setUnpaidInput(v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="13000"/>
+              <Btn onClick={()=>saveFeeConfig('manual')} small>적용</Btn>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── RoundsSection ──────────────────────────────────────────
 function RoundsSection({event,updateEvent,onRoundAdded,groups}){
   const [editingId,setEditingId]=useState('round_1'); // 1차 기본으로 열려있음
@@ -1828,21 +1945,26 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups}){
     onRoundAdded&&onRoundAdded();
   };
 
+  const fc=event.feeConfig;
+
   return(
     <div>
+      <FeeConfigSection event={event} updateEvent={updateEvent}/>
       {event.rounds.map((r,idx)=>{
         const isFirst=r.label==='1차';
         const isEditing=editingId===r.id;
+        const useFeeConfig=isFirst&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
         return(
-          <div key={r.id} style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:10,border:`1.5px solid ${r.amount>0?C.accent+'30':C.orange+'50'}`,boxShadow:C.shadow}}>
+          <div key={r.id} style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:10,border:`1.5px solid ${(r.amount>0||useFeeConfig)?C.accent+'30':C.orange+'50'}`,boxShadow:C.shadow}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:isEditing?12:0}}>
               <div>
                 <div style={{fontWeight:800,color:C.text,fontSize:15}}>{r.label}</div>
-                {r.amount>0&&<div style={{fontSize:12,color:C.textMid,marginTop:2}}>{r.members.length+(r.extraMembers?.length||0)}명 · 1인당 {fmtKRW(Math.ceil(r.amount/(r.members.length+(r.extraMembers?.length||0))))}{(r.extraMembers?.length||0)>0&&<span style={{color:C.orange,marginLeft:5}}>임시 {r.extraMembers.length}명 포함</span>}</div>}
-                {r.amount===0&&<div style={{fontSize:12,color:C.orange,marginTop:2}}>금액을 입력해주세요</div>}
+                {useFeeConfig&&<div style={{fontSize:12,color:C.textMid,marginTop:2}}>납부자 {fmtKRW(fc.paidFeeAmount)} · 미납부자 {fmtKRW(fc.unpaidFeeAmount)}</div>}
+                {!useFeeConfig&&r.amount>0&&<div style={{fontSize:12,color:C.textMid,marginTop:2}}>{r.members.length+(r.extraMembers?.length||0)}명 · 1인당 {fmtKRW(Math.ceil(r.amount/(r.members.length+(r.extraMembers?.length||0))))}{(r.extraMembers?.length||0)>0&&<span style={{color:C.orange,marginLeft:5}}>임시 {r.extraMembers.length}명 포함</span>}</div>}
+                {!useFeeConfig&&r.amount===0&&<div style={{fontSize:12,color:C.orange,marginTop:2}}>금액을 입력해주세요</div>}
               </div>
               <div style={{display:'flex',alignItems:'center',gap:8}}>
-                {r.amount>0&&<div style={{color:C.accent,fontWeight:900}}>{fmtKRW(r.amount)}</div>}
+                {!useFeeConfig&&r.amount>0&&<div style={{color:C.accent,fontWeight:900}}>{fmtKRW(r.amount)}</div>}
                 <button onClick={()=>{ setEditingId(isEditing?null:r.id); setEditAmount(r.amount>0?String(r.amount):''); setExtraInput(''); }} style={{background:isEditing?C.accentBg:C.inputBg,border:`1.5px solid ${isEditing?C.accent:C.border}`,borderRadius:8,color:isEditing?C.accent:C.textMid,cursor:'pointer',padding:'5px 10px',fontSize:12,fontWeight:600}}>
                   {isEditing?'완료':'수정'}
                 </button>
@@ -1851,7 +1973,11 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups}){
             </div>
             {isEditing&&(
               <div className="fade-up">
-                <Field label="금액 (원)" value={editAmount} onChange={v=>setEditAmount(v.replace(/[^0-9]/g,''))} placeholder="150000" inputMode="numeric"/>
+                {useFeeConfig?(
+                  <div style={{fontSize:12,color:C.textMid,background:C.accentBg,borderRadius:10,padding:'8px 12px',marginBottom:12}}>금액은 위 정산 방식 설정에서 관리됩니다</div>
+                ):(
+                  <Field label="금액 (원)" value={editAmount} onChange={v=>setEditAmount(v.replace(/[^0-9]/g,''))} placeholder="150000" inputMode="numeric"/>
+                )}
                 <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:8}}>참여자 ({r.members.length}명)</div>
                 {useGroupChips&&chipGroupSections?(
                   <>
@@ -1898,10 +2024,9 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups}){
                   <div style={{marginTop:7,fontSize:11,color:C.textMid,lineHeight:1.5}}>명단에 빠진 멤버는 명단 관리 화면에서 추가해주세요. 그래야 다음 정산에도 쓸 수 있어요.</div>
                 </div>
                 <Btn onClick={()=>{
-                  const amt=Number(editAmount.replace(/[^0-9]/g,''));
-                  if(amt>0) updateRound(r.id,{amount:amt});
+                  if(!useFeeConfig){const amt=Number(editAmount.replace(/[^0-9]/g,''));if(amt>0) updateRound(r.id,{amount:amt});}
                   setEditingId(null);
-                }} disabled={!editAmount} style={{marginTop:12}} small>저장</Btn>
+                }} disabled={!useFeeConfig&&!editAmount} style={{marginTop:12}} small>저장</Btn>
               </div>
             )}
           </div>
