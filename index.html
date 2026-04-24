@@ -2124,10 +2124,12 @@ function ShareSection({event,showToast}){
   const fc=event.feeConfig;
   const paidFeeMembers=presentMembers.filter(k=>event.memberMeta?.[k]?.paidFee);
   const unpaidFeeMembers=presentMembers.filter(k=>!event.memberMeta?.[k]?.paidFee);
-  const autoMsg=fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount)
+  const hasPaidLine=paidFeeMembers.length>0&&(fc?.paidFeeAmount||0)>0;
+  const hasUnpaidLine=unpaidFeeMembers.length>0&&(fc?.unpaidFeeAmount||0)>0;
+  const autoMsg=fc?.paidFeeAmount!=null&&(hasPaidLine||hasUnpaidLine)
     ?[`[${event.date} ${event.name}] 정산 안내`,'',
-      `📌 학생회비 납부자 (${paidFeeMembers.length}명): ${fmtKRW(fc.paidFeeAmount)}`,
-      `📌 학생회비 미납부자 (${unpaidFeeMembers.length}명): ${fmtKRW(fc.unpaidFeeAmount)}`,
+      ...(hasPaidLine?[`📌 학생회비 납부자: ${fmtKRW(fc.paidFeeAmount)}`]:[]),
+      ...(hasUnpaidLine?[`📌 학생회비 미납부자: ${fmtKRW(fc.unpaidFeeAmount)}`]:[]),
       '','아래 링크에서 내가 낼 돈을 확인하고 입금해주세요.','','(정산해 · 간편한 모임 정산 서비스)'].join('\n')
     :`[${event.date} ${event.name}] 정산 안내\n\n아래 링크에서 내가 낼 돈을 확인하고 입금해주세요.\n\n(정산해 · 간편한 모임 정산 서비스)`;
 
