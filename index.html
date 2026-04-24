@@ -2005,7 +2005,10 @@ function StatusSection({event,updateEvent,groups}){
 
   const toggle=k=>{
     const cur=event.payments?.[k]?.paid;
-    updateEvent({...event,payments:{...event.payments,[k]:cur?{paid:false,time:null,by:null}:{paid:true,time:new Date().toISOString(),by:'admin'}}});
+    updateEvent({...event,payments:{...event.payments,[k]:cur
+      ?{paid:false,requested:false,time:null,by:null}
+      :{paid:true,requested:false,time:new Date().toISOString(),by:'admin'}
+    }});
   };
 
   const useGroupView=(groups||[]).length>1;
@@ -2050,14 +2053,15 @@ function StatusSection({event,updateEvent,groups}){
 
   const MemberCard=({k,isExtra=false})=>{
     const p=event.payments?.[k]; const paid=p?.paid;
+    const reqested=!paid&&!!p?.requested;
     const displayName=isExtra
       ? (allExtraEntries.find(e=>e.key===k)?.name || k)
       : (mm[k]||k);
     const displayAmount=isExtra ? (extraAmounts[k]||0) : (amounts[k]||0);
     return(
-      <div onClick={()=>toggle(k)} className="press" style={{background:C.cardBg,borderRadius:12,padding:'11px 14px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:paid?`0 0 0 2px ${C.green}40`:C.shadow,cursor:'pointer'}}>
+      <div onClick={()=>toggle(k)} className="press" style={{background:C.cardBg,borderRadius:12,padding:'11px 14px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:paid?`0 0 0 2px ${C.green}40`:reqested?`0 0 0 2px ${C.yellow}40`:C.shadow,cursor:'pointer'}}>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
-          <div style={{width:32,height:32,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:paid?C.green:C.redBg,color:paid?'#fff':C.red,fontWeight:900,fontSize:14}}>{paid?'O':'X'}</div>
+          <div style={{width:32,height:32,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:paid?C.green:reqested?C.yellowBg:C.redBg,color:paid?'#fff':reqested?C.yellow:C.red,fontWeight:900,fontSize:14}}>{paid?'O':'X'}</div>
           <div>
             <div style={{display:'flex',alignItems:'center',gap:6}}>
               <span style={{fontWeight:600,color:C.text,fontSize:13}}>{displayName}</span>
@@ -2072,6 +2076,17 @@ function StatusSection({event,updateEvent,groups}){
   };
 
   const totalCount=presentMembers.length+allExtraEntries.length;
+  const allKeys=[...presentMembers,...allExtraEntries.map(e=>e.key)];
+  const requestedKeys=allKeys.filter(k=>!event.payments?.[k]?.paid&&event.payments?.[k]?.requested);
+  const [confirmBulk,setConfirmBulk]=useState(false);
+
+  const applyBulkConfirm=()=>{
+    const now=new Date().toISOString();
+    const newPayments={...event.payments};
+    requestedKeys.forEach(k=>{newPayments[k]={paid:true,requested:false,time:now,by:'admin'};});
+    updateEvent({...event,payments:newPayments});
+    setConfirmBulk(false);
+  };
 
   return(
     <div>
@@ -2083,6 +2098,26 @@ function StatusSection({event,updateEvent,groups}){
           </div>
         ))}
       </div>
+      {requestedKeys.length>0&&(
+        <button onClick={()=>setConfirmBulk(true)} className="press" style={{width:'100%',padding:'12px',borderRadius:12,background:C.yellowBg,border:`1.5px solid ${C.yellow}40`,color:C.yellow,fontWeight:800,fontSize:13,cursor:'pointer',marginBottom:10}}>
+          요청됨 {requestedKeys.length}명 전체 확인 완료
+        </button>
+      )}
+      {confirmBulk&&(
+        <div onClick={()=>setConfirmBulk(false)} style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,backdropFilter:'blur(4px)',padding:'0 24px'}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.cardBg,borderRadius:20,padding:'28px 24px',width:'100%',maxWidth:360}}>
+            <div style={{textAlign:'center',marginBottom:20}}>
+              <div style={{fontSize:28,marginBottom:10}}>✅</div>
+              <div style={{fontWeight:900,color:C.text,fontSize:17,marginBottom:6}}>요청된 {requestedKeys.length}명을 모두{'\n'}확인 완료로 처리할까요?</div>
+              <div style={{fontSize:13,color:C.textMid}}>이후 은행 대조 후 예외만 X로 되돌리세요</div>
+            </div>
+            <div style={{display:'flex',gap:10}}>
+              <Btn variant="ghost" onClick={()=>setConfirmBulk(false)} style={{flex:1}}>취소</Btn>
+              <Btn variant="green" onClick={applyBulkConfirm} style={{flex:2}}>확인 완료 처리</Btn>
+            </div>
+          </div>
+        </div>
+      )}
       {surplus>0&&<div style={{fontSize:11,color:C.textMid,textAlign:'center',marginBottom:10}}>소수점을 올림해서 총액보다 <span style={{color:C.text,fontWeight:700}}>{fmtKRW(surplus)}</span> 더 걷혀요 <span style={{color:C.textDim}}>(총무 손해 방지)</span></div>}
       <div style={{display:'flex',justifyContent:'flex-end',marginBottom:8}}>
         <span style={{fontSize:11,color:C.textDim}}>
@@ -2370,11 +2405,15 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
           {event.members.filter(k=>event.attendance[k]!==false).map(k=>{
-            const paid=event.payments?.[k]?.paid;
+            const p=event.payments?.[k];
+            const paid=p?.paid;
+            const req=!paid&&!!p?.requested;
             const isMe=k===selectedKey;
+            const oxColor=paid?C.green:req?C.yellow:C.red;
+            const oxBg=paid?C.greenBg:req?C.yellowBg:C.cardBg;
             return(
-              <div key={k} style={{background:paid?C.greenBg:C.cardBg,borderRadius:14,padding:'14px 6px',textAlign:'center',border:`2px solid ${isMe?C.accent+'80':paid?C.green+'40':C.red+'30'}`,animation:paid?'none':'borderPulse 1.8s ease infinite',transition:'background 0.3s'}}>
-                <div style={{fontSize:isMe&&!paid?28:22,fontWeight:900,color:paid?C.green:C.red,lineHeight:1,animation:paid?'none':'pulse 1.2s ease infinite'}}>{paid?'O':'X'}</div>
+              <div key={k} style={{background:oxBg,borderRadius:14,padding:'14px 6px',textAlign:'center',border:`2px solid ${isMe?C.accent+'80':paid?C.green+'40':req?C.yellow+'40':C.red+'30'}`,animation:paid?'none':'borderPulse 1.8s ease infinite',transition:'background 0.3s'}}>
+                <div style={{fontSize:isMe&&!paid?28:22,fontWeight:900,color:oxColor,lineHeight:1,animation:paid?'none':'pulse 1.2s ease infinite'}}>{paid?'O':'X'}</div>
                 <div style={{fontSize:11,color:isMe?C.accent:C.text,fontWeight:isMe?900:600,marginTop:6,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',padding:'0 4px'}}>{mm[k]||k}</div>
                 <div style={{fontSize:10,color:C.textDim,marginTop:3}}>{fmtKRW(amounts[k]||0)}</div>
               </div>
@@ -2929,6 +2968,17 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
     await updateForm({...form,submissions:newSubs});
   };
 
+  const bulkConfirmRequested=async()=>{
+    const now=new Date().toISOString();
+    const newSubs=subs.map(s=>
+      (!s.paid&&s.paymentStatus!=='matched'&&s.paymentStatus==='requested')
+        ?{...s,paid:true,paymentStatus:'matched',matchedBy:'admin',matchedAt:now}
+        :s
+    );
+    await updateForm({...form,submissions:newSubs});
+    showToast('요청됨 전체 확인 완료 처리됐어요');
+  };
+
   const handleExcel=async(e)=>{
     const file=e.target.files?.[0];
     if(!file) return;
@@ -2972,7 +3022,7 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
   return {
     subs, filteredSubs, groupCounts, unregisteredCount, matchResults, uploading,
     searchQ, setSearchQ, groupFilter, setGroupFilter,
-    handlers:{togglePaid, handleExcel, applyMatched, copyNudge,
+    handlers:{togglePaid, bulkConfirmRequested, handleExcel, applyMatched, copyNudge,
       setMatchResults,
       closeForm:async()=>{if(!window.confirm('신청을 마감할까요?')) return; await updateForm({...form,status:'closed'}); showToast('신청이 마감됐어요');},
       reopenForm:async()=>{await updateForm({...form,status:'open'}); showToast('신청이 다시 열렸어요');},
@@ -2987,8 +3037,10 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
 
 function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCount, groups,
                          searchQ, setSearchQ, groupFilter, setGroupFilter,
-                         onTogglePaid}){
+                         onTogglePaid, onBulkConfirm}){
   const [sortByTime,setSortByTime]=useState(true);
+  const [confirmBulk,setConfirmBulk]=useState(false);
+  const requestedCount=subs.filter(s=>!s.paid&&s.paymentStatus!=='matched'&&s.paymentStatus==='requested').length;
   if(subs.length===0) return(
     <div style={{textAlign:'center',padding:'40px 0'}}>
       <div style={{fontSize:40,marginBottom:12}}>📭</div>
@@ -3006,6 +3058,26 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
         onFocus={e=>e.target.style.boxShadow=`0 0 0 2px ${C.accent}40`}
         onBlur={e=>e.target.style.boxShadow='none'}
       />
+      {requestedCount>0&&(
+        <button onClick={()=>setConfirmBulk(true)} className="press" style={{width:'100%',padding:'12px',borderRadius:12,background:C.yellowBg,border:`1.5px solid ${C.yellow}40`,color:C.yellow,fontWeight:800,fontSize:13,cursor:'pointer',marginBottom:8}}>
+          요청됨 {requestedCount}명 전체 확인 완료
+        </button>
+      )}
+      {confirmBulk&&(
+        <div onClick={()=>setConfirmBulk(false)} style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,backdropFilter:'blur(4px)',padding:'0 24px'}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.cardBg,borderRadius:20,padding:'28px 24px',width:'100%',maxWidth:360}}>
+            <div style={{textAlign:'center',marginBottom:20}}>
+              <div style={{fontSize:28,marginBottom:10}}>✅</div>
+              <div style={{fontWeight:900,color:C.text,fontSize:17,marginBottom:6}}>요청된 {requestedCount}명을 모두{'\n'}확인 완료로 처리할까요?</div>
+              <div style={{fontSize:13,color:C.textMid}}>이후 은행 대조 후 예외만 X로 되돌리세요</div>
+            </div>
+            <div style={{display:'flex',gap:10}}>
+              <Btn variant="ghost" onClick={()=>setConfirmBulk(false)} style={{flex:1}}>취소</Btn>
+              <Btn variant="green" onClick={()=>{onBulkConfirm();setConfirmBulk(false);}} style={{flex:2}}>확인 완료 처리</Btn>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{display:'flex',justifyContent:'flex-end',marginBottom:8}}>
         <span style={{fontSize:11,color:C.textDim}}>
           {sortByTime?'⏱ 최신 입금순':'📋 신청 순'}
@@ -3045,11 +3117,11 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
                 <span style={{color:C.textDim,fontSize:12,flexShrink:0}}>{s.phone}</span>
               </div>
               <button onClick={()=>onTogglePaid(s._idx)} className="press" style={{
-                padding:'6px 12px',borderRadius:20,fontSize:11,fontWeight:700,cursor:'pointer',flexShrink:0,marginLeft:6,
-                background:isPaid?C.green:isRequested?C.accentBg:C.orangeBg,
-                color:isPaid?'#fff':isRequested?C.accent:C.orange,border:'none',
+                width:36,height:36,borderRadius:'50%',fontSize:15,fontWeight:900,cursor:'pointer',flexShrink:0,marginLeft:6,
+                background:isPaid?C.green:isRequested?C.yellowBg:C.redBg,
+                color:isPaid?'#fff':isRequested?C.yellow:C.red,border:'none',
               }}>
-                {isPaid?'✓ 확정':isRequested?'요청됨':'대기'}
+                {isPaid?'O':'X'}
               </button>
             </div>
             {Object.entries(s.data||{}).filter(([k])=>!['name','phone'].includes(k)).map(([k,v])=>(
@@ -3333,7 +3405,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
           <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
             unregisteredCount={unregisteredCount} groups={groups}
             searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
-            onTogglePaid={handlers.togglePaid}/>
+            onTogglePaid={handlers.togglePaid} onBulkConfirm={handlers.bulkConfirmRequested}/>
         )}
         {tab==='verify'&&(
           <VerifyTab form={form} subs={subs} groups={groups} matchResults={matchResults} uploading={uploading}
