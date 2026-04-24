@@ -2281,6 +2281,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
                 {isExtra&&<span style={{fontSize:10,fontWeight:800,color:C.orange,background:C.orange+'20',borderRadius:6,padding:'1px 5px'}}>임시</span>}
               </div>
               {paid&&p?.time&&<div style={{fontSize:11,color:C.textDim}}>{fmtTime(p.time)}{p.by==='admin'?' · 관리자':p.by==='archive'?' · 종료처리':''}</div>}
+              {!paid&&p?.requestedAt&&<div style={{fontSize:11,color:C.textDim}}>{fmtRelTime(p.requestedAt)} · 복사함</div>}
             </div>
           </div>
           <div style={{color:C.accent,fontWeight:900,fontSize:13}}>{fmtKRW(displayAmount)}</div>
