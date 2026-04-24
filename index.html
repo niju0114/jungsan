@@ -1951,28 +1951,44 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups}){
 
 // ── ShareSection ───────────────────────────────────────────
 function ShareSection({event,showToast}){
-  const mm=event.memberMap||{};
   const amounts=calcAmounts(event);
   const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
   const unpaid=presentMembers.filter(k=>!event.payments?.[k]?.paid);
 
-  const copy=async(text,label)=>{
-    await copyText(text);
-    showToast(`${label} 복사됐어요`);
-  };
+  const copy=async(text,label)=>{await copyText(text);showToast(`${label} 복사됐어요`);};
 
   const directLink=getLink(`code=${event.code}`);
-  const nl='\n';
-  const kakaoMsg=['['+event.date+' '+event.name+'] 정산 안내',nl,'아래 링크에서 내가 낼 돈을 확인하고 입금해주세요.',directLink,nl,'(정산해 · 간편한 모임 정산 서비스)'].join(nl);
+  const autoMsg=`[${event.date} ${event.name}] 정산 안내\n\n아래 링크에서 내가 낼 돈을 확인하고 입금해주세요.\n\n(정산해 · 간편한 모임 정산 서비스)`;
+
+  const [editMode,setEditMode]=useState(false);
+  const [editText,setEditText]=useState('');
+
+  const startEdit=()=>{if(!editText)setEditText(autoMsg);setEditMode(true);};
+  const getMsg=()=>`${editMode?editText:autoMsg}\n${directLink}`;
 
   return(
     <div>
-      <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',fontSize:12,color:C.textMid,lineHeight:1.85,marginBottom:10,whiteSpace:'pre-wrap',border:`1.5px solid ${C.border}`}}>{kakaoMsg}</div>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+        <div style={{fontSize:12,color:C.textDim,fontWeight:600}}>공유 메시지</div>
+        {!editMode?(
+          <button onClick={startEdit} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',fontWeight:600}}>✏️ 편집</button>
+        ):(
+          <div style={{display:'flex',gap:8}}>
+            <button onClick={()=>setEditText(autoMsg)} style={{fontSize:11,color:C.textMid,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',fontWeight:600}}>원래대로</button>
+            <button onClick={()=>setEditMode(false)} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',fontWeight:600}}>완료</button>
+          </div>
+        )}
+      </div>
+      {editMode?(
+        <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={6} style={{width:'100%',padding:'10px 12px',borderRadius:10,border:`1.5px solid ${C.accent}`,background:C.inputBg,fontSize:13,color:C.text,lineHeight:1.85,resize:'vertical',outline:'none',boxSizing:'border-box',marginBottom:6}}/>
+      ):(
+        <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',fontSize:12,color:C.textMid,lineHeight:1.85,marginBottom:8,whiteSpace:'pre-wrap',border:`1.5px solid ${C.border}`}}>{autoMsg}{'\n'}{directLink}</div>
+      )}
       <div style={{display:'flex',gap:8,marginBottom:8}}>
-        <Btn onClick={async()=>{const shared=await shareText(kakaoMsg);if(!shared){await copy(kakaoMsg,'메시지');}else showToast('공유 완료');}} small style={{flex:2}}>💬 카톡 공유</Btn>
+        <Btn onClick={async()=>{const msg=getMsg();const shared=await shareText(msg);if(!shared){await copy(msg,'메시지');}else showToast('공유 완료');}} small style={{flex:2}}>💬 카톡 공유</Btn>
         <Btn onClick={()=>copy(directLink,'링크')} variant="secondary" small style={{flex:1}}>🔗 링크</Btn>
       </div>
-      <Btn onClick={()=>copy(kakaoMsg,'메시지')} variant="ghost" small style={{marginBottom:16}}>📋 메시지 복사</Btn>
+      <Btn onClick={()=>copy(getMsg(),'메시지')} variant="ghost" small style={{marginBottom:16}}>📋 메시지 복사</Btn>
       {unpaid.length===0&&<div style={{textAlign:'center',color:C.green,fontWeight:900,fontSize:15,padding:'8px 0'}}>🎉 모두 완료!</div>}
     </div>
   );
@@ -3310,7 +3326,7 @@ function VerifyTab({form, subs, groups, matchResults, uploading, bankGuideOpen, 
 
 function FormShareTab({form, showToast}){
   const formLink=getLink(`form=${form.code}`);
-  const shareMsg=[
+  const autoMsg=[
     `[${form.name}] 신청 안내`,
     '',
     `📅 ${form.date}`,
@@ -3320,18 +3336,40 @@ function FormShareTab({form, showToast}){
     form.maxPeople?`👥 선착순 ${form.maxPeople}명`:null,
     '',
     '아래 링크에서 신청해주세요!',
-    formLink,
-    '',
     '(정산해 · 간편한 모임 정산 서비스)',
   ].filter(l=>l!==null).join('\n');
+
+  const [editMode,setEditMode]=useState(false);
+  const [editText,setEditText]=useState('');
+
+  const startEdit=()=>{if(!editText)setEditText(autoMsg);setEditMode(true);};
+  const getMsg=()=>`${editMode?editText:autoMsg}\n${formLink}`;
+
   return(
     <div>
-      <div style={{background:C.inputBg,borderRadius:12,padding:'14px 16px',fontSize:13,color:C.textMid,lineHeight:1.85,marginBottom:12,whiteSpace:'pre-wrap'}}>{shareMsg}</div>
-      <div style={{display:'flex',gap:8,marginBottom:8}}>
-        <Btn onClick={async()=>{const shared=await shareText(shareMsg);if(!shared){await copyText(shareMsg);showToast('메시지 복사됨');}else showToast('공유 완료');}} small style={{flex:2}}>💬 카톡 공유</Btn>
-        <Btn variant="secondary" onClick={async()=>{await copyText(getLink(`form=${form.code}`));showToast('링크가 복사됐어요!');}} small style={{flex:1}}>🔗 링크</Btn>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+        <div style={{fontSize:12,color:C.textDim,fontWeight:600}}>공유 메시지</div>
+        {!editMode?(
+          <button onClick={startEdit} style={{background:'none',border:'none',padding:'4px 8px',fontSize:12,color:C.accent,fontWeight:700,cursor:'pointer'}}>✏️ 편집</button>
+        ):(
+          <div style={{display:'flex',gap:8}}>
+            <button onClick={()=>setEditText(autoMsg)} style={{background:'none',border:'none',padding:'4px 8px',fontSize:12,color:C.textMid,fontWeight:700,cursor:'pointer'}}>원래대로</button>
+            <button onClick={()=>setEditMode(false)} style={{background:C.accentBg,border:'none',padding:'4px 10px',borderRadius:8,fontSize:12,color:C.accent,fontWeight:700,cursor:'pointer'}}>완료</button>
+          </div>
+        )}
       </div>
-      <Btn onClick={async()=>{await copyText(shareMsg);showToast('메시지 복사됨');}} variant="ghost" small>📋 메시지 복사</Btn>
+      {editMode?(
+        <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={8}
+          style={{width:'100%',padding:'14px',background:C.inputBg,border:`1.5px solid ${C.accent}`,borderRadius:12,fontSize:13,color:C.text,outline:'none',resize:'vertical',lineHeight:1.75,marginBottom:12,boxSizing:'border-box'}}
+        />
+      ):(
+        <div style={{background:C.inputBg,borderRadius:12,padding:'14px 16px',fontSize:13,color:C.textMid,lineHeight:1.85,marginBottom:12,whiteSpace:'pre-wrap'}}>{autoMsg}</div>
+      )}
+      <div style={{display:'flex',gap:8,marginBottom:8}}>
+        <Btn onClick={async()=>{const msg=getMsg();const shared=await shareText(msg);if(!shared){await copyText(msg);showToast('메시지 복사됨');}else showToast('공유 완료');}} small style={{flex:2}}>💬 카톡 공유</Btn>
+        <Btn variant="secondary" onClick={async()=>{await copyText(formLink);showToast('링크가 복사됐어요!');}} small style={{flex:1}}>🔗 링크</Btn>
+      </div>
+      <Btn onClick={async()=>{await copyText(getMsg());showToast('메시지 복사됨');}} variant="ghost" small>📋 메시지 복사</Btn>
     </div>
   );
 }
