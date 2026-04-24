@@ -1434,7 +1434,7 @@ function SetupScreen({nav,profile,saveProfile}){
                         <div key={m.name+(m.sid||'')+i} style={{
                           display:'grid',gridTemplateColumns:activeG===-1?'1fr 1fr 28px':'1fr 1fr',padding:'7px 12px',
                           borderBottom:i<displayMembers.length-1?`1px solid ${C.border}`:'none',
-                          background:i%2===0?'#fff':C.pageBg,
+                          background:C.cardBg,
                           alignItems:'center',
                         }}>
                           <span style={{fontSize:13,fontWeight:600,color:C.text}}>{m.name}</span>
