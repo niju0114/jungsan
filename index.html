@@ -1305,10 +1305,15 @@ function SetupScreen({nav,profile,saveProfile}){
   const [saved,setSaved]=useState(false);
   const [addingGroup,setAddingGroup]=useState(false);
   const [newGName,setNewGName]=useState('');
+  const [pfmOpen,setPfmOpen]=useState(false);
 
   const updateRaw=(idx,text)=>{
     const members=parseMembers(text);
-    setGroups(gs=>gs.map((g,i)=>i===idx?{...g,rawText:text,members}:g));
+    const validKeys=new Set(members.map(m=>m.name+(m.sid?'_'+m.sid:'')));
+    setGroups(gs=>gs.map((g,i)=>i===idx?{...g,rawText:text,members,paidFeeMembers:(g.paidFeeMembers||[]).filter(k=>validKeys.has(k))}:g));
+  };
+  const updatePaidFeeMembers=(idx,keys)=>{
+    setGroups(gs=>gs.map((g,i)=>i===idx?{...g,paidFeeMembers:keys}:g));
   };
   const textareaRef=useRef(null);
   const addGroup=()=>{
@@ -1409,6 +1414,22 @@ function SetupScreen({nav,profile,saveProfile}){
                   </div>
                 </div>
               )}
+              {cur.members.length>0&&(
+                <div style={{marginTop:14,padding:'12px 14px',background:C.inputBg,borderRadius:10,border:`1px solid ${C.border}`}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                    <div style={{fontSize:13,fontWeight:700,color:C.text}}>💰 학생회비 납부자</div>
+                    <div style={{fontSize:12,color:C.textDim}}>납부자 {(cur.paidFeeMembers||[]).length}/{cur.members.length}명</div>
+                  </div>
+                  <div style={{display:'flex',gap:6}}>
+                    <button onClick={()=>updatePaidFeeMembers(activeG,cur.members.map(m=>m.name+(m.sid?'_'+m.sid:'')))}
+                      style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.green}40`,background:(cur.paidFeeMembers||[]).length===cur.members.length&&cur.members.length>0?C.green+'22':C.inputBg,color:C.green,fontSize:12,fontWeight:700,cursor:'pointer'}}>전원 납부자</button>
+                    <button onClick={()=>updatePaidFeeMembers(activeG,[])}
+                      style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontSize:12,fontWeight:700,cursor:'pointer'}}>전원 미납부자</button>
+                    <button onClick={()=>setPfmOpen(true)}
+                      style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.accent}40`,background:C.accentBg,color:C.accent,fontSize:12,fontWeight:700,cursor:'pointer'}}>명단 붙여넣기</button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <div style={{marginTop:14,padding:'11px 14px',background:C.inputBg,borderRadius:10,border:`1px solid ${C.border}`,fontSize:12,color:C.textMid}}>
@@ -1416,6 +1437,13 @@ function SetupScreen({nav,profile,saveProfile}){
             {groups.length>1&&<span style={{marginLeft:8}}>{groups.map(g=>`${g.name} ${g.members.length}명`).join(' · ')}</span>}
           </div>
         </Card>
+        {pfmOpen&&cur&&<PasteFeeModal
+          members={cur.members.map(m=>m.name+(m.sid?'_'+m.sid:''))}
+          memberMap={Object.fromEntries(cur.members.map(m=>[m.name+(m.sid?'_'+m.sid:''),m.name]))}
+          onApply={matched=>updatePaidFeeMembers(activeG,[...new Set([...(cur.paidFeeMembers||[]),...matched])])}
+          showToast={()=>{}}
+          onClose={()=>setPfmOpen(false)}
+        />}
         <Btn onClick={save} loading={saving} variant={saved?'green':'primary'}>{saved?'✓ 저장됐어요!':'저장하기'}</Btn>
         
         <div style={{marginTop:32,paddingTop:20,borderTop:`1px solid ${C.border}`}}>
