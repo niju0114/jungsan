@@ -543,6 +543,51 @@ const SelectGrid = ({options,value,onChange}) => (
   </div>
 );
 
+const Modal = ({isOpen, onClose, title, maxWidth=440, closeOnBackdrop=true, showCloseButton=true, zIndex=200, footer, children}) => {
+  useEffect(()=>{
+    if(!isOpen) return;
+    const h=e=>{if(e.key==='Escape')onClose?.();};
+    document.addEventListener('keydown',h);
+    return()=>document.removeEventListener('keydown',h);
+  },[isOpen,onClose]);
+  useEffect(()=>{
+    document.body.style.overflow=isOpen?'hidden':'';
+    return()=>{document.body.style.overflow='';};
+  },[isOpen]);
+  if(!isOpen) return null;
+  const hasHeader=title||showCloseButton;
+  return(
+    <div onClick={closeOnBackdrop?onClose:undefined} style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex,backdropFilter:'blur(4px)',padding:'0 20px'}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.cardBg,borderRadius:24,width:'100%',maxWidth,maxHeight:'calc(100dvh - 64px)',display:'flex',flexDirection:'column',animation:'scaleIn 0.18s ease',boxShadow:'0 4px 24px rgba(0,0,0,0.12)'}}>
+        {hasHeader&&(
+          <div style={{padding:'18px 20px 14px',display:'flex',alignItems:'center',justifyContent:title?'space-between':'flex-end',borderBottom:title?`1px solid ${C.border}`:'none',flexShrink:0}}>
+            {title&&<div style={{fontWeight:900,color:C.text,fontSize:17}}>{title}</div>}
+            {showCloseButton&&<button onClick={onClose} style={{background:C.inputBg,border:'none',borderRadius:10,width:32,height:32,cursor:'pointer',color:C.textMid,fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>✕</button>}
+          </div>
+        )}
+        <div style={{overflowY:'auto',flex:1,padding:'20px 24px'}}>
+          {children}
+        </div>
+        {footer&&<div style={{padding:'0 24px 20px',flexShrink:0}}>{footer}</div>}
+      </div>
+    </div>
+  );
+};
+
+const ConfirmBulkModal = ({isOpen, onClose, count, onConfirm}) => (
+  <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} maxWidth={360}>
+    <div style={{textAlign:'center',marginBottom:20}}>
+      <div style={{fontSize:28,marginBottom:10}}>✅</div>
+      <div style={{fontWeight:900,color:C.text,fontSize:17,marginBottom:6}}>남은 요청 {count}명을 모두{'\n'}확인 완료로 처리할까요?</div>
+      <div style={{fontSize:13,color:C.textMid}}>미입금은 먼저 X로 표시한 뒤 이 버튼을 누르세요</div>
+    </div>
+    <div style={{display:'flex',gap:10}}>
+      <Btn variant="ghost" onClick={onClose} style={{flex:1}}>취소</Btn>
+      <Btn variant="green" onClick={()=>{onConfirm();onClose();}} style={{flex:2}}>확인 완료 처리</Btn>
+    </div>
+  </Modal>
+);
+
 // Realtime hook
 function useRealtimeEvent(code, onUpdate) {
   useEffect(()=>{
@@ -976,21 +1021,12 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
                 </div>
               ))}
             </Card>
-            {legalModal&&(
-              <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:200,backdropFilter:'blur(4px)'}} onClick={()=>setLegalModal(null)}>
-                <div style={{background:C.cardBg,borderRadius:'24px 24px 0 0',width:'100%',maxWidth:480,maxHeight:'75vh',display:'flex',flexDirection:'column',animation:'slideUp 0.22s ease'}} onClick={e=>e.stopPropagation()}>
-                  <div style={{padding:'20px 24px 14px',borderBottom:`1px solid ${C.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                    <div style={{fontWeight:900,color:C.text,fontSize:17}}>
-                      {legalModal==='terms'?'서비스 이용약관':legalModal==='privacy'?'개인정보 처리방침':legalModal==='thirdParty'?'제3자 정보 제공 동의':'마케팅 수신 동의'}
-                    </div>
-                    <button onClick={()=>setLegalModal(null)} style={{background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:10,width:32,height:32,cursor:'pointer',color:C.textMid,fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
-                  </div>
-                  <div style={{overflow:'auto',padding:'16px 24px 32px',fontSize:13,color:C.textMid,lineHeight:2}}>
-                    {LEGAL_TEXTS[legalModal]}
-                  </div>
-                </div>
+            <Modal isOpen={!!legalModal} onClose={()=>setLegalModal(null)}
+              title={legalModal==='terms'?'서비스 이용약관':legalModal==='privacy'?'개인정보 처리방침':legalModal==='thirdParty'?'제3자 정보 제공 동의':'마케팅 수신 동의'}>
+              <div style={{fontSize:13,color:C.textMid,lineHeight:2}}>
+                {legalModal&&LEGAL_TEXTS[legalModal]}
               </div>
-            )}
+            </Modal>
           </>
         )}
 
@@ -1181,70 +1217,67 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
 // ── FeedbackModal ──────────────────────────────────────────
 function FeedbackModal({feedbackText,setFeedbackText,feedbackLoading,onSubmit,onClose}){
   return(
-    <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)'}} onClick={onClose}>
-      <div style={{background:C.cardBg,borderRadius:'24px 24px 0 0',padding:'28px 24px 40px',width:'100%',maxWidth:480,animation:'slideUp 0.22s ease'}} onClick={e=>e.stopPropagation()}>
-        <div style={{width:40,height:4,background:C.border,borderRadius:2,margin:'0 auto 20px'}}/>
-        <div style={{fontWeight:900,color:C.text,fontSize:18,marginBottom:6}}>건의사항 · 질문</div>
-        <div style={{color:C.textMid,fontSize:13,marginBottom:18,lineHeight:1.9}}>
-          남들이 지기 싫어하는 책임을 지지만<br/>그만큼 모두에게 신뢰받는 사람이 총무라는 것을<br/>알고 있습니다.<br/>
-          <strong style={{color:C.accent}}>그런 여러분의 진짜 고민과 문제를 들려주세요.</strong>
-        </div>
-        <textarea value={feedbackText} onChange={e=>setFeedbackText(e.target.value)}
-          placeholder="예) 진짜 총무 문제는 엑셀파일로 정리하는 거에요 너무 힘들어요" rows={5}
-          style={{width:'100%',padding:'14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:14,fontSize:14,color:C.text,outline:'none',resize:'none',lineHeight:1.75,marginBottom:16}}
-          onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
-          onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
-        />
-        <div style={{display:'flex',gap:10}}>
-          <Btn variant="ghost" onClick={onClose} style={{flex:1}}>취소</Btn>
-          <Btn onClick={onSubmit} loading={feedbackLoading} disabled={!feedbackText.trim()} style={{flex:2}}>전달하기 →</Btn>
-        </div>
+    <Modal isOpen={true} onClose={onClose} title="건의사항 · 질문">
+      <div style={{color:C.textMid,fontSize:13,marginBottom:18,lineHeight:1.9}}>
+        남들이 지기 싫어하는 책임을 지지만<br/>그만큼 모두에게 신뢰받는 사람이 총무라는 것을<br/>알고 있습니다.<br/>
+        <strong style={{color:C.accent}}>그런 여러분의 진짜 고민과 문제를 들려주세요.</strong>
       </div>
-    </div>
+      <textarea value={feedbackText} onChange={e=>setFeedbackText(e.target.value)}
+        placeholder="예) 진짜 총무 문제는 엑셀파일로 정리하는 거에요 너무 힘들어요" rows={5}
+        style={{width:'100%',padding:'14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:14,fontSize:14,color:C.text,outline:'none',resize:'none',lineHeight:1.75,marginBottom:16}}
+        onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
+        onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
+      />
+      <div style={{display:'flex',gap:10}}>
+        <Btn variant="ghost" onClick={onClose} style={{flex:1}}>취소</Btn>
+        <Btn onClick={onSubmit} loading={feedbackLoading} disabled={!feedbackText.trim()} style={{flex:2}}>전달하기 →</Btn>
+      </div>
+    </Modal>
   );
 }
 
 // ── ModeSelectModal ─────────────────────────────────────────
 function ModeSelectModal({profile,nav,onClose}){
   return(
-    <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)'}} onClick={onClose}>
-      <div style={{background:C.cardBg,borderRadius:24,padding:'28px 24px 28px',width:'calc(100% - 40px)',maxWidth:440,animation:'scaleIn 0.18s ease'}} onClick={e=>e.stopPropagation()}>
-        {(!profile.account?.bank||!(profile.groups||[]).some(g=>(g.members||[]).length>0))&&(
-          <div style={{background:C.orangeBg,borderRadius:16,padding:'18px 20px',marginBottom:20,border:`1px solid ${C.orange}20`}}>
-            <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:6}}>⚡ 먼저 설정을 완료해주세요</div>
-            <div style={{fontSize:13,color:C.textMid,lineHeight:1.7,marginBottom:14}}>
-              {!profile.account?.bank&&'입금 계좌가 아직 등록되지 않았어요.\n'}
-              {!(profile.groups||[]).some(g=>(g.members||[]).length>0)&&'명단을 등록하면 매번 이름 입력 없이 바로 선택할 수 있어요.'}
-            </div>
-            <Btn variant="orange" onClick={()=>{onClose();nav.setView('setup');}} small>명단·계좌 설정하러 가기</Btn>
-          </div>
-        )}
-        <div style={{fontWeight:900,color:C.text,fontSize:20,marginBottom:6,textAlign:'center'}}>무엇을 하시나요?</div>
-        <div style={{color:C.textMid,fontSize:13,marginBottom:24,textAlign:'center'}}>상황에 맞게 선택하세요</div>
-        <button onClick={()=>{onClose();nav.setView('formCreate');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,marginBottom:12,background:C.orangeBg,border:`1px solid ${C.orange}20`,cursor:'pointer',textAlign:'left'}}>
-          <div style={{display:'flex',alignItems:'center',gap:14}}>
-            <div style={{width:48,height:48,borderRadius:14,background:C.orange,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📝</div>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>미리 신청 받기</div>
-              <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>신청폼으로 참여자 모집</div>
-              <div style={{fontSize:11,color:C.orange,fontWeight:600}}>MT, 야식마차</div>
-            </div>
-            <span className="ms" style={{color:C.orange}}>chevron_right</span>
-          </div>
-        </button>
-        <button onClick={()=>{onClose();nav.setView('create');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,background:C.accentBg,border:`1px solid ${C.accent}20`,cursor:'pointer',textAlign:'left'}}>
-          <div style={{display:'flex',alignItems:'center',gap:14}}>
-            <div style={{width:48,height:48,borderRadius:14,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🧾</div>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>끝나고 정산하기</div>
-              <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>명단 만들고 바로 정산</div>
-              <div style={{fontSize:11,color:C.accent,fontWeight:600}}>뒷풀이 2, 3차, 회식</div>
-            </div>
-            <span className="ms" style={{color:C.accent}}>chevron_right</span>
-          </div>
-        </button>
+    <Modal isOpen={true} onClose={onClose} showCloseButton={false} maxWidth={440}>
+      <div style={{display:'flex',justifyContent:'flex-end',marginTop:-4,marginBottom:8}}>
+        <button onClick={onClose} style={{background:C.inputBg,border:'none',borderRadius:10,width:32,height:32,cursor:'pointer',color:C.textMid,fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
       </div>
-    </div>
+      {(!profile.account?.bank||!(profile.groups||[]).some(g=>(g.members||[]).length>0))&&(
+        <div style={{background:C.orangeBg,borderRadius:16,padding:'18px 20px',marginBottom:20,border:`1px solid ${C.orange}20`}}>
+          <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:6}}>⚡ 먼저 설정을 완료해주세요</div>
+          <div style={{fontSize:13,color:C.textMid,lineHeight:1.7,marginBottom:14}}>
+            {!profile.account?.bank&&'입금 계좌가 아직 등록되지 않았어요.\n'}
+            {!(profile.groups||[]).some(g=>(g.members||[]).length>0)&&'명단을 등록하면 매번 이름 입력 없이 바로 선택할 수 있어요.'}
+          </div>
+          <Btn variant="orange" onClick={()=>{onClose();nav.setView('setup');}} small>명단·계좌 설정하러 가기</Btn>
+        </div>
+      )}
+      <div style={{fontWeight:900,color:C.text,fontSize:20,marginBottom:6,textAlign:'center'}}>무엇을 하시나요?</div>
+      <div style={{color:C.textMid,fontSize:13,marginBottom:24,textAlign:'center'}}>상황에 맞게 선택하세요</div>
+      <button onClick={()=>{onClose();nav.setView('formCreate');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,marginBottom:12,background:C.orangeBg,border:`1px solid ${C.orange}20`,cursor:'pointer',textAlign:'left'}}>
+        <div style={{display:'flex',alignItems:'center',gap:14}}>
+          <div style={{width:48,height:48,borderRadius:14,background:C.orange,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📝</div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>미리 신청 받기</div>
+            <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>신청폼으로 참여자 모집</div>
+            <div style={{fontSize:11,color:C.orange,fontWeight:600}}>MT, 야식마차</div>
+          </div>
+          <span className="ms" style={{color:C.orange}}>chevron_right</span>
+        </div>
+      </button>
+      <button onClick={()=>{onClose();nav.setView('create');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,background:C.accentBg,border:`1px solid ${C.accent}20`,cursor:'pointer',textAlign:'left'}}>
+        <div style={{display:'flex',alignItems:'center',gap:14}}>
+          <div style={{width:48,height:48,borderRadius:14,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🧾</div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>끝나고 정산하기</div>
+            <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>명단 만들고 바로 정산</div>
+            <div style={{fontSize:11,color:C.accent,fontWeight:600}}>뒷풀이 2, 3차, 회식</div>
+          </div>
+          <span className="ms" style={{color:C.accent}}>chevron_right</span>
+        </div>
+      </button>
+    </Modal>
   );
 }
 
@@ -1258,39 +1291,29 @@ function GuideModal({onClose,onFeedback}){
   ];
   const [open,setOpen]=useState(null);
   return(
-    <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.7)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:200,backdropFilter:'blur(4px)'}} onClick={onClose}>
-      <div style={{background:C.cardBg,borderRadius:'24px 24px 0 0',width:'100%',maxWidth:480,maxHeight:'80vh',display:'flex',flexDirection:'column',animation:'slideUp 0.22s ease'}} onClick={e=>e.stopPropagation()}>
-        <div style={{padding:'20px 24px 16px',borderBottom:`1px solid ${C.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div style={{fontWeight:900,color:C.text,fontSize:18}}>자주 묻는 질문</div>
-          <button onClick={onClose} style={{background:C.inputBg,border:'none',borderRadius:10,width:32,height:32,cursor:'pointer',color:C.textMid,fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
-        </div>
-        <div style={{overflow:'auto',padding:'12px 24px 32px'}}>
-          {faqs.map((f,i)=>(
-            <div key={i} style={{borderBottom:`1px solid ${C.pageBg}`,paddingBottom:12,marginBottom:12}}>
-              <button onClick={()=>setOpen(open===i?null:i)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,padding:'6px 0',textAlign:'left'}}>
-                <div style={{fontWeight:700,color:C.text,fontSize:14,lineHeight:1.6}}>{f.q}</div>
-                <div style={{color:C.textDim,fontSize:16,flexShrink:0,marginTop:2}}>{open===i?'▲':'▼'}</div>
-              </button>
-              {open===i&&<div style={{fontSize:13,color:C.textMid,lineHeight:1.85,marginTop:6,paddingLeft:4,whiteSpace:'pre-wrap'}}>{f.a}</div>}
-            </div>
-          ))}
-
-          {/* 불편해요? 건의사항 */}
-          <button onClick={()=>{onClose();onFeedback&&onFeedback();}} style={{
-            width:'100%',marginTop:8,padding:'16px 20px',borderRadius:16,
-            background:C.accentBg,border:'none',cursor:'pointer',textAlign:'left',
-            display:'flex',alignItems:'center',gap:12,
-          }}>
-            <span style={{fontSize:24}}>💬</span>
-            <div>
-              <div style={{fontWeight:800,color:C.text,fontSize:14}}>불편한 점이 있으신가요?</div>
-              <div style={{fontSize:12,color:C.textMid,marginTop:2}}>언제든지 건의해 주세요</div>
-            </div>
-            <span className="ms" style={{color:C.accent,marginLeft:'auto'}}>chevron_right</span>
+    <Modal isOpen={true} onClose={onClose} title="자주 묻는 질문">
+      {faqs.map((f,i)=>(
+        <div key={i} style={{borderBottom:`1px solid ${C.pageBg}`,paddingBottom:12,marginBottom:12}}>
+          <button onClick={()=>setOpen(open===i?null:i)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,padding:'6px 0',textAlign:'left'}}>
+            <div style={{fontWeight:700,color:C.text,fontSize:14,lineHeight:1.6}}>{f.q}</div>
+            <div style={{color:C.textDim,fontSize:16,flexShrink:0,marginTop:2}}>{open===i?'▲':'▼'}</div>
           </button>
+          {open===i&&<div style={{fontSize:13,color:C.textMid,lineHeight:1.85,marginTop:6,paddingLeft:4,whiteSpace:'pre-wrap'}}>{f.a}</div>}
         </div>
-      </div>
-    </div>
+      ))}
+      <button onClick={()=>{onClose();onFeedback&&onFeedback();}} style={{
+        width:'100%',marginTop:8,padding:'16px 20px',borderRadius:16,
+        background:C.accentBg,border:'none',cursor:'pointer',textAlign:'left',
+        display:'flex',alignItems:'center',gap:12,
+      }}>
+        <span style={{fontSize:24}}>💬</span>
+        <div>
+          <div style={{fontWeight:800,color:C.text,fontSize:14}}>불편한 점이 있으신가요?</div>
+          <div style={{fontSize:12,color:C.textMid,marginTop:2}}>언제든지 건의해 주세요</div>
+        </div>
+        <span className="ms" style={{color:C.accent,marginLeft:'auto'}}>chevron_right</span>
+      </button>
+    </Modal>
   );
 }
 
@@ -2411,21 +2434,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
           남은 요청 {requestedKeys.length}명 모두 확인 완료
         </button>
       )}
-      {confirmBulk&&(
-        <div onClick={()=>setConfirmBulk(false)} style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,backdropFilter:'blur(4px)',padding:'0 24px'}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:C.cardBg,borderRadius:20,padding:'28px 24px',width:'100%',maxWidth:360}}>
-            <div style={{textAlign:'center',marginBottom:20}}>
-              <div style={{fontSize:28,marginBottom:10}}>✅</div>
-              <div style={{fontWeight:900,color:C.text,fontSize:17,marginBottom:6}}>남은 요청 {requestedKeys.length}명을 모두{'\n'}확인 완료로 처리할까요?</div>
-              <div style={{fontSize:13,color:C.textMid}}>미입금은 먼저 X로 표시한 뒤 이 버튼을 누르세요</div>
-            </div>
-            <div style={{display:'flex',gap:10}}>
-              <Btn variant="ghost" onClick={()=>setConfirmBulk(false)} style={{flex:1}}>취소</Btn>
-              <Btn variant="green" onClick={applyBulkConfirm} style={{flex:2}}>확인 완료 처리</Btn>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmBulkModal isOpen={confirmBulk} onClose={()=>setConfirmBulk(false)} count={requestedKeys.length} onConfirm={applyBulkConfirm}/>
       {surplus>0&&<div style={{fontSize:11,color:C.textMid,textAlign:'center',marginBottom:10}}>소수점을 올림해서 총액보다 <span style={{color:C.text,fontWeight:700}}>{fmtKRW(surplus)}</span> 더 걷혀요 <span style={{color:C.textDim}}>(총무 손해 방지)</span></div>}
       <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:6,marginBottom:8}}>
         {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>⏱ 시간순</span>}
@@ -2900,50 +2909,47 @@ function OnboardingModal({onClose}){
   };
 
   return(
-    <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,backdropFilter:'blur(4px)',padding:'0 24px'}}>
-      <div className="fade-up" style={{background:C.cardBg,borderRadius:24,padding:'32px 24px',width:'100%',maxWidth:380,boxShadow:'0 8px 32px rgba(0,0,0,0.2)'}}>
-        {/* 프로그레스 dots */}
-        <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:24}}>
-          {steps.map((_,i)=>(
-            <div key={i} style={{width:i===step?20:6,height:6,borderRadius:3,background:i===step?C.accent:C.border,transition:'all 0.3s'}}/>
-          ))}
-        </div>
-        <div style={{textAlign:'center',marginBottom:24}}>
-          <div style={{fontSize:48,marginBottom:16}}>{cur.icon}</div>
-          <div style={{fontWeight:900,color:C.text,fontSize:20,marginBottom:10,letterSpacing:-0.5}}>{cur.title}</div>
-          {step===2?(
-            <div style={{textAlign:'left'}}>
-              {[
-                {icon:'🍻',title:'뒷풀이·종강총회',desc:'이름 추가 → 금액 입력 → 카톡 공유. 1분이면 끝.'},
-                {icon:'🏕',title:'MT·야식마차',desc:'신청부터 입금까지 한 번에.'},
-                {icon:'📋',title:'명단 재사용',desc:'한 번 저장하면 다음 모임부터는 선택만!'},
-              ].map(s=>(
-                <div key={s.title} style={{display:'flex',gap:12,marginBottom:14,alignItems:'flex-start'}}>
-                  <div style={{width:36,height:36,borderRadius:10,background:C.accentBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{s.icon}</div>
-                  <div>
-                    <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:2}}>{s.title}</div>
-                    <div style={{fontSize:12,color:C.textDim,lineHeight:1.5}}>{s.desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ):(
-            <div style={{fontSize:14,color:C.textMid,lineHeight:1.9,whiteSpace:'pre-wrap'}}>{cur.desc}</div>
-          )}
-        </div>
-        <div style={{display:'flex',gap:10}}>
-          {step>0&&<Btn variant="ghost" onClick={()=>setStep(s=>s-1)} style={{flex:1}}>이전</Btn>}
-          <Btn onClick={isLast?finish:()=>setStep(s=>s+1)} style={{flex:2}}>
-            {isLast?'시작할게요 🚀':'다음 →'}
-          </Btn>
-        </div>
-        <button onClick={async()=>{
-          const {data:{user}}=await api.getUser();
-          if(user) await api.updateProfile(user.id,{onboarding_done:true,updated_at:new Date().toISOString()});
-          onClose();
-        }} style={{width:'100%',marginTop:12,color:C.textDim,background:'none',border:'none',fontSize:13,cursor:'pointer'}}>다시 보지 않기</button>
+    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={true} showCloseButton={false} maxWidth={380}>
+      <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:24}}>
+        {steps.map((_,i)=>(
+          <div key={i} style={{width:i===step?20:6,height:6,borderRadius:3,background:i===step?C.accent:C.border,transition:'all 0.3s'}}/>
+        ))}
       </div>
-    </div>
+      <div style={{textAlign:'center',marginBottom:24}}>
+        <div style={{fontSize:48,marginBottom:16}}>{cur.icon}</div>
+        <div style={{fontWeight:900,color:C.text,fontSize:20,marginBottom:10,letterSpacing:-0.5}}>{cur.title}</div>
+        {step===2?(
+          <div style={{textAlign:'left'}}>
+            {[
+              {icon:'🍻',title:'뒷풀이·종강총회',desc:'이름 추가 → 금액 입력 → 카톡 공유. 1분이면 끝.'},
+              {icon:'🏕',title:'MT·야식마차',desc:'신청부터 입금까지 한 번에.'},
+              {icon:'📋',title:'명단 재사용',desc:'한 번 저장하면 다음 모임부터는 선택만!'},
+            ].map(s=>(
+              <div key={s.title} style={{display:'flex',gap:12,marginBottom:14,alignItems:'flex-start'}}>
+                <div style={{width:36,height:36,borderRadius:10,background:C.accentBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{s.icon}</div>
+                <div>
+                  <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:2}}>{s.title}</div>
+                  <div style={{fontSize:12,color:C.textDim,lineHeight:1.5}}>{s.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ):(
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.9,whiteSpace:'pre-wrap'}}>{cur.desc}</div>
+        )}
+      </div>
+      <div style={{display:'flex',gap:10}}>
+        {step>0&&<Btn variant="ghost" onClick={()=>setStep(s=>s-1)} style={{flex:1}}>이전</Btn>}
+        <Btn onClick={isLast?finish:()=>setStep(s=>s+1)} style={{flex:2}}>
+          {isLast?'시작할게요 🚀':'다음 →'}
+        </Btn>
+      </div>
+      <button onClick={async()=>{
+        const {data:{user}}=await api.getUser();
+        if(user) await api.updateProfile(user.id,{onboarding_done:true,updated_at:new Date().toISOString()});
+        onClose();
+      }} style={{width:'100%',marginTop:12,color:C.textDim,background:'none',border:'none',fontSize:13,cursor:'pointer'}}>다시 보지 않기</button>
+    </Modal>
   );
 }
 
@@ -3383,21 +3389,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
           남은 요청 {requestedCount}명 모두 확인 완료
         </button>
       )}
-      {confirmBulk&&(
-        <div onClick={()=>setConfirmBulk(false)} style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,backdropFilter:'blur(4px)',padding:'0 24px'}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:C.cardBg,borderRadius:20,padding:'28px 24px',width:'100%',maxWidth:360}}>
-            <div style={{textAlign:'center',marginBottom:20}}>
-              <div style={{fontSize:28,marginBottom:10}}>✅</div>
-              <div style={{fontWeight:900,color:C.text,fontSize:17,marginBottom:6}}>남은 요청 {requestedCount}명을 모두{'\n'}확인 완료로 처리할까요?</div>
-              <div style={{fontSize:13,color:C.textMid}}>미입금은 먼저 X로 표시한 뒤 이 버튼을 누르세요</div>
-            </div>
-            <div style={{display:'flex',gap:10}}>
-              <Btn variant="ghost" onClick={()=>setConfirmBulk(false)} style={{flex:1}}>취소</Btn>
-              <Btn variant="green" onClick={()=>{onBulkConfirm();setConfirmBulk(false);}} style={{flex:2}}>확인 완료 처리</Btn>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmBulkModal isOpen={confirmBulk} onClose={()=>setConfirmBulk(false)} count={requestedCount} onConfirm={onBulkConfirm}/>
       <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:6,marginBottom:8}}>
         {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>⏱ 시간순</span>}
         <button onClick={()=>setSortByTime(v=>!v)} style={{
@@ -3686,13 +3678,9 @@ function FormShareTab({form, showToast}){
 
 function FormShareModal({form, showToast, onClose}){
   return(
-    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)'}}>
-      <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:480,background:C.cardBg,borderRadius:'24px 24px 0 0',padding:'24px 20px 32px',animation:'slideUp 0.22s ease'}}>
-        <div style={{width:40,height:4,borderRadius:2,background:C.border,margin:'0 auto 20px'}}/>
-        <div style={{fontWeight:800,fontSize:16,color:C.text,marginBottom:16}}>링크 공유</div>
-        <FormShareTab form={form} showToast={showToast}/>
-      </div>
-    </div>
+    <Modal isOpen={true} onClose={onClose} title="링크 공유">
+      <FormShareTab form={form} showToast={showToast}/>
+    </Modal>
   );
 }
 
@@ -3722,30 +3710,26 @@ function PasteFeeModal({members, memberMap, onApply, showToast, onClose}){
   };
 
   return(
-    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)'}}>
-      <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:480,background:C.cardBg,borderRadius:'24px 24px 0 0',padding:'24px 20px 32px',animation:'slideUp 0.22s ease'}}>
-        <div style={{width:40,height:4,borderRadius:2,background:C.border,margin:'0 auto 20px'}}/>
-        <div style={{fontWeight:800,fontSize:16,color:C.text,marginBottom:6}}>📋 납부자 명단 붙여넣기</div>
-        <div style={{fontSize:12,color:C.textDim,marginBottom:14}}>납부자 이름을 한 줄씩 붙여넣어 주세요. 이미 납부로 설정된 멤버는 그대로 유지돼요.</div>
-        <textarea
-          value={pasteText}
-          onChange={e=>setPasteText(e.target.value)}
-          placeholder={'홍길동\n김철수\n박영희'}
-          rows={6}
-          style={{width:'100%',padding:'10px 12px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,lineHeight:1.8,resize:'vertical',outline:'none',boxSizing:'border-box',marginBottom:10}}
-        />
-        {unmatched.length>0&&(
-          <div style={{background:C.orangeBg,borderRadius:10,padding:'10px 12px',marginBottom:10}}>
-            <div style={{fontSize:12,color:C.orange,fontWeight:700,marginBottom:6}}>매칭 안 된 이름 ({unmatched.length}명)</div>
-            {unmatched.map((n,i)=><div key={i} style={{fontSize:12,color:C.orange}}>• {n}</div>)}
-          </div>
-        )}
-        <div style={{display:'flex',gap:8}}>
-          <button onClick={onClose} style={{flex:1,padding:'12px',borderRadius:12,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontSize:14,fontWeight:700,cursor:'pointer'}}>닫기</button>
-          <button onClick={apply} disabled={!pasteText.trim()} style={{flex:2,padding:'12px',borderRadius:12,border:'none',background:pasteText.trim()?C.accent:'#D1D5DB',color:'#fff',fontSize:14,fontWeight:700,cursor:pasteText.trim()?'pointer':'default'}}>적용</button>
+    <Modal isOpen={true} onClose={onClose} title="📋 납부자 명단 붙여넣기">
+      <div style={{fontSize:12,color:C.textDim,marginBottom:14}}>납부자 이름을 한 줄씩 붙여넣어 주세요. 이미 납부로 설정된 멤버는 그대로 유지돼요.</div>
+      <textarea
+        value={pasteText}
+        onChange={e=>setPasteText(e.target.value)}
+        placeholder={'홍길동\n김철수\n박영희'}
+        rows={6}
+        style={{width:'100%',padding:'10px 12px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,lineHeight:1.8,resize:'vertical',outline:'none',boxSizing:'border-box',marginBottom:10}}
+      />
+      {unmatched.length>0&&(
+        <div style={{background:C.orangeBg,borderRadius:10,padding:'10px 12px',marginBottom:10}}>
+          <div style={{fontSize:12,color:C.orange,fontWeight:700,marginBottom:6}}>매칭 안 된 이름 ({unmatched.length}명)</div>
+          {unmatched.map((n,i)=><div key={i} style={{fontSize:12,color:C.orange}}>• {n}</div>)}
         </div>
+      )}
+      <div style={{display:'flex',gap:8}}>
+        <button onClick={onClose} style={{flex:1,padding:'12px',borderRadius:12,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontSize:14,fontWeight:700,cursor:'pointer'}}>닫기</button>
+        <button onClick={apply} disabled={!pasteText.trim()} style={{flex:2,padding:'12px',borderRadius:12,border:'none',background:pasteText.trim()?C.accent:'#D1D5DB',color:'#fff',fontSize:14,fontWeight:700,cursor:pasteText.trim()?'pointer':'default'}}>적용</button>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -3782,38 +3766,34 @@ function DunningModal({eventName, account, link, unpaidList, showToast, onClose}
   };
 
   return(
-    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)'}}>
-      <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:480,background:C.cardBg,borderRadius:'24px 24px 0 0',padding:'24px 20px 32px',animation:'slideUp 0.22s ease'}}>
-        <div style={{width:40,height:4,borderRadius:2,background:C.border,margin:'0 auto 20px'}}/>
-        <div style={{fontWeight:800,fontSize:16,color:C.text,marginBottom:16}}>📢 일괄 독촉</div>
-        <div style={{display:'flex',gap:6,marginBottom:14}}>
-          {[['이름 제외',false],['이름 포함',true]].map(([label,val])=>(
-            <button key={label} onClick={()=>setWithNames(val)} style={{flex:1,padding:'8px',borderRadius:10,fontSize:13,fontWeight:700,cursor:'pointer',border:'none',background:withNames===val?C.accent:C.inputBg,color:withNames===val?'#fff':C.textMid}}>{label}</button>
-          ))}
-        </div>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-          <div style={{fontSize:12,color:C.textDim,fontWeight:600}}>미납자 {unpaidList.length}명</div>
-          {!editMode?(
-            <button onClick={startEdit} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',fontWeight:600}}>✏️ 편집</button>
-          ):(
-            <div style={{display:'flex',gap:8}}>
-              <button onClick={()=>setEditText(autoMsg)} style={{fontSize:11,color:C.textMid,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',fontWeight:600}}>원래대로</button>
-              <button onClick={()=>setEditMode(false)} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',fontWeight:600}}>완료</button>
-            </div>
-          )}
-        </div>
-        {editMode?(
-          <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={7}
-            style={{width:'100%',padding:'10px 12px',borderRadius:10,border:`1.5px solid ${C.accent}`,background:C.inputBg,fontSize:12,color:C.text,lineHeight:1.85,resize:'vertical',outline:'none',boxSizing:'border-box',marginBottom:6}}/>
-        ):(
-          <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',fontSize:12,color:C.textMid,lineHeight:1.85,marginBottom:6,whiteSpace:'pre-wrap',border:`1.5px solid ${C.border}`}}>{autoMsg}{'\n'}{link}</div>
-        )}
-        <div style={{display:'flex',gap:8,marginTop:8}}>
-          <Btn variant="ghost" onClick={onClose} style={{flex:1}}>닫기</Btn>
-          <Btn onClick={share} style={{flex:2}}>💬 카카오톡 공유</Btn>
-        </div>
+    <Modal isOpen={true} onClose={onClose} title="📢 일괄 독촉">
+      <div style={{display:'flex',gap:6,marginBottom:14}}>
+        {[['이름 제외',false],['이름 포함',true]].map(([label,val])=>(
+          <button key={label} onClick={()=>setWithNames(val)} style={{flex:1,padding:'8px',borderRadius:10,fontSize:13,fontWeight:700,cursor:'pointer',border:'none',background:withNames===val?C.accent:C.inputBg,color:withNames===val?'#fff':C.textMid}}>{label}</button>
+        ))}
       </div>
-    </div>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+        <div style={{fontSize:12,color:C.textDim,fontWeight:600}}>미납자 {unpaidList.length}명</div>
+        {!editMode?(
+          <button onClick={startEdit} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',fontWeight:600}}>✏️ 편집</button>
+        ):(
+          <div style={{display:'flex',gap:8}}>
+            <button onClick={()=>setEditText(autoMsg)} style={{fontSize:11,color:C.textMid,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',fontWeight:600}}>원래대로</button>
+            <button onClick={()=>setEditMode(false)} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',fontWeight:600}}>완료</button>
+          </div>
+        )}
+      </div>
+      {editMode?(
+        <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={7}
+          style={{width:'100%',padding:'10px 12px',borderRadius:10,border:`1.5px solid ${C.accent}`,background:C.inputBg,fontSize:12,color:C.text,lineHeight:1.85,resize:'vertical',outline:'none',boxSizing:'border-box',marginBottom:6}}/>
+      ):(
+        <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',fontSize:12,color:C.textMid,lineHeight:1.85,marginBottom:6,whiteSpace:'pre-wrap',border:`1.5px solid ${C.border}`}}>{autoMsg}{'\n'}{link}</div>
+      )}
+      <div style={{display:'flex',gap:8,marginTop:8}}>
+        <Btn variant="ghost" onClick={onClose} style={{flex:1}}>닫기</Btn>
+        <Btn onClick={share} style={{flex:2}}>💬 카카오톡 공유</Btn>
+      </div>
+    </Modal>
   );
 }
 
