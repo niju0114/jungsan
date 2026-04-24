@@ -67,6 +67,7 @@ const C = {
   green:'#00C072', greenBg:'#E8FAF0',
   red:'#F04452', redBg:'#FFF0F0',
   orange:'#FF6B2B', orangeBg:'#FFF4EE',
+  yellow:'#C57700', yellowBg:'#FFF8DD',
   text:'#191F28', textMid:'#4E5968', textDim:'#8B95A1',
   border:'#F2F3F5',
 };
@@ -113,6 +114,7 @@ const api = {
   // 참여자 전용 RPC (RLS 우회, 지정 필드만 업데이트)
   markEventAttendance: (code, memberKey, present) => sb.rpc('mark_event_attendance',{p_code:code,p_member_key:memberKey,p_present:present}),
   markEventPaid: (code, memberKey, paid) => sb.rpc('mark_event_paid',{p_code:code,p_member_key:memberKey,p_paid:paid}),
+  markEventRequested: (code, memberKey) => sb.rpc('mark_event_requested',{p_code:code,p_member_key:memberKey}),
   appendFormSubmission: (code, submission) => sb.rpc('append_form_submission',{p_code:code,p_submission:submission}),
   requestFormPayment: (code, createdAt) => sb.rpc('request_form_payment',{p_code:code,p_created_at:createdAt}),
 
@@ -2184,8 +2186,15 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   const mm=event.memberMap||{};
   const amounts=calcAmounts(event);
   const isPaid=event.payments?.[selectedKey]?.paid;
+  const isRequested=!isPaid&&!!event.payments?.[selectedKey]?.requested;
   const myAmount=amounts[selectedKey]||0;
   const myRounds=(event.rounds||[]).filter(r=>r.members.includes(selectedKey));
+
+  const markRequested=async()=>{
+    if(!selectedKey||isPaid||isRequested) return;
+    await api.markEventRequested(event.code,selectedKey);
+    setEvent(ev=>({...ev,payments:{...ev.payments,[selectedKey]:{...(ev.payments?.[selectedKey]||{}),requested:true,requestedAt:new Date().toISOString()}}}));
+  };
 
   if(!selectedKey){
     const attendingMembers=event.members.filter(k=>event.attendance[k]!==false);
@@ -2316,13 +2325,14 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
                       e.stopPropagation();
                       await copyText(event.account.number);
                       showToast('계좌번호 복사됐어요');
+                      markRequested();
                     }} style={{background:C.accentBg,border:`1.5px solid ${C.accent}30`,borderRadius:10,padding:'8px 14px',color:C.accent,fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0}}>복사</button>
                   </div>
                 </div>
                 {(tl||kl)&&(
                   <div style={{display:'flex',gap:8}}>
-                    {tl&&<a href={tl} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'12px',borderRadius:12,background:'#0050FF',color:'#fff',fontWeight:700,fontSize:13,textDecoration:'none'}}>토스 송금</a>}
-                    {kl&&<a href={kl} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'12px',borderRadius:12,background:'#FEE500',color:'#191919',fontWeight:700,fontSize:13,textDecoration:'none'}}>카뱅 송금</a>}
+                    {tl&&<a href={tl} onClick={markRequested} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'12px',borderRadius:12,background:'#0050FF',color:'#fff',fontWeight:700,fontSize:13,textDecoration:'none'}}>토스 송금</a>}
+                    {kl&&<a href={kl} onClick={markRequested} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'12px',borderRadius:12,background:'#FEE500',color:'#191919',fontWeight:700,fontSize:13,textDecoration:'none'}}>카뱅 송금</a>}
                   </div>
                 )}
               </div>
@@ -3434,6 +3444,12 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
     setLoading(false);
   };
 
+  const markFormRequested=async()=>{
+    if(!mySubmission||mySubmission.paid||mySubmission.paymentStatus==='matched'||mySubmission.paymentStatus==='requested') return;
+    await api.requestFormPayment(form.code,mySubmission.createdAt);
+    setMySubmission(s=>({...s,paymentStatus:'requested',requestedAt:new Date().toISOString()}));
+  };
+
   if(submitted&&mySubmission){
     const isConfirmed=mySubmission.paid||mySubmission.paymentStatus==='matched';
     const isRequested=mySubmission.paymentStatus==='requested';
@@ -3476,7 +3492,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
                   <div style={{fontSize:16,fontWeight:700,color:C.text}}>{accountText}</div>
                   <div style={{fontSize:13,color:C.textMid,marginTop:2}}>예금주: {form.account.holder}</div>
                 </div>
-                <button onClick={async()=>{await copyText(accountText);showToast('계좌번호 복사됨');}} style={{background:C.accentBg,border:'none',borderRadius:10,padding:'8px 14px',color:C.accent,fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0}}>복사</button>
+                <button onClick={async()=>{await copyText(accountText);showToast('계좌번호 복사됨');markFormRequested();}} style={{background:C.accentBg,border:'none',borderRadius:10,padding:'8px 14px',color:C.accent,fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0}}>복사</button>
               </div>
             </div>
 
@@ -3490,12 +3506,12 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
             {(tossLink||kakaoLink)&&(
               <div style={{display:'flex',gap:8,marginBottom:10}}>
                 {tossLink&&(
-                  <a href={tossLink} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'14px',borderRadius:14,background:'#0050FF',color:'#fff',fontWeight:700,fontSize:14,textDecoration:'none',cursor:'pointer'}}>
+                  <a href={tossLink} onClick={markFormRequested} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'14px',borderRadius:14,background:'#0050FF',color:'#fff',fontWeight:700,fontSize:14,textDecoration:'none',cursor:'pointer'}}>
                     토스 송금
                   </a>
                 )}
                 {kakaoLink&&(
-                  <a href={kakaoLink} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'14px',borderRadius:14,background:'#FEE500',color:'#191919',fontWeight:700,fontSize:14,textDecoration:'none',cursor:'pointer'}}>
+                  <a href={kakaoLink} onClick={markFormRequested} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'14px',borderRadius:14,background:'#FEE500',color:'#191919',fontWeight:700,fontSize:14,textDecoration:'none',cursor:'pointer'}}>
                     카뱅 송금
                   </a>
                 )}
