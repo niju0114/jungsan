@@ -2950,8 +2950,12 @@ function FormCreateScreen({nav,profile,createForm}){
         {/* 기본 정보 */}
         <Card>
           <Field label="행사명" value={name} onChange={setName} placeholder="5월 MT, 개강총회…"/>
-          <Field label="날짜" value={date} onChange={setDate} type="date"/>
+          <div style={{display:'flex',gap:8}}>
+            <div style={{flex:2}}><Field label="날짜" value={date} onChange={setDate} type="date"/></div>
+            <div style={{flex:1}}><Field label="시간" value={time} onChange={setTime} type="time"/></div>
+          </div>
           <Field label="참가비 (원)" value={amount} onChange={v=>setAmount(v.replace(/[^0-9]/g,''))} placeholder="30,000" inputMode="numeric"/>
+          <Field label="장소 (선택)" value={place} onChange={setPlace} placeholder="강남 OO식당, 동아리방…"/>
           <div style={{marginBottom:14}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:useLimit?10:0}}>
               <div>
@@ -2973,8 +2977,6 @@ function FormCreateScreen({nav,profile,createForm}){
               />
             )}
           </div>
-          <Field label="시간 (선택)" value={time} onChange={setTime} type="time"/>
-          <Field label="장소 (선택)" value={place} onChange={setPlace} placeholder="강남 OO식당, 동아리방…"/>
         </Card>
 
         {/* 계좌 - 프로필에 있으면 자동 적용 */}
