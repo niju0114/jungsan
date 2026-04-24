@@ -1299,7 +1299,12 @@ function SetupScreen({nav,profile,saveProfile}){
   const [bank,setBank]=useState(profile.account?.bank||'');
   const [number,setNumber]=useState(profile.account?.number||'');
   const [holder,setHolder]=useState(profile.account?.holder||'');
-  const [groups,setGroups]=useState(profile.groups?.length?profile.groups:[{id:'g1',name:'전체',rawText:'',members:[]}]);
+  const _rawGroups=profile.groups?.length?profile.groups:[{id:'g1',name:'기본',rawText:'',members:[]}];
+  const [groups,setGroups]=useState(
+    _rawGroups.length>1
+      ?_rawGroups.filter(g=>!(g.name==='전체'&&!(g.rawText||'').trim()&&!(g.members||[]).length))
+      :_rawGroups
+  );
   const [activeG,setActiveG]=useState(-1);
   const [saving,setSaving]=useState(false);
   const [saved,setSaved]=useState(false);
