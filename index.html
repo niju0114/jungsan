@@ -1531,7 +1531,9 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
     if(selected.length===0){setErr('참여자를 1명 이상 선택해주세요');return;}
     setLoading(true);
     const code=genCode();
+    const isPaidFee=k=>groups.some(g=>(g.paidFeeMembers||[]).includes(k));
     const memberMeta={};
+    selected.forEach(k=>{memberMeta[k]={paidFee:isPaidFee(k)};});
     const ev={code,name:name.trim(),date,pin:'',account:{bank,number,holder},members:selected,memberMap,rounds:[],payments:{},attendance:{},attendanceOpen:false,createdAt:new Date().toISOString(),memberMeta,feeConfig:null,sourceFormCode:null};
     const ok=await createEvent(ev);
     setLoading(false);
