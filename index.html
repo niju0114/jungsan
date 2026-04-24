@@ -166,12 +166,18 @@ const rowToEv = r => ({
   memberMap:r.member_map||{}, rounds:r.rounds||[],
   payments:r.payments||{}, attendance:r.attendance||{},
   attendanceOpen:r.attendance_open||false, createdAt:r.created_at,
+  sourceFormCode:r.source_form_code||null,
+  feeConfig:r.fee_config||null,
+  memberMeta:r.member_meta||{},
 });
 const evToRow = (ev, uid) => ({
   code:ev.code, name:ev.name, date:ev.date, pin:ev.pin,
   account:ev.account, members:ev.members, member_map:ev.memberMap,
   rounds:ev.rounds, payments:ev.payments, attendance:ev.attendance,
   attendance_open:ev.attendanceOpen,
+  source_form_code:ev.sourceFormCode||null,
+  fee_config:ev.feeConfig||null,
+  member_meta:ev.memberMeta||{},
   ...(uid?{user_id:uid}:{}),
 });
 const rowToForm = r => ({
@@ -719,7 +725,7 @@ function App() {
       {user&&view==='create'&&<CreateScreen nav={nav} profile={profile} events={events} createEvent={createEvent}/>}
       {user&&view==='formCreate'&&<FormCreateScreen nav={nav} profile={profile} createForm={createForm}/>}
       {user&&view==='adminEvent'&&currentEvent&&<AdminEventScreen nav={nav} event={currentEvent} updateEvent={updateEvent} showToast={showToast} profile={profile}/>}
-      {user&&view==='formAdmin'&&currentForm&&<FormAdminScreen nav={nav} form={currentForm} updateForm={updateForm} showToast={showToast} profile={profile} saveProfile={saveProfile}/>}
+      {user&&view==='formAdmin'&&currentForm&&<FormAdminScreen nav={nav} form={currentForm} updateForm={updateForm} showToast={showToast} profile={profile} saveProfile={saveProfile} createEvent={createEvent}/>}
       {user&&view==='history'&&<HistoryScreen nav={nav} events={events} forms={forms} deleteEvent={deleteEvent} deleteForm={deleteForm}/>}
       {showGuide&&<GuideModal onClose={()=>setShowGuide(false)} onFeedback={()=>{setShowGuide(false);setShowFeedback(true);}}/>}
       {showOnboarding&&<OnboardingModal onClose={()=>setShowOnboarding(false)}/>}
@@ -3501,10 +3507,11 @@ function DunningModal({eventName, account, link, unpaidList, showToast, onClose}
 }
 
 // ── FormAdminScreen (대규모 관리자 대시보드) ──────────────────
-function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
+function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,createEvent}){
   const [tab,setTab]=useState('submissions');
   const [shareOpen,setShareOpen]=useState(false);
   const [dunningOpen,setDunningOpen]=useState(false);
+  const [bridging,setBridging]=useState(false);
   const [bankGuideOpen,setBankGuideOpen]=useState(()=>new Set());
   const toggleBankGuide=(id)=>setBankGuideOpen(prev=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;});
   const [uploadMode,setUploadMode]=useState('file');
@@ -3519,6 +3526,30 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
 
   const {filteredSubs,groupCounts,unregisteredCount,matchResults,uploading,
          searchQ,setSearchQ,groupFilter,setGroupFilter,handlers}=useFormAdmin(form,updateForm,profile,saveProfile,showToast);
+
+  const startBridge=async()=>{
+    if(!window.confirm(`신청자 ${subs.length}명으로 정산 그룹을 만들까요?\n원본 신청폼은 유지되고, 별도 정산 이벤트가 생성됩니다.`)) return;
+    setBridging(true);
+    const usedKeys=new Set();
+    const members=[],memberMap={};
+    subs.forEach(s=>{
+      const sid=s.data?.학번||s.data?.studentId||'';
+      let key=s.name+(sid?`_${sid}`:'');
+      if(usedKeys.has(key)){let n=2;while(usedKeys.has(key+'_'+n))n++;key=key+'_'+n;}
+      usedKeys.add(key);members.push(key);memberMap[key]=s.name;
+    });
+    const code=genCode();
+    const ev={
+      code,name:form.name+' 정산',date:form.date,pin:'',
+      account:form.account||{},members,memberMap,
+      rounds:[],payments:{},attendance:{},attendanceOpen:false,
+      createdAt:new Date().toISOString(),
+      sourceFormCode:form.code,feeConfig:null,memberMeta:{},
+    };
+    const ok=await createEvent(ev);
+    setBridging(false);
+    if(ok){nav.setCurrentCode(ev.code);nav.setView('adminEvent');}
+  };
 
   return(
     <div className="fade-up screen" style={{background:C.pageBg}}>
@@ -3553,6 +3584,15 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
           </div>
         </Card>
       </div>
+
+      {/* 신청→정산 브리지 CTA */}
+      {subs.length>0&&createEvent&&(
+        <div style={{padding:'8px 16px 0'}}>
+          <Btn onClick={startBridge} disabled={bridging} style={{background:C.green,fontSize:14}}>
+            {bridging?'생성 중…':'📋 이 명단으로 정산 시작하기'}
+          </Btn>
+        </div>
+      )}
 
       {/* 공유 CTA */}
       <div style={{padding:'8px 16px 0',display:'flex',gap:8}}>
