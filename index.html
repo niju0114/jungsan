@@ -202,6 +202,8 @@ const fmtRelTime = iso => {
   return `${d.getMonth()+1}/${d.getDate()} ${ampm} ${h}:${String(d.getMinutes()).padStart(2,'0')}`;
 };
 const fmtKRW = n => (n||0).toLocaleString('ko-KR')+'원';
+const buildDunningMsg = ({name, eventName, amount, account, link}) =>
+  `안녕하세요 ${name}님,\n${eventName} 참가비 ${fmtKRW(amount)} 확인이 안 됐어요.\n${account.bank} ${account.number} (${account.holder})\n${link}`;
 const getLink = (params) => `${window.location.origin}${window.location.pathname}?${params}`;
 
 // 클립보드 복사 (11곳 중복 → 1곳으로 통합)
@@ -1661,7 +1663,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
           )}
           {slide===3&&(
             <div className="fade-up">
-              <StatusSection event={event} updateEvent={update} groups={profile?.groups}/>
+              <StatusSection event={event} updateEvent={update} groups={profile?.groups} showToast={showToast}/>
             </div>
           )}
         </div>
@@ -1995,7 +1997,7 @@ function ShareSection({event,showToast}){
 }
 
 // ── StatusSection ──────────────────────────────────────────
-function StatusSection({event,updateEvent,groups}){
+function StatusSection({event,updateEvent,groups,showToast}){
   const [sortByTime,setSortByTime]=useState(true);
   const mm=event.memberMap||{};
   const amounts=calcAmounts(event);
@@ -2083,19 +2085,34 @@ function StatusSection({event,updateEvent,groups}){
       ? (allExtraEntries.find(e=>e.key===k)?.name || k)
       : (mm[k]||k);
     const displayAmount=isExtra ? (extraAmounts[k]||0) : (amounts[k]||0);
+    const canDunning=!paid&&!reqested&&!!event.account?.bank;
+    const dunning=async e=>{
+      e.stopPropagation();
+      const msg=buildDunningMsg({name:displayName,eventName:event.name,amount:displayAmount,account:event.account,link:directLink});
+      const shared=await shareText(msg);
+      if(!shared){await copyText(msg);showToast('독촉 메시지 복사됐어요');}
+      else showToast('공유 완료');
+    };
     return(
-      <div onClick={()=>toggle(k)} className="press" style={{background:C.cardBg,borderRadius:12,padding:'11px 14px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:paid?`0 0 0 2px ${C.green}40`:reqested?`0 0 0 2px ${C.yellow}40`:C.shadow,cursor:'pointer'}}>
-        <div style={{display:'flex',alignItems:'center',gap:10}}>
-          <div style={{width:32,height:32,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:paid?C.green:reqested?C.yellowBg:C.redBg,color:paid?'#fff':reqested?C.yellow:C.red,fontWeight:900,fontSize:14}}>{paid?'O':reqested?'△':'X'}</div>
-          <div>
-            <div style={{display:'flex',alignItems:'center',gap:6}}>
-              <span style={{fontWeight:600,color:C.text,fontSize:13}}>{displayName}</span>
-              {isExtra&&<span style={{fontSize:10,fontWeight:800,color:C.orange,background:C.orange+'20',borderRadius:6,padding:'1px 5px'}}>임시</span>}
+      <div style={{background:C.cardBg,borderRadius:12,marginBottom:6,boxShadow:paid?`0 0 0 2px ${C.green}40`:reqested?`0 0 0 2px ${C.yellow}40`:C.shadow,overflow:'hidden'}}>
+        <div onClick={()=>toggle(k)} className="press" style={{padding:'11px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <div style={{width:32,height:32,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:paid?C.green:reqested?C.yellowBg:C.redBg,color:paid?'#fff':reqested?C.yellow:C.red,fontWeight:900,fontSize:14}}>{paid?'O':reqested?'△':'X'}</div>
+            <div>
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <span style={{fontWeight:600,color:C.text,fontSize:13}}>{displayName}</span>
+                {isExtra&&<span style={{fontSize:10,fontWeight:800,color:C.orange,background:C.orange+'20',borderRadius:6,padding:'1px 5px'}}>임시</span>}
+              </div>
+              {paid&&p?.time&&<div style={{fontSize:11,color:C.textDim}}>{fmtTime(p.time)}{p.by==='admin'?' · 관리자':p.by==='archive'?' · 종료처리':''}</div>}
             </div>
-            {paid&&p?.time&&<div style={{fontSize:11,color:C.textDim}}>{fmtTime(p.time)}{p.by==='admin'?' · 관리자':p.by==='archive'?' · 종료처리':''}</div>}
           </div>
+          <div style={{color:C.accent,fontWeight:900,fontSize:13}}>{fmtKRW(displayAmount)}</div>
         </div>
-        <div style={{color:C.accent,fontWeight:900,fontSize:13}}>{fmtKRW(displayAmount)}</div>
+        {canDunning&&(
+          <div style={{borderTop:`1px solid ${C.border}`,padding:'6px 14px',display:'flex',justifyContent:'flex-end'}}>
+            <button onClick={dunning} style={{fontSize:12,color:C.orange,background:C.orange+'18',border:'none',borderRadius:8,padding:'5px 12px',cursor:'pointer',fontWeight:700}}>💬 독촉</button>
+          </div>
+        )}
       </div>
     );
   };
@@ -3035,10 +3052,19 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
 
   const copyNudge=()=>{if(!nudgeMsg) return; copyText(nudgeMsg); showToast('콕 찌르기 메시지 복사됨');};
 
+  const handleDunning=async(s)=>{
+    if(!form.account?.bank) return;
+    const link=getLink(`form=${form.code}`);
+    const msg=buildDunningMsg({name:s.name,eventName:form.name,amount:form.amount,account:form.account,link});
+    const shared=await shareText(msg);
+    if(!shared){await copyText(msg);showToast('독촉 메시지 복사됐어요');}
+    else showToast('공유 완료');
+  };
+
   return {
     subs, filteredSubs, groupCounts, unregisteredCount, matchResults, uploading,
     searchQ, setSearchQ, groupFilter, setGroupFilter,
-    handlers:{togglePaid, bulkConfirmRequested, handleExcel, applyMatched, copyNudge,
+    handlers:{togglePaid, bulkConfirmRequested, handleExcel, applyMatched, copyNudge, handleDunning,
       setMatchResults,
       closeForm:async()=>{if(!window.confirm('신청을 마감할까요?')) return; await updateForm({...form,status:'closed'}); showToast('신청이 마감됐어요');},
       reopenForm:async()=>{await updateForm({...form,status:'open'}); showToast('신청이 다시 열렸어요');},
@@ -3053,7 +3079,7 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
 
 function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCount, groups,
                          searchQ, setSearchQ, groupFilter, setGroupFilter,
-                         onTogglePaid, onBulkConfirm}){
+                         onTogglePaid, onBulkConfirm, onDunning}){
   const [sortByTime,setSortByTime]=useState(true);
   const [confirmBulk,setConfirmBulk]=useState(false);
   const requestedCount=subs.filter(s=>!s.paid&&s.paymentStatus!=='matched'&&s.paymentStatus==='requested').length;
@@ -3145,11 +3171,16 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
                 <span style={{color:C.textDim}}>{fieldLabel(k)}:</span> {Array.isArray(v)?v.join(', '):v}
               </div>
             ))}
-            <div style={{fontSize:11,color:C.textDim,marginTop:4,display:'flex',gap:8}}>
-              {fmtRelTime(s.createdAt)}
-              {isPaid&&s.matchedAt&&<span style={{color:C.green}}>입금 {fmtTime(s.matchedAt)}</span>}
-              {s.matchedBy==='auto'&&<span style={{color:C.green}}>자동매칭</span>}
-              {s.matchedBy==='manual'&&<span style={{color:C.accent}}>수동확인</span>}
+            <div style={{fontSize:11,color:C.textDim,marginTop:4,display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+              <div style={{display:'flex',gap:8}}>
+                {fmtRelTime(s.createdAt)}
+                {isPaid&&s.matchedAt&&<span style={{color:C.green}}>입금 {fmtTime(s.matchedAt)}</span>}
+                {s.matchedBy==='auto'&&<span style={{color:C.green}}>자동매칭</span>}
+                {s.matchedBy==='manual'&&<span style={{color:C.accent}}>수동확인</span>}
+              </div>
+              {!isPaid&&!isRequested&&form.account?.bank&&(
+                <button onClick={()=>onDunning(s)} style={{fontSize:11,color:C.orange,background:C.orange+'18',border:'none',borderRadius:8,padding:'4px 10px',cursor:'pointer',fontWeight:700,flexShrink:0}}>💬 독촉</button>
+              )}
             </div>
           </div>
         );
@@ -3459,7 +3490,8 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
           <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
             unregisteredCount={unregisteredCount} groups={groups}
             searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
-            onTogglePaid={handlers.togglePaid} onBulkConfirm={handlers.bulkConfirmRequested}/>
+            onTogglePaid={handlers.togglePaid} onBulkConfirm={handlers.bulkConfirmRequested}
+            onDunning={handlers.handleDunning}/>
         )}
         {tab==='verify'&&(
           <VerifyTab form={form} subs={subs} groups={groups} matchResults={matchResults} uploading={uploading}
