@@ -320,12 +320,11 @@ const sortByPaid = (keys, payments) => [
   }),
   ...keys.filter(k=>!payments?.[k]?.paid),
 ];
-// 계좌복사/딥링크 탭 시간순 (requestedAt 오름차순, 빠른 순 → 상단)
-const sortByRequested = (keys, payments) => [
-  ...keys.filter(k=>payments?.[k]?.requestedAt)
-         .sort((a,b)=>new Date(payments[b].requestedAt)-new Date(payments[a].requestedAt)),
-  ...keys.filter(k=>!payments?.[k]?.requestedAt),
-];
+// 최근 활동 시간순 (paid.time / requestedAt 중 max, 내림차순)
+const sortByRequested = (keys, payments) => {
+  const lastAct=k=>{const p=payments?.[k];const t1=p?.time?new Date(p.time):null;const t2=p?.requestedAt?new Date(p.requestedAt):null;if(!t1&&!t2)return null;if(!t1)return t2;if(!t2)return t1;return t1>t2?t1:t2;};
+  return[...keys.filter(k=>lastAct(k)!==null).sort((a,b)=>lastAct(b)-lastAct(a)),...keys.filter(k=>lastAct(k)===null)];
+};
 
 // 임시 인원 key (roundId + em.id 조합, legacy는 index fallback)
 const extraKey = (roundId, em, ei) =>
@@ -3288,9 +3287,10 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
   );
   const displaySubs=sortByTime
     ? [...filteredSubs].sort((a,b)=>{
-        const ta=a.requestedAt,tb=b.requestedAt;
+        const la=s=>{const t1=s.matchedAt?new Date(s.matchedAt):null;const t2=s.requestedAt?new Date(s.requestedAt):null;if(!t1&&!t2)return null;if(!t1)return t2;if(!t2)return t1;return t1>t2?t1:t2;};
+        const ta=la(a),tb=la(b);
         if(!ta&&!tb) return 0; if(!ta) return 1; if(!tb) return -1;
-        return new Date(tb)-new Date(ta);
+        return tb-ta;
       })
     : filteredSubs;
   return(
