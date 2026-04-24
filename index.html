@@ -179,13 +179,13 @@ const rowToForm = r => ({
   maxPeople:r.max_people||null, account:r.account||{},
   fields:r.fields||[], submissions:r.submissions||[],
   status:r.status||'open', createdAt:r.created_at,
-  time:r.time||null, place:r.place||null, extraMessage:r.extra_message||null,
+  time:r.time||null, place:r.place||null,
 });
 const formToRow = (f, uid) => ({
   code:f.code, name:f.name, date:f.date, amount:f.amount,
   max_people:f.maxPeople, account:f.account, fields:f.fields,
   submissions:f.submissions, status:f.status,
-  time:f.time||null, place:f.place||null, extra_message:f.extraMessage||null,
+  time:f.time||null, place:f.place||null,
   ...(uid?{user_id:uid}:{}),
 });
 
@@ -2659,7 +2659,6 @@ function FormCreateScreen({nav,profile,createForm}){
   ]);
   const [time,setTime]=useState('');
   const [place,setPlace]=useState('');
-  const [extraMessage,setExtraMessage]=useState('');
   const [err,setErr]=useState('');
   const [loading,setLoading]=useState(false);
   const [customLabel,setCustomLabel]=useState('');
@@ -2711,7 +2710,7 @@ function FormCreateScreen({nav,profile,createForm}){
       maxPeople:useLimit&&maxPeople?Number(maxPeople):null,
       account:{bank:b,number:n,holder:h},fields:cleanFields,
       submissions:[],status:'open',createdAt:new Date().toISOString(),
-      time:time||null,place:place.trim()||null,extraMessage:extraMessage.trim()||null,
+      time:time||null,place:place.trim()||null,
     };
     const ok=await createForm(form);
     setLoading(false);
@@ -2750,14 +2749,6 @@ function FormCreateScreen({nav,profile,createForm}){
           </div>
           <Field label="시간 (선택)" value={time} onChange={setTime} type="time"/>
           <Field label="장소 (선택)" value={place} onChange={setPlace} placeholder="강남 OO식당, 동아리방…"/>
-          <div style={{marginBottom:14}}>
-            <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:6}}>추가 안내 (선택)</div>
-            <textarea value={extraMessage} onChange={e=>setExtraMessage(e.target.value)}
-              placeholder="참여자에게 전달할 내용을 입력하세요"
-              rows={3}
-              style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:14,outline:'none',resize:'none',lineHeight:1.6,boxSizing:'border-box'}}
-            />
-          </div>
         </Card>
 
         {/* 계좌 - 프로필에 있으면 자동 적용 */}
@@ -2909,7 +2900,7 @@ function FormCreateScreen({nav,profile,createForm}){
                   submissions:[],
                   status:'open',
                   maxPeople:useLimit&&maxPeople?Number(maxPeople):null,
-                  time:time||null,place:place.trim()||null,extraMessage:extraMessage.trim()||null,
+                  time:time||null,place:place.trim()||null,
                 }}
                 isPreview={true}
                 showToast={()=>{}}
@@ -3327,7 +3318,6 @@ function FormShareTab({form, showToast}){
     form.place?`📍 ${form.place}`:null,
     form.amount>0?`💰 참가비 ${fmtKRW(form.amount)}`:`💰 참가비 없음`,
     form.maxPeople?`👥 선착순 ${form.maxPeople}명`:null,
-    form.extraMessage?`\n${form.extraMessage}`:null,
     '',
     '아래 링크에서 신청해주세요!',
     formLink,
@@ -3670,12 +3660,6 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
       </div>
 
       <div style={{padding:'20px 16px'}}>
-        {form.extraMessage&&(
-          <Card style={{marginBottom:12}}>
-            <div style={{fontWeight:800,color:C.text,marginBottom:8,fontSize:15}}>📢 안내사항</div>
-            <div style={{fontSize:14,color:C.textMid,lineHeight:1.6,whiteSpace:'pre-wrap'}}>{form.extraMessage}</div>
-          </Card>
-        )}
         <Card>
           {form.fields.map(f=>(
             <div key={f.id} style={{marginBottom:14}}>
