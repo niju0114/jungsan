@@ -2120,7 +2120,13 @@ function StatusSection({event,updateEvent,groups,showToast}){
   const totalCount=presentMembers.length+allExtraEntries.length;
   const allKeys=[...presentMembers,...allExtraEntries.map(e=>e.key)];
   const requestedKeys=allKeys.filter(k=>!event.payments?.[k]?.paid&&event.payments?.[k]?.requested);
+  const unpaidXKeys=allKeys.filter(k=>!event.payments?.[k]?.paid&&!event.payments?.[k]?.requested);
+  const unpaidXList=unpaidXKeys.map(k=>{
+    const isExtra=allExtraEntries.some(e=>e.key===k);
+    return {name:isExtra?(allExtraEntries.find(e=>e.key===k)?.name||k):(mm[k]||k),amount:isExtra?(extraAmounts[k]||0):(amounts[k]||0)};
+  });
   const [confirmBulk,setConfirmBulk]=useState(false);
+  const [dunningOpen,setDunningOpen]=useState(false);
 
   const applyBulkConfirm=()=>{
     const now=new Date().toISOString();
@@ -2140,6 +2146,11 @@ function StatusSection({event,updateEvent,groups,showToast}){
           </div>
         ))}
       </div>
+      {unpaidXKeys.length>0&&event.account?.bank&&(
+        <button onClick={()=>setDunningOpen(true)} className="press" style={{width:'100%',padding:'12px',borderRadius:12,background:C.orange+'15',border:`1.5px solid ${C.orange}40`,color:C.orange,fontWeight:800,fontSize:13,cursor:'pointer',marginBottom:8}}>
+          📢 미납자 {unpaidXKeys.length}명 일괄 독촉
+        </button>
+      )}
       {requestedKeys.length>0&&(
         <button onClick={()=>setConfirmBulk(true)} className="press" style={{width:'100%',padding:'12px',borderRadius:12,background:C.yellowBg,border:`1.5px solid ${C.yellow}40`,color:C.yellow,fontWeight:800,fontSize:13,cursor:'pointer',marginBottom:10}}>
           남은 요청 {requestedKeys.length}명 모두 확인 완료
@@ -2209,6 +2220,10 @@ function StatusSection({event,updateEvent,groups,showToast}){
         </div>
       )}
       {unpaidList.length===0&&pc>0&&<div style={{textAlign:'center',color:C.green,fontWeight:900,fontSize:15,padding:'16px 0'}}>🎉 전원 완료!</div>}
+      {dunningOpen&&event.account?.bank&&(
+        <DunningModal eventName={event.name} account={event.account} link={directLink}
+          unpaidList={unpaidXList} showToast={showToast} onClose={()=>setDunningOpen(false)}/>
+      )}
     </div>
   );
 }
@@ -3417,10 +3432,79 @@ function FormShareModal({form, showToast, onClose}){
   );
 }
 
+function DunningModal({eventName, account, link, unpaidList, showToast, onClose}){
+  const [withNames,setWithNames]=useState(false);
+  const [editMode,setEditMode]=useState(false);
+  const [editText,setEditText]=useState('');
+
+  const autoMsg=React.useMemo(()=>{
+    const acct=`${account.bank} ${account.number} (${account.holder})`;
+    if(withNames) return [
+      `[${eventName}] 입금 안내`,'',
+      '아직 입금 확인이 안 된 분들이에요:',
+      ...unpaidList.map(u=>`• ${u.name}  ${fmtKRW(u.amount)}`),
+      '',acct,
+    ].join('\n');
+    return [
+      `[${eventName}] 입금 안내`,'',
+      `아직 ${unpaidList.length}명의 입금 확인이 안 됐어요.`,
+      '',acct,
+    ].join('\n');
+  },[withNames,unpaidList,eventName,account]);
+
+  React.useEffect(()=>{setEditText('');setEditMode(false);},[autoMsg]);
+
+  const startEdit=()=>{if(!editText)setEditText(autoMsg);setEditMode(true);};
+  const getMsg=()=>`${editMode?editText:autoMsg}\n${link}`;
+
+  const share=async()=>{
+    const msg=getMsg();
+    const shared=await shareText(msg);
+    if(!shared){await copyText(msg);showToast('독촉 메시지 복사됐어요');}
+    else showToast('공유 완료');
+  };
+
+  return(
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)'}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:480,background:C.cardBg,borderRadius:'24px 24px 0 0',padding:'24px 20px 32px',animation:'slideUp 0.22s ease'}}>
+        <div style={{width:40,height:4,borderRadius:2,background:C.border,margin:'0 auto 20px'}}/>
+        <div style={{fontWeight:800,fontSize:16,color:C.text,marginBottom:16}}>📢 일괄 독촉</div>
+        <div style={{display:'flex',gap:6,marginBottom:14}}>
+          {[['이름 제외',false],['이름 포함',true]].map(([label,val])=>(
+            <button key={label} onClick={()=>setWithNames(val)} style={{flex:1,padding:'8px',borderRadius:10,fontSize:13,fontWeight:700,cursor:'pointer',border:'none',background:withNames===val?C.accent:C.inputBg,color:withNames===val?'#fff':C.textMid}}>{label}</button>
+          ))}
+        </div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+          <div style={{fontSize:12,color:C.textDim,fontWeight:600}}>미납자 {unpaidList.length}명</div>
+          {!editMode?(
+            <button onClick={startEdit} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',fontWeight:600}}>✏️ 편집</button>
+          ):(
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={()=>setEditText(autoMsg)} style={{fontSize:11,color:C.textMid,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',fontWeight:600}}>원래대로</button>
+              <button onClick={()=>setEditMode(false)} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',fontWeight:600}}>완료</button>
+            </div>
+          )}
+        </div>
+        {editMode?(
+          <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={7}
+            style={{width:'100%',padding:'10px 12px',borderRadius:10,border:`1.5px solid ${C.accent}`,background:C.inputBg,fontSize:12,color:C.text,lineHeight:1.85,resize:'vertical',outline:'none',boxSizing:'border-box',marginBottom:6}}/>
+        ):(
+          <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',fontSize:12,color:C.textMid,lineHeight:1.85,marginBottom:6,whiteSpace:'pre-wrap',border:`1.5px solid ${C.border}`}}>{autoMsg}{'\n'}{link}</div>
+        )}
+        <div style={{display:'flex',gap:8,marginTop:8}}>
+          <Btn variant="ghost" onClick={onClose} style={{flex:1}}>닫기</Btn>
+          <Btn onClick={share} style={{flex:2}}>💬 카카오톡 공유</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── FormAdminScreen (대규모 관리자 대시보드) ──────────────────
 function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
   const [tab,setTab]=useState('submissions');
   const [shareOpen,setShareOpen]=useState(false);
+  const [dunningOpen,setDunningOpen]=useState(false);
   const [bankGuideOpen,setBankGuideOpen]=useState(()=>new Set());
   const toggleBankGuide=(id)=>setBankGuideOpen(prev=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;});
   const [uploadMode,setUploadMode]=useState('file');
@@ -3429,6 +3513,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
   const isClosed=form.status==='closed';
   const subs=form.submissions||[];
   const groups=profile?.groups||[];
+  const unpaidXList=subs.filter(s=>!s.paid&&s.paymentStatus!=='matched'&&s.paymentStatus!=='requested').map(s=>({name:s.name,amount:form.amount}));
 
   useEffect(()=>{api.getViewCount(null,form.code).then(c=>setViewCount(c));},[form.code]);
 
@@ -3470,8 +3555,11 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
       </div>
 
       {/* 공유 CTA */}
-      <div style={{padding:'8px 16px 0'}}>
-        <Btn onClick={()=>setShareOpen(true)}>👥 링크 공유</Btn>
+      <div style={{padding:'8px 16px 0',display:'flex',gap:8}}>
+        <Btn onClick={()=>setShareOpen(true)} style={{flex:2}}>👥 링크 공유</Btn>
+        {unpaidXList.length>0&&form.account?.bank&&(
+          <Btn variant="secondary" onClick={()=>setDunningOpen(true)} style={{flex:1}}>📢 독촉</Btn>
+        )}
       </div>
 
       {/* 탭 */}
@@ -3513,6 +3601,10 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
       </div>
 
       {shareOpen&&<FormShareModal form={form} showToast={showToast} onClose={()=>setShareOpen(false)}/>}
+      {dunningOpen&&form.account?.bank&&(
+        <DunningModal eventName={form.name} account={form.account} link={getLink(`form=${form.code}`)}
+          unpaidList={unpaidXList} showToast={showToast} onClose={()=>setDunningOpen(false)}/>
+      )}
     </div>
   );
 }
