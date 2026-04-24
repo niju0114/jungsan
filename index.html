@@ -1300,7 +1300,7 @@ function SetupScreen({nav,profile,saveProfile}){
   const [number,setNumber]=useState(profile.account?.number||'');
   const [holder,setHolder]=useState(profile.account?.holder||'');
   const [groups,setGroups]=useState(profile.groups?.length?profile.groups:[{id:'g1',name:'전체',rawText:'',members:[]}]);
-  const [activeG,setActiveG]=useState(0);
+  const [activeG,setActiveG]=useState(-1);
   const [saving,setSaving]=useState(false);
   const [saved,setSaved]=useState(false);
   const [addingGroup,setAddingGroup]=useState(false);
@@ -1316,7 +1316,9 @@ function SetupScreen({nav,profile,saveProfile}){
     setGroups(gs=>gs.map((g,i)=>i===idx?{...g,paidFeeMembers:keys}:g));
   };
   const togglePaidFee=(idx,key)=>{
-    setGroups(gs=>gs.map((g,i)=>i===idx?{...g,paidFeeMembers:(g.paidFeeMembers||[]).includes(key)?(g.paidFeeMembers||[]).filter(k=>k!==key):[...(g.paidFeeMembers||[]),key]}:g));
+    const realIdx=idx===-1?groups.findIndex(g=>g.members.some(m=>m.name+(m.sid?'_'+m.sid:'')=== key)):idx;
+    if(realIdx===-1) return;
+    setGroups(gs=>gs.map((g,i)=>i===realIdx?{...g,paidFeeMembers:(g.paidFeeMembers||[]).includes(key)?(g.paidFeeMembers||[]).filter(k=>k!==key):[...(g.paidFeeMembers||[]),key]}:g));
   };
   const textareaRef=useRef(null);
   const addGroup=()=>{
@@ -1335,7 +1337,8 @@ function SetupScreen({nav,profile,saveProfile}){
     await saveProfile({...profile,account:{bank,number,holder},groups});
     setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),2200);
   };
-  const cur=groups[activeG]||groups[0];
+  const cur=activeG===-1?null:(groups[activeG]||groups[0]);
+  const displayMembers=activeG===-1?groups.flatMap(g=>g.members||[]):(cur?.members||[]);
 
   return(
     <div className="fade-up screen" style={{background:C.pageBg}}>
@@ -1356,6 +1359,18 @@ function SetupScreen({nav,profile,saveProfile}){
             
           </div>
           <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:14}}>
+            {groups.length>1&&(
+              <button key="__all" onClick={()=>setActiveG(-1)} className="press" style={{
+                padding:'7px 14px',borderRadius:20,border:`2px solid ${activeG===-1?C.accent:C.border}`,
+                background:activeG===-1?C.accent:C.cardBg,color:activeG===-1?'#fff':C.textMid,
+                fontSize:13,fontWeight:700,cursor:'pointer',transition:'all 0.12s',display:'flex',alignItems:'center',gap:6,
+              }}>
+                전체
+                <span style={{background:activeG===-1?'rgba(255,255,255,0.3)':'#E8ECF4',borderRadius:10,padding:'1px 7px',fontSize:11}}>
+                  {groups.reduce((s,g)=>s+(g.members||[]).length,0)}
+                </span>
+              </button>
+            )}
             {groups.map((g,i)=>(
               <button key={g.id} onClick={()=>setActiveG(i)} className="press" style={{
                 padding:'7px 14px',borderRadius:20,border:`2px solid ${activeG===i?C.accent:C.border}`,
@@ -1378,40 +1393,46 @@ function SetupScreen({nav,profile,saveProfile}){
               <button onClick={()=>setAddingGroup(true)} className="press" style={{padding:'7px 14px',borderRadius:20,border:`2px dashed ${C.border}`,background:'transparent',color:C.textDim,fontSize:13,cursor:'pointer'}}>＋ 그룹 추가</button>
             )}
           </div>
-          {cur&&(
-            <div key={cur.id}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                <div style={{fontSize:13,fontWeight:700,color:C.textMid}}>{cur.name} 명단</div>
-                {groups.length>1&&<button onClick={()=>delGroup(activeG)} style={{color:C.red,background:'none',border:'none',fontSize:12,cursor:'pointer',fontWeight:600}}>그룹 삭제</button>}
-              </div>
-              <div style={{marginBottom:8,padding:'10px 12px',background:'#FFFBF0',borderRadius:10,border:`1px solid ${C.orange}30`,fontSize:12,color:C.textMid,lineHeight:1.9}}>
-                💡 아래 형식으로 붙여넣으세요<br/>
-                <span style={{fontFamily:'monospace',color:C.text}}>홍길동 20211234</span><br/>
-                <span style={{fontFamily:'monospace',color:C.text}}>김철수, 20221111</span><br/>
-                <span style={{fontFamily:'monospace',color:C.text}}>이영희 20231234</span>
-              </div>
-              <textarea ref={textareaRef} value={cur.rawText} onChange={e=>updateRaw(activeG,e.target.value)}
-                placeholder={`${cur.name} 명단 붙여넣기\n이름·학번, 탭·쉼표·공백 모두 인식`} rows={9}
-                style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:14,outline:'none',resize:'vertical',lineHeight:1.75}}
-                onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
-                onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
-              />
-              {cur.members.length>0&&(
+          {(activeG===-1||cur)&&(
+            <div key={activeG===-1?'__all':cur.id}>
+              {activeG!==-1&&(
+                <>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                    <div style={{fontSize:13,fontWeight:700,color:C.textMid}}>{cur.name} 명단</div>
+                    {groups.length>1&&<button onClick={()=>delGroup(activeG)} style={{color:C.red,background:'none',border:'none',fontSize:12,cursor:'pointer',fontWeight:600}}>그룹 삭제</button>}
+                  </div>
+                  <div style={{marginBottom:8,padding:'10px 12px',background:'#FFFBF0',borderRadius:10,border:`1px solid ${C.orange}30`,fontSize:12,color:C.textMid,lineHeight:1.9}}>
+                    💡 아래 형식으로 붙여넣으세요<br/>
+                    <span style={{fontFamily:'monospace',color:C.text}}>홍길동 20211234</span><br/>
+                    <span style={{fontFamily:'monospace',color:C.text}}>김철수, 20221111</span><br/>
+                    <span style={{fontFamily:'monospace',color:C.text}}>이영희 20231234</span>
+                  </div>
+                  <textarea ref={textareaRef} value={cur.rawText} onChange={e=>updateRaw(activeG,e.target.value)}
+                    placeholder={`${cur.name} 명단 붙여넣기\n이름·학번, 탭·쉼표·공백 모두 인식`} rows={9}
+                    style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:14,outline:'none',resize:'vertical',lineHeight:1.75}}
+                    onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
+                    onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
+                  />
+                </>
+              )}
+              {displayMembers.length>0&&(
                 <div style={{marginTop:12}}>
-                  <div style={{fontSize:12,color:C.green,fontWeight:700,marginBottom:8}}>✓ {cur.members.length}명 인식됐어요</div>
+                  <div style={{fontSize:12,color:C.green,fontWeight:700,marginBottom:8}}>✓ {displayMembers.length}명 인식됐어요</div>
                   <div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 28px',background:C.inputBg,padding:'6px 12px',borderBottom:`1px solid ${C.border}`}}>
                       <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>이름</span>
                       <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>학번</span>
                       <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>납부</span>
                     </div>
-                    {cur.members.map((m,i)=>{
+                    {displayMembers.map((m,i)=>{
                       const k=m.name+(m.sid?'_'+m.sid:'');
-                      const isPaid=(cur.paidFeeMembers||[]).includes(k);
+                      const isPaid=activeG===-1
+                        ?groups.some(g=>(g.paidFeeMembers||[]).includes(k))
+                        :(cur.paidFeeMembers||[]).includes(k);
                       return(
-                        <div key={m.name+(m.sid||'')} style={{
+                        <div key={m.name+(m.sid||'')+i} style={{
                           display:'grid',gridTemplateColumns:'1fr 1fr 28px',padding:'7px 12px',
-                          borderBottom:i<cur.members.length-1?`1px solid ${C.border}`:'none',
+                          borderBottom:i<displayMembers.length-1?`1px solid ${C.border}`:'none',
                           background:i%2===0?'#fff':C.pageBg,
                           alignItems:'center',
                         }}>
@@ -1438,8 +1459,8 @@ function SetupScreen({nav,profile,saveProfile}){
                     <div style={{fontSize:12,color:C.textDim}}>납부자 {groups.reduce((s,g)=>s+(g.paidFeeMembers||[]).length,0)}/{groups.reduce((s,g)=>s+g.members.length,0)}명</div>
                   </div>
                   <div style={{display:'flex',gap:6}}>
-                    <button onClick={()=>setGroups(gs=>gs.map(g=>({...g,paidFeeMembers:g.members.map(m=>m.name+(m.sid?'_'+m.sid:''))})))}
-                      style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.green}40`,background:groups.every(g=>g.members.length>0&&(g.paidFeeMembers||[]).length===g.members.length)?C.green+'22':C.inputBg,color:C.green,fontSize:12,fontWeight:700,cursor:'pointer'}}>전원 납부자</button>
+                    <button onClick={()=>setGroups(gs=>gs.map(g=>({...g,paidFeeMembers:(g.members||[]).map(m=>m.name+(m.sid?'_'+m.sid:''))})))}
+                      style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.green}40`,background:groups.every(g=>(g.members||[]).length>0&&(g.paidFeeMembers||[]).length===(g.members||[]).length)?C.green+'22':C.inputBg,color:C.green,fontSize:12,fontWeight:700,cursor:'pointer'}}>전원 납부자</button>
                     <button onClick={()=>setGroups(gs=>gs.map(g=>({...g,paidFeeMembers:[]})))}
                       style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontSize:12,fontWeight:700,cursor:'pointer'}}>전원 미납부자</button>
                     <button onClick={()=>setPfmOpen(true)}
