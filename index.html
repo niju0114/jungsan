@@ -2172,7 +2172,6 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   const [selectedKey,setSelectedKey]=useState(resolved.key);
   const [dupWarning,setDupWarning]=useState(resolved.isDup);
   const [searchQ,setSearchQ]=useState(resolved.isDup?participantKey:'');
-  const [dialog,setDialog]=useState(false);
   const [splashDone,setSplashDone]=useState(()=>!!localStorage.getItem('splash_event_'+initEvent.code));
 
   useEffect(()=>setEvent(initEvent),[initEvent]);
@@ -2187,12 +2186,6 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   const isPaid=event.payments?.[selectedKey]?.paid;
   const myAmount=amounts[selectedKey]||0;
   const myRounds=(event.rounds||[]).filter(r=>r.members.includes(selectedKey));
-
-  const markPaid=async()=>{
-    await api.markEventPaid(event.code,selectedKey,true);
-    setEvent(ev=>({...ev,payments:{...ev.payments,[selectedKey]:{paid:true,time:new Date().toISOString(),by:'self'}}}));
-    setDialog(false);showToast('확인 대기 중이에요 ✓');
-  };
 
   if(!selectedKey){
     const attendingMembers=event.members.filter(k=>event.attendance[k]!==false);
@@ -2352,12 +2345,9 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
               )}
             </div>
           ):(
-            <div>
-              <div style={{background:C.orangeBg,borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
-                <span style={{fontSize:14,flexShrink:0}}>⚠️</span>
-                <div style={{fontSize:12,color:C.orange,fontWeight:700,lineHeight:1.5}}>반드시 본인 이름으로 입금해주세요</div>
-              </div>
-              <Btn variant="primary" onClick={()=>setDialog('confirm')} style={{fontSize:18,padding:'18px'}}>보냈어요</Btn>
+            <div style={{background:C.orangeBg,borderRadius:10,padding:'10px 14px',display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:14,flexShrink:0}}>⚠️</span>
+              <div style={{fontSize:12,color:C.orange,fontWeight:700,lineHeight:1.5}}>반드시 본인 이름으로 입금해주세요</div>
             </div>
           )}
         </Card>
@@ -2386,21 +2376,6 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
         </div>
       </div>
 
-            {dialog==='confirm'&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)',padding:'0 24px'}} onClick={()=>setDialog(false)}>
-          <div className="fade-up" style={{background:C.cardBg,borderRadius:20,padding:'28px 24px',width:'100%',maxWidth:360,boxShadow:'0 8px 32px rgba(0,0,0,0.2)'}} onClick={e=>e.stopPropagation()}>
-            <div style={{textAlign:'center',marginBottom:20}}>
-              <div style={{fontSize:32,marginBottom:10}}>💳</div>
-              <div style={{fontWeight:900,color:C.text,fontSize:18,marginBottom:6}}>송금 하셨나요?</div>
-              <div style={{fontSize:13,color:C.textMid}}>총무가 확인 후 최종 처리돼요</div>
-            </div>
-            <div style={{display:'flex',gap:10}}>
-              <Btn variant="ghost" onClick={()=>setDialog(false)} style={{flex:1}}>아니요</Btn>
-              <Btn variant="green" onClick={markPaid} style={{flex:2}}>네, 보냈어요!</Btn>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -3459,15 +3434,6 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
     setLoading(false);
   };
 
-  // 제출 완료 화면
-  const markPaidRequest=async()=>{
-    if(!mySubmission) return;
-    await api.requestFormPayment(form.code,mySubmission.createdAt);
-    const updated={...mySubmission,paymentStatus:'requested',requestedAt:new Date().toISOString()};
-    setMySubmission(updated);
-    showToast('입금 완료 요청이 전달됐어요');
-  };
-
   if(submitted&&mySubmission){
     const isConfirmed=mySubmission.paid||mySubmission.paymentStatus==='matched';
     const isRequested=mySubmission.paymentStatus==='requested';
@@ -3536,14 +3502,11 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
               </div>
             )}
 
-            {/* 입금 완료 요청 */}
-            {isRequested?(
+            {isRequested&&(
               <div style={{textAlign:'center',padding:'14px',background:C.greenBg,borderRadius:14}}>
                 <div style={{fontWeight:700,color:C.green,fontSize:14}}>✓ 입금 완료 요청됨</div>
                 <div style={{fontSize:12,color:C.textMid,marginTop:4}}>총무가 확인하면 확정돼요</div>
               </div>
-            ):(
-              <Btn variant="green" onClick={markPaidRequest}>입금 완료했어요</Btn>
             )}
           </Card>
         )}
