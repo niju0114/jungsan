@@ -192,6 +192,15 @@ const formToRow = (f, uid) => ({
 // 포매팅
 const genCode = () => { const ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; return Array.from({length:6},()=>ch[Math.floor(Math.random()*ch.length)]).join(''); };
 const fmtTime = iso => { const d=new Date(iso); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; };
+const fmtRelTime = iso => {
+  const now=new Date(),d=new Date(iso),diff=now-d;
+  if(diff<60000) return '방금 전';
+  if(diff<3600000) return `${Math.floor(diff/60000)}분 전`;
+  if(diff<86400000) return `${Math.floor(diff/3600000)}시간 전`;
+  const ampm=d.getHours()<12?'오전':'오후';
+  const h=d.getHours()%12||12;
+  return `${d.getMonth()+1}/${d.getDate()} ${ampm} ${h}:${String(d.getMinutes()).padStart(2,'0')}`;
+};
 const fmtKRW = n => (n||0).toLocaleString('ko-KR')+'원';
 const getLink = (params) => `${window.location.origin}${window.location.pathname}?${params}`;
 
@@ -3130,7 +3139,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
               </div>
             ))}
             <div style={{fontSize:11,color:C.textDim,marginTop:4,display:'flex',gap:8}}>
-              {fmtTime(s.createdAt)}
+              {fmtRelTime(s.createdAt)}
               {isPaid&&s.matchedAt&&<span style={{color:C.green}}>입금 {fmtTime(s.matchedAt)}</span>}
               {s.matchedBy==='auto'&&<span style={{color:C.green}}>자동매칭</span>}
               {s.matchedBy==='manual'&&<span style={{color:C.accent}}>수동확인</span>}
@@ -3377,7 +3386,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
             <div>
               <div style={{fontSize:13,color:C.textDim}}>{form.date}</div>
-              <div style={{fontSize:22,fontWeight:900,color:C.text}}>{fmtKRW(form.amount)}</div>
+              <div style={{fontSize:22,fontWeight:900,color:C.text}}>{form.amount?fmtKRW(form.amount):'참가비 없음'}</div>
             </div>
             <div style={{textAlign:'right'}}>
               <div style={{fontSize:28,fontWeight:900,color:C.accent}}>{subs.length}{form.maxPeople?`/${form.maxPeople}`:''}</div>
@@ -3387,15 +3396,15 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
           <div style={{display:'flex',gap:8}}>
             <div style={{flex:1,background:C.accentBg,borderRadius:12,padding:'10px',textAlign:'center'}}>
               <div style={{fontSize:20,fontWeight:900,color:C.accent}}>{viewCount}</div>
-              <div style={{fontSize:11,color:C.accent,fontWeight:600}}>👀 조회</div>
+              <div style={{fontSize:11,color:C.accent,fontWeight:600}}>👀 조회 수</div>
             </div>
-            <div style={{flex:1,background:C.greenBg,borderRadius:12,padding:'10px',textAlign:'center'}}>
-              <div style={{fontSize:20,fontWeight:900,color:C.green}}>{paidCount}</div>
-              <div style={{fontSize:11,color:C.green,fontWeight:600}}>확정</div>
+            <div style={{flex:1,background:C.accentBg,borderRadius:12,padding:'10px',textAlign:'center'}}>
+              <div style={{fontSize:20,fontWeight:900,color:C.accent}}>{subs.length}</div>
+              <div style={{fontSize:11,color:C.accent,fontWeight:600}}>신청 수</div>
             </div>
-            <div style={{flex:1,background:C.orangeBg,borderRadius:12,padding:'10px',textAlign:'center'}}>
-              <div style={{fontSize:20,fontWeight:900,color:C.orange}}>{subs.length-paidCount}</div>
-              <div style={{fontSize:11,color:C.orange,fontWeight:600}}>대기</div>
+            <div style={{flex:1,background:C.redBg,borderRadius:12,padding:'10px',textAlign:'center'}}>
+              <div style={{fontSize:20,fontWeight:900,color:C.red}}>{subs.filter(s=>!(s.paid||s.paymentStatus==='matched')).length}</div>
+              <div style={{fontSize:11,color:C.red,fontWeight:600}}>미입금 수</div>
             </div>
           </div>
         </Card>
