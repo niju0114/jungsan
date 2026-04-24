@@ -3337,9 +3337,22 @@ function FormShareTab({form, showToast}){
   );
 }
 
+function FormShareModal({form, showToast, onClose}){
+  return(
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)'}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:480,background:C.cardBg,borderRadius:'24px 24px 0 0',padding:'24px 20px 32px',animation:'slideUp 0.22s ease'}}>
+        <div style={{width:40,height:4,borderRadius:2,background:C.border,margin:'0 auto 20px'}}/>
+        <div style={{fontWeight:800,fontSize:16,color:C.text,marginBottom:16}}>링크 공유</div>
+        <FormShareTab form={form} showToast={showToast}/>
+      </div>
+    </div>
+  );
+}
+
 // ── FormAdminScreen (대규모 관리자 대시보드) ──────────────────
 function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
   const [tab,setTab]=useState('submissions');
+  const [shareOpen,setShareOpen]=useState(false);
   const [bankGuideOpen,setBankGuideOpen]=useState(()=>new Set());
   const toggleBankGuide=(id)=>setBankGuideOpen(prev=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;});
   const [uploadMode,setUploadMode]=useState('file');
@@ -3347,7 +3360,6 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
   const fileRef=useRef(null);
   const isClosed=form.status==='closed';
   const subs=form.submissions||[];
-  const paidCount=subs.filter(s=>s.paid||s.paymentStatus==='matched').length;
   const groups=profile?.groups||[];
 
   useEffect(()=>{api.getViewCount(null,form.code).then(c=>setViewCount(c));},[form.code]);
@@ -3389,9 +3401,14 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
         </Card>
       </div>
 
+      {/* 공유 CTA */}
+      <div style={{padding:'8px 16px 0'}}>
+        <Btn onClick={()=>setShareOpen(true)}>👥 링크 공유</Btn>
+      </div>
+
       {/* 탭 */}
       <div style={{display:'flex',padding:'8px 16px',gap:6}}>
-        {[['submissions','신청 목록'],['verify','입금 대조'],['share','공유']].map(([key,label])=>(
+        {[['submissions','신청 목록'],['verify','입금 대조']].map(([key,label])=>(
           <button key={key} onClick={()=>setTab(key)} style={{
             flex:1,padding:'10px 4px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',
             background:tab===key?C.accent:'#fff',color:tab===key?'#fff':C.textMid,
@@ -3415,7 +3432,6 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
             onReset={()=>handlers.setMatchResults(null)} onCopyNudge={handlers.copyNudge}
             onTogglePaid={handlers.togglePaid}/>
         )}
-        {tab==='share'&&<FormShareTab form={form} showToast={showToast}/>}
       </div>
 
       {/* 하단 마감 버튼 */}
@@ -3426,6 +3442,8 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile}){
           <Btn variant="danger" onClick={handlers.closeForm}>신청 마감하기</Btn>
         )}
       </div>
+
+      {shareOpen&&<FormShareModal form={form} showToast={showToast} onClose={()=>setShareOpen(false)}/>}
     </div>
   );
 }
