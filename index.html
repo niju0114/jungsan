@@ -2643,7 +2643,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
               <div key={k} style={{background:oxBg,borderRadius:14,padding:'14px 6px',textAlign:'center',border:`2px solid ${isMe?C.accent+'80':paid?C.green+'40':req?C.yellow+'40':C.red+'30'}`,animation:paid?'none':'borderPulse 1.8s ease infinite',transition:'background 0.3s'}}>
                 <div style={{fontSize:isMe&&!paid?28:22,fontWeight:900,color:oxColor,lineHeight:1,animation:paid?'none':'pulse 1.2s ease infinite'}}>{paid?'O':req?'△':'X'}</div>
                 <div style={{fontSize:11,color:isMe?C.accent:C.text,fontWeight:isMe?900:600,marginTop:6,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',padding:'0 4px'}}>{mm[k]||k}</div>
-                <div style={{fontSize:10,color:C.textDim,marginTop:3}}>{fmtKRW(amounts[k]||0)}</div>
+                <div style={{fontSize:10,color:C.textDim,marginTop:3,minHeight:14}}>{isMe?fmtKRW(amounts[k]||0):''}</div>
               </div>
             );
           })}
