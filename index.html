@@ -2061,7 +2061,7 @@ function StatusSection({event,updateEvent,groups}){
     return(
       <div onClick={()=>toggle(k)} className="press" style={{background:C.cardBg,borderRadius:12,padding:'11px 14px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:paid?`0 0 0 2px ${C.green}40`:reqested?`0 0 0 2px ${C.yellow}40`:C.shadow,cursor:'pointer'}}>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
-          <div style={{width:32,height:32,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:paid?C.green:reqested?C.yellowBg:C.redBg,color:paid?'#fff':reqested?C.yellow:C.red,fontWeight:900,fontSize:14}}>{paid?'O':'X'}</div>
+          <div style={{width:32,height:32,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:paid?C.green:reqested?C.yellowBg:C.redBg,color:paid?'#fff':reqested?C.yellow:C.red,fontWeight:900,fontSize:14}}>{paid?'O':reqested?'△':'X'}</div>
           <div>
             <div style={{display:'flex',alignItems:'center',gap:6}}>
               <span style={{fontWeight:600,color:C.text,fontSize:13}}>{displayName}</span>
@@ -2100,7 +2100,7 @@ function StatusSection({event,updateEvent,groups}){
       </div>
       {requestedKeys.length>0&&(
         <button onClick={()=>setConfirmBulk(true)} className="press" style={{width:'100%',padding:'12px',borderRadius:12,background:C.yellowBg,border:`1.5px solid ${C.yellow}40`,color:C.yellow,fontWeight:800,fontSize:13,cursor:'pointer',marginBottom:10}}>
-          요청됨 {requestedKeys.length}명 전체 확인 완료
+          남은 요청 {requestedKeys.length}명 모두 확인 완료
         </button>
       )}
       {confirmBulk&&(
@@ -2108,8 +2108,8 @@ function StatusSection({event,updateEvent,groups}){
           <div onClick={e=>e.stopPropagation()} style={{background:C.cardBg,borderRadius:20,padding:'28px 24px',width:'100%',maxWidth:360}}>
             <div style={{textAlign:'center',marginBottom:20}}>
               <div style={{fontSize:28,marginBottom:10}}>✅</div>
-              <div style={{fontWeight:900,color:C.text,fontSize:17,marginBottom:6}}>요청된 {requestedKeys.length}명을 모두{'\n'}확인 완료로 처리할까요?</div>
-              <div style={{fontSize:13,color:C.textMid}}>이후 은행 대조 후 예외만 X로 되돌리세요</div>
+              <div style={{fontWeight:900,color:C.text,fontSize:17,marginBottom:6}}>남은 요청 {requestedKeys.length}명을 모두{'\n'}확인 완료로 처리할까요?</div>
+              <div style={{fontSize:13,color:C.textMid}}>미입금은 먼저 X로 표시한 뒤 이 버튼을 누르세요</div>
             </div>
             <div style={{display:'flex',gap:10}}>
               <Btn variant="ghost" onClick={()=>setConfirmBulk(false)} style={{flex:1}}>취소</Btn>
@@ -2413,7 +2413,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
             const oxBg=paid?C.greenBg:req?C.yellowBg:C.cardBg;
             return(
               <div key={k} style={{background:oxBg,borderRadius:14,padding:'14px 6px',textAlign:'center',border:`2px solid ${isMe?C.accent+'80':paid?C.green+'40':req?C.yellow+'40':C.red+'30'}`,animation:paid?'none':'borderPulse 1.8s ease infinite',transition:'background 0.3s'}}>
-                <div style={{fontSize:isMe&&!paid?28:22,fontWeight:900,color:oxColor,lineHeight:1,animation:paid?'none':'pulse 1.2s ease infinite'}}>{paid?'O':'X'}</div>
+                <div style={{fontSize:isMe&&!paid?28:22,fontWeight:900,color:oxColor,lineHeight:1,animation:paid?'none':'pulse 1.2s ease infinite'}}>{paid?'O':req?'△':'X'}</div>
                 <div style={{fontSize:11,color:isMe?C.accent:C.text,fontWeight:isMe?900:600,marginTop:6,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',padding:'0 4px'}}>{mm[k]||k}</div>
                 <div style={{fontSize:10,color:C.textDim,marginTop:3}}>{fmtKRW(amounts[k]||0)}</div>
               </div>
@@ -3060,7 +3060,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
       />
       {requestedCount>0&&(
         <button onClick={()=>setConfirmBulk(true)} className="press" style={{width:'100%',padding:'12px',borderRadius:12,background:C.yellowBg,border:`1.5px solid ${C.yellow}40`,color:C.yellow,fontWeight:800,fontSize:13,cursor:'pointer',marginBottom:8}}>
-          요청됨 {requestedCount}명 전체 확인 완료
+          남은 요청 {requestedCount}명 모두 확인 완료
         </button>
       )}
       {confirmBulk&&(
@@ -3068,8 +3068,8 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
           <div onClick={e=>e.stopPropagation()} style={{background:C.cardBg,borderRadius:20,padding:'28px 24px',width:'100%',maxWidth:360}}>
             <div style={{textAlign:'center',marginBottom:20}}>
               <div style={{fontSize:28,marginBottom:10}}>✅</div>
-              <div style={{fontWeight:900,color:C.text,fontSize:17,marginBottom:6}}>요청된 {requestedCount}명을 모두{'\n'}확인 완료로 처리할까요?</div>
-              <div style={{fontSize:13,color:C.textMid}}>이후 은행 대조 후 예외만 X로 되돌리세요</div>
+              <div style={{fontWeight:900,color:C.text,fontSize:17,marginBottom:6}}>남은 요청 {requestedCount}명을 모두{'\n'}확인 완료로 처리할까요?</div>
+              <div style={{fontSize:13,color:C.textMid}}>미입금은 먼저 X로 표시한 뒤 이 버튼을 누르세요</div>
             </div>
             <div style={{display:'flex',gap:10}}>
               <Btn variant="ghost" onClick={()=>setConfirmBulk(false)} style={{flex:1}}>취소</Btn>
@@ -3121,7 +3121,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
                 background:isPaid?C.green:isRequested?C.yellowBg:C.redBg,
                 color:isPaid?'#fff':isRequested?C.yellow:C.red,border:'none',
               }}>
-                {isPaid?'O':'X'}
+                {isPaid?'O':isRequested?'△':'X'}
               </button>
             </div>
             {Object.entries(s.data||{}).filter(([k])=>!['name','phone'].includes(k)).map(([k,v])=>(
