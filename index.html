@@ -3618,6 +3618,67 @@ function FormShareModal({form, showToast, onClose}){
   );
 }
 
+function PasteFeeModal({event, updateEvent, showToast, onClose}){
+  const mm=event.memberMap||{};
+  const [pasteText,setPasteText]=useState('');
+  const [result,setResult]=useState(null);
+
+  const apply=()=>{
+    const names=pasteText.split('\n').map(s=>s.trim()).filter(Boolean);
+    if(!names.length) return;
+    const nameToKeys={};
+    event.members.forEach(k=>{
+      const norm=(mm[k]||k).replace(/\s/g,'');
+      if(!nameToKeys[norm]) nameToKeys[norm]=[];
+      nameToKeys[norm].push(k);
+    });
+    const matchedKeys=new Set();
+    const unmatched=[];
+    names.forEach(raw=>{
+      const norm=raw.replace(/\s/g,'');
+      if(nameToKeys[norm]?.length){nameToKeys[norm].forEach(k=>matchedKeys.add(k));}
+      else unmatched.push(raw);
+    });
+    const newMeta={};
+    event.members.forEach(k=>{
+      if(matchedKeys.has(k)) newMeta[k]={...(event.memberMeta?.[k]||{}),paidFee:true};
+      else newMeta[k]=event.memberMeta?.[k]||{};
+    });
+    updateEvent({...event,memberMeta:newMeta});
+    setResult({matched:[...matchedKeys],unmatched});
+    showToast(`${matchedKeys.size}명 납부자 처리됨${unmatched.length?` (매칭 안 된 ${unmatched.length}명)`:'!'}`);
+  };
+
+  return(
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(17,24,39,0.6)',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:100,backdropFilter:'blur(4px)'}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:480,background:C.cardBg,borderRadius:'24px 24px 0 0',padding:'24px 20px 32px',animation:'slideUp 0.22s ease'}}>
+        <div style={{width:40,height:4,borderRadius:2,background:C.border,margin:'0 auto 20px'}}/>
+        <div style={{fontWeight:800,fontSize:16,color:C.text,marginBottom:6}}>📋 납부자 명단 붙여넣기</div>
+        <div style={{fontSize:12,color:C.textDim,marginBottom:14}}>납부자 이름을 한 줄씩 붙여넣어 주세요. 이미 납부로 설정된 멤버는 그대로 유지돼요.</div>
+        <textarea
+          value={pasteText}
+          onChange={e=>setPasteText(e.target.value)}
+          placeholder={'홍길동\n김철수\n박영희'}
+          rows={6}
+          style={{width:'100%',padding:'10px 12px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,lineHeight:1.8,resize:'vertical',outline:'none',boxSizing:'border-box',marginBottom:10}}
+        />
+        {result&&result.unmatched.length>0&&(
+          <div style={{background:C.orangeBg,borderRadius:10,padding:'10px 12px',marginBottom:10}}>
+            <div style={{fontSize:12,color:C.orange,fontWeight:700,marginBottom:6}}>매칭 안 된 이름 ({result.unmatched.length}명)</div>
+            {result.unmatched.map((n,i)=>(
+              <div key={i} style={{fontSize:12,color:C.orange}}>• {n}</div>
+            ))}
+          </div>
+        )}
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={onClose} style={{flex:1,padding:'12px',borderRadius:12,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontSize:14,fontWeight:700,cursor:'pointer'}}>닫기</button>
+          <button onClick={apply} disabled={!pasteText.trim()} style={{flex:2,padding:'12px',borderRadius:12,border:'none',background:pasteText.trim()?C.accent:'#D1D5DB',color:'#fff',fontSize:14,fontWeight:700,cursor:pasteText.trim()?'pointer':'default'}}>적용</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DunningModal({eventName, account, link, unpaidList, showToast, onClose}){
   const [withNames,setWithNames]=useState(false);
   const [editMode,setEditMode]=useState(false);
