@@ -1315,6 +1315,9 @@ function SetupScreen({nav,profile,saveProfile}){
   const updatePaidFeeMembers=(idx,keys)=>{
     setGroups(gs=>gs.map((g,i)=>i===idx?{...g,paidFeeMembers:keys}:g));
   };
+  const togglePaidFee=(idx,key)=>{
+    setGroups(gs=>gs.map((g,i)=>i===idx?{...g,paidFeeMembers:(g.paidFeeMembers||[]).includes(key)?(g.paidFeeMembers||[]).filter(k=>k!==key):[...(g.paidFeeMembers||[]),key]}:g));
+  };
   const textareaRef=useRef(null);
   const addGroup=()=>{
     if(!newGName.trim()) return;
@@ -1397,20 +1400,34 @@ function SetupScreen({nav,profile,saveProfile}){
                 <div style={{marginTop:12}}>
                   <div style={{fontSize:12,color:C.green,fontWeight:700,marginBottom:8}}>✓ {cur.members.length}명 인식됐어요</div>
                   <div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',background:C.inputBg,padding:'6px 12px',borderBottom:`1px solid ${C.border}`}}>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 28px',background:C.inputBg,padding:'6px 12px',borderBottom:`1px solid ${C.border}`}}>
                       <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>이름</span>
                       <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>학번</span>
+                      <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>납부</span>
                     </div>
-                    {cur.members.map((m,i)=>(
-                      <div key={m.name+(m.sid||'')} style={{
-                        display:'grid',gridTemplateColumns:'1fr 1fr',padding:'7px 12px',
-                        borderBottom:i<cur.members.length-1?`1px solid ${C.border}`:'none',
-                        background:i%2===0?'#fff':C.pageBg,
-                      }}>
-                        <span style={{fontSize:13,fontWeight:600,color:C.text}}>{m.name}</span>
-                        <span style={{fontSize:13,color:m.sid?C.textMid:C.textDim}}>{m.sid||'—'}</span>
-                      </div>
-                    ))}
+                    {cur.members.map((m,i)=>{
+                      const k=m.name+(m.sid?'_'+m.sid:'');
+                      const isPaid=(cur.paidFeeMembers||[]).includes(k);
+                      return(
+                        <div key={m.name+(m.sid||'')} style={{
+                          display:'grid',gridTemplateColumns:'1fr 1fr 28px',padding:'7px 12px',
+                          borderBottom:i<cur.members.length-1?`1px solid ${C.border}`:'none',
+                          background:i%2===0?'#fff':C.pageBg,
+                          alignItems:'center',
+                        }}>
+                          <span style={{fontSize:13,fontWeight:600,color:C.text}}>{m.name}</span>
+                          <span style={{fontSize:13,color:m.sid?C.textMid:C.textDim}}>{m.sid||'—'}</span>
+                          <div onClick={()=>togglePaidFee(activeG,k)} style={{
+                            width:20,height:20,borderRadius:6,
+                            border:`2px solid ${isPaid?C.green:C.border}`,
+                            background:isPaid?C.green:'transparent',
+                            display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',
+                          }}>
+                            {isPaid&&<span style={{color:'#fff',fontSize:11,fontWeight:700}}>✓</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
