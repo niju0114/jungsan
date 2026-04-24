@@ -1442,7 +1442,7 @@ function SetupScreen({nav,profile,saveProfile}){
                           {activeG===-1&&(
                             <div onClick={()=>togglePaidFee(activeG,k)} style={{
                               width:20,height:20,borderRadius:6,
-                              border:`2px solid ${isPaid?C.green:C.border}`,
+                              border:`2px solid ${isPaid?C.green:C.textDim}`,
                               background:isPaid?C.green:'transparent',
                               display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',
                             }}>
