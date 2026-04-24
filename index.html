@@ -1668,7 +1668,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
         <div style={{padding:'16px 18px'}}>
           {slide===0&&(
             <div className="fade-up">
-              <AttendanceSection event={event} updateEvent={update} onDone={()=>setSlide(1)} groups={profile?.groups}/>
+              <AttendanceSection event={event} updateEvent={update} onDone={()=>setSlide(1)} groups={profile?.groups} showToast={showToast}/>
             </div>
           )}
           {slide===1&&(
@@ -1703,7 +1703,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
 
 
 // ── AttendanceSection ──────────────────────────────────────
-function AttendanceSection({event,updateEvent,onDone,groups}){
+function AttendanceSection({event,updateEvent,onDone,groups,showToast}){
   const [search,setSearch]=useState('');
   const mm=event.memberMap||{};
 
@@ -1722,6 +1722,7 @@ function AttendanceSection({event,updateEvent,onDone,groups}){
     updateEvent({...event,memberMeta:meta});
   };
 
+  const [pasteOpen,setPasteOpen]=useState(false);
   const allPresent=event.members.every(k=>event.attendance[k]!==false);
   const filtered=event.members.filter(k=>!search||(mm[k]||k).includes(search));
   const paidFeeCount=event.members.filter(k=>event.memberMeta?.[k]?.paidFee).length;
@@ -1788,14 +1789,12 @@ function AttendanceSection({event,updateEvent,onDone,groups}){
       </button>
 
       {/* 학비 일괄 버튼 */}
-      <div style={{display:'flex',gap:6,marginBottom:12}}>
-        <button onClick={()=>setAllPaidFee(true)} style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.green}40`,background:paidFeeCount===event.members.length?C.green+'22':C.inputBg,color:C.green,fontSize:12,fontWeight:700,cursor:'pointer'}}>
-          학비 전체 납부 ({paidFeeCount}/{event.members.length})
-        </button>
-        <button onClick={()=>setAllPaidFee(false)} style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontSize:12,fontWeight:700,cursor:'pointer'}}>
-          전체 미납 초기화
-        </button>
+      <div style={{display:'flex',gap:6,marginBottom:8}}>
+        <button onClick={()=>setAllPaidFee(true)} style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.green}40`,background:paidFeeCount===event.members.length?C.green+'22':C.inputBg,color:C.green,fontSize:12,fontWeight:700,cursor:'pointer'}}>전원 납부자</button>
+        <button onClick={()=>setAllPaidFee(false)} style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontSize:12,fontWeight:700,cursor:'pointer'}}>전원 미납부자</button>
+        <button onClick={()=>setPasteOpen(true)} style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.accent}40`,background:C.accentBg,color:C.accent,fontSize:12,fontWeight:700,cursor:'pointer'}}>명단 붙여넣기</button>
       </div>
+      <div style={{fontSize:11,color:C.textDim,textAlign:'right',marginBottom:8}}>납부자 {paidFeeCount}/{event.members.length}명</div>
 
       <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="이름 검색..."
         style={{width:'100%',padding:'10px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:13,outline:'none',marginBottom:10}}
@@ -1817,6 +1816,7 @@ function AttendanceSection({event,updateEvent,onDone,groups}){
       </div>
 
       <div style={{marginTop:4,fontSize:11,color:C.textDim,textAlign:'center'}}>탭하면 불참 처리돼요 · 학비 배지 탭으로 납부 여부 설정</div>
+      {pasteOpen&&<PasteFeeModal event={event} updateEvent={updateEvent} showToast={showToast} onClose={()=>setPasteOpen(false)}/>}
     </div>
   );
 }
