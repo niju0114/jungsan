@@ -3321,6 +3321,12 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
     searchQ, setSearchQ, groupFilter, setGroupFilter,
     handlers:{togglePaid, bulkConfirmRequested, handleExcel, applyMatched, copyNudge, handleDunning,
       setMatchResults,
+      undoPaid:async(idx,prevStatus)=>{
+        const newSubs=[...subs];
+        const s=newSubs[idx];
+        newSubs[idx]={...s,paid:false,paymentStatus:prevStatus||'pending',matchedBy:null,matchedAt:null};
+        await updateForm({...form,submissions:newSubs});
+      },
       closeForm:async()=>{if(!window.confirm('신청을 마감할까요?')) return; await updateForm({...form,status:'closed'}); showToast('신청이 마감됐어요');},
       reopenForm:async()=>{await updateForm({...form,status:'open'}); showToast('신청이 다시 열렸어요');},
       copyLink:()=>{copyText(getLink(`form=${form.code}`)); showToast('링크가 복사됐어요!');},
@@ -3334,10 +3340,24 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
 
 function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCount, groups,
                          searchQ, setSearchQ, groupFilter, setGroupFilter,
-                         onTogglePaid, onBulkConfirm, onCardDunning}){
+                         onTogglePaid, onUndoPaid, onBulkConfirm, onCardDunning}){
   const [sortByTime,setSortByTime]=useState(true);
   const [confirmBulk,setConfirmBulk]=useState(false);
   const [showDone,setShowDone]=useState(false);
+  const [undoToast,setUndoToast]=useState(null);
+  const undoTimerRef=useRef(null);
+
+  const showUndoToast=(undoFn)=>{
+    if(undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoToast(()=>undoFn);
+    undoTimerRef.current=setTimeout(()=>setUndoToast(null),5000);
+  };
+
+  const handleConfirm=(s)=>{
+    const prevStatus=s.paymentStatus;
+    onTogglePaid(s._idx);
+    showUndoToast(()=>onUndoPaid(s._idx,prevStatus));
+  };
 
   if(subs.length===0) return(
     <div style={{textAlign:'center',padding:'40px 0'}}>
@@ -3356,6 +3376,10 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
 
   const cardBtn=(label,onClick,style)=>(
     <button onClick={onClick} style={{fontSize:11,borderRadius:6,padding:'3px 8px',cursor:'pointer',fontWeight:700,...style}}>{label}</button>
+  );
+
+  const confirmBtn=(s)=>(
+    <button onClick={()=>handleConfirm(s)} style={{fontSize:12,borderRadius:6,padding:'5px 12px',cursor:'pointer',fontWeight:700,background:C.green,color:'#fff',border:'none'}}>확인</button>
   );
 
   const renderCard=(s,section)=>(
@@ -3377,49 +3401,56 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
           {section==='done'&&s.matchedAt&&<span style={{color:C.green}}>입금 {fmtTime(s.matchedAt)}</span>}
         </div>
         <div style={{display:'flex',gap:6}}>
-          {section==='requested'&&cardBtn('확인',()=>onTogglePaid(s._idx),{color:C.green,background:C.greenBg,border:'none'})}
+          {section==='requested'&&confirmBtn(s)}
           {section==='unpaid'&&<>
-            {cardBtn('확인',()=>onTogglePaid(s._idx),{color:C.green,background:C.greenBg,border:'none'})}
+            {confirmBtn(s)}
             {onCardDunning&&cardBtn('독촉',()=>onCardDunning(s),{color:C.purple,background:'transparent',border:`1px solid ${C.purple}40`})}
           </>}
+          {section==='done'&&onUndoPaid&&(
+            cardBtn('되돌리기',()=>onUndoPaid(s._idx,'pending'),{color:C.textDim,background:'transparent',border:`1px solid ${C.border}`})
+          )}
         </div>
       </div>
     </div>
   );
 
   return(
-    <div>
-      <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름 또는 연락처 검색"
-        style={{width:'100%',padding:'10px 14px',background:'#fff',border:'none',borderRadius:12,fontSize:14,outline:'none',marginBottom:8,color:C.text}}
-        onFocus={e=>e.target.style.boxShadow=`0 0 0 2px ${C.accent}40`}
-        onBlur={e=>e.target.style.boxShadow='none'}
-      />
-      <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:6,marginBottom:8}}>
-        {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>⏱ 시간순</span>}
-        <button onClick={()=>setSortByTime(v=>!v)} style={{
-          width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
-          background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
-        }}>
-          <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
-            left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
-        </button>
-      </div>
-      {groups.length>0&&(
-        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:10}}>
-          <button onClick={()=>setGroupFilter('all')} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter==='all'?C.accent:'#fff',color:groupFilter==='all'?'#fff':C.textMid,border:'none'}}>
-            전체 {subs.length}
-          </button>
-          {groups.map(g=>groupCounts[g.name]?(
-            <button key={g.name} onClick={()=>setGroupFilter(f=>f===g.name?'all':g.name)} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter===g.name?C.accent:'#fff',color:groupFilter===g.name?'#fff':C.textMid,border:'none'}}>
-              {g.name} {groupCounts[g.name]}
+    <div style={{position:'relative'}}>
+      {subs.length>=10&&(
+        <>
+          <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름 또는 연락처 검색"
+            style={{width:'100%',padding:'10px 14px',background:'#fff',border:'none',borderRadius:12,fontSize:14,outline:'none',marginBottom:8,color:C.text}}
+            onFocus={e=>e.target.style.boxShadow=`0 0 0 2px ${C.accent}40`}
+            onBlur={e=>e.target.style.boxShadow='none'}
+          />
+          <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:6,marginBottom:8}}>
+            {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>⏱ 시간순</span>}
+            <button onClick={()=>setSortByTime(v=>!v)} style={{
+              width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
+              background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+            }}>
+              <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
+                left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
             </button>
-          ):null)}
-          {unregisteredCount>0&&(
-            <button onClick={()=>setGroupFilter(f=>f==='unregistered'?'all':'unregistered')} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter==='unregistered'?C.red:'#fff',color:groupFilter==='unregistered'?'#fff':C.textDim,border:'none'}}>
-              미등록 {unregisteredCount}
-            </button>
+          </div>
+          {groups.length>0&&(
+            <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:10}}>
+              <button onClick={()=>setGroupFilter('all')} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter==='all'?C.accent:'#fff',color:groupFilter==='all'?'#fff':C.textMid,border:'none'}}>
+                전체 {subs.length}
+              </button>
+              {groups.map(g=>groupCounts[g.name]?(
+                <button key={g.name} onClick={()=>setGroupFilter(f=>f===g.name?'all':g.name)} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter===g.name?C.accent:'#fff',color:groupFilter===g.name?'#fff':C.textMid,border:'none'}}>
+                  {g.name} {groupCounts[g.name]}
+                </button>
+              ):null)}
+              {unregisteredCount>0&&(
+                <button onClick={()=>setGroupFilter(f=>f==='unregistered'?'all':'unregistered')} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter==='unregistered'?C.red:'#fff',color:groupFilter==='unregistered'?'#fff':C.textDim,border:'none'}}>
+                  미등록 {unregisteredCount}
+                </button>
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
 
       {requested.length>0&&(
@@ -3447,6 +3478,13 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
         </div>
       )}
       <ConfirmBulkModal isOpen={confirmBulk} onClose={()=>setConfirmBulk(false)} count={requested.length} onConfirm={onBulkConfirm}/>
+
+      {undoToast&&(
+        <div style={{position:'fixed',bottom:32,left:'50%',transform:'translateX(-50%)',background:C.text,color:'#fff',padding:'11px 16px',borderRadius:40,fontSize:13,fontWeight:700,zIndex:999,boxShadow:'0 4px 20px rgba(0,0,0,0.2)',display:'flex',alignItems:'center',gap:12,animation:'fadeUp 0.2s ease',whiteSpace:'nowrap'}}>
+          <span>확인 처리됐어요</span>
+          <button onClick={()=>{undoToast();setUndoToast(null);if(undoTimerRef.current)clearTimeout(undoTimerRef.current);}} style={{background:'transparent',border:'1px solid rgba(255,255,255,0.4)',borderRadius:20,padding:'3px 10px',color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer'}}>되돌리기</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -3816,9 +3854,10 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
   const subs=form.submissions||[];
   const groups=profile?.groups||[];
   const unpaidCount=subs.filter(s=>!(s.paid||s.paymentStatus==='matched')).length;
+  const needsAction=unpaidCount;
   const unpaidXList=subs.filter(s=>!s.paid&&s.paymentStatus!=='matched'&&s.paymentStatus!=='requested').map(s=>({name:s.name,amount:form.amount}));
   const [slide,setSlide]=useState(()=>subs.length===0?1:2);
-  const stepDone=[true,subs.length>0,subs.length>0&&unpaidCount===0];
+  const stepDone=[true,subs.length>0,subs.length>0&&needsAction===0];
 
   const {filteredSubs,groupCounts,unregisteredCount,matchResults,uploading,
          searchQ,setSearchQ,groupFilter,setGroupFilter,handlers}=useFormAdmin(form,updateForm,profile,saveProfile,showToast);
@@ -3863,7 +3902,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
       {/* 헤더 정보 */}
       <div style={{padding:'2px 20px 8px'}}>
         <div style={{fontSize:13,color:C.textDim}}>{form.date}{form.time?` ${form.time}`:''}{form.amount?` · ${fmtKRW(form.amount)}`:' · 참가비 없음'}</div>
-        <div style={{fontSize:13,color:C.textMid,marginTop:2}}>신청 {subs.length}{form.maxPeople?`/${form.maxPeople}명`:'명'}{form.amount?` · 미입금 ${unpaidCount}명`:''}</div>
+        <div style={{fontSize:13,color:C.textMid,marginTop:2}}>신청 {subs.length}{form.maxPeople?`/${form.maxPeople}명`:'명'}{form.amount&&needsAction>0?` · 처리 필요 ${needsAction}명`:''}</div>
       </div>
 
       <FlowStepper
@@ -3903,33 +3942,13 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
           <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
             unregisteredCount={unregisteredCount} groups={groups}
             searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
-            onTogglePaid={handlers.togglePaid} onBulkConfirm={handlers.bulkConfirmRequested}
+            onTogglePaid={handlers.togglePaid} onUndoPaid={handlers.undoPaid} onBulkConfirm={handlers.bulkConfirmRequested}
             onCardDunning={null}/>
         </div>
       )}
 
       {slide===2&&(
         <div style={{padding:'10px 16px 24px'}}>
-          <div style={{marginBottom:8}}>
-            {unpaidCount>0?(
-              <>
-                <div style={{display:'flex',gap:8,marginBottom:6}}>
-                  {form.account?.bank&&<Btn onClick={()=>setDunningOpen(true)} disabled={!unpaidXList.length} style={{flex:2,background:C.purple,opacity:unpaidXList.length?1:0.4}}>📢 일괄 독촉 {unpaidXList.length}명</Btn>}
-                  <Btn variant="ghost" onClick={()=>setShareOpen(true)} style={{flex:1,fontSize:13}}>공유</Btn>
-                </div>
-                <Btn variant="ghost" onClick={isClosed?handlers.reopenForm:handlers.closeForm} style={{fontSize:13}}>{isClosed?'🔓 신청 다시 열기':'🔒 신청 마감하기'}</Btn>
-              </>
-            ):(
-              createEvent&&(
-                <div style={{display:'flex',gap:8,marginBottom:6}}>
-                  {!isClosed&&<Btn variant="danger" onClick={handlers.closeForm} style={{flex:1}}>🔒 신청 마감하기</Btn>}
-                  <Btn variant="green" onClick={()=>setBridgeNameOpen(true)} disabled={bridging} style={{flex:1}}>
-                    {bridging?'생성 중…':'📋 이어서 정산하기'}
-                  </Btn>
-                </div>
-              )
-            )}
-          </div>
           <div style={{display:'flex',marginBottom:10,gap:6}}>
             {[['submissions','신청 목록'],['verify','입금 자동 대조']].map(([key,label])=>(
               <button key={key} onClick={()=>setTab(key)} style={{
@@ -3943,7 +3962,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
             <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
               unregisteredCount={unregisteredCount} groups={groups}
               searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
-              onTogglePaid={handlers.togglePaid} onBulkConfirm={handlers.bulkConfirmRequested}
+              onTogglePaid={handlers.togglePaid} onUndoPaid={handlers.undoPaid} onBulkConfirm={handlers.bulkConfirmRequested}
               onCardDunning={form.account?.bank?handleCardDunning:null}/>
           )}
           {tab==='verify'&&(
@@ -3953,6 +3972,23 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
               onUpload={handlers.handleExcel} onApply={handlers.applyMatched}
               onReset={()=>handlers.setMatchResults(null)} onCopyNudge={handlers.copyNudge}
               onTogglePaid={handlers.togglePaid}/>
+          )}
+          {createEvent&&(
+            <div style={{display:'flex',gap:8,marginTop:16}}>
+              {isClosed?(
+                <Btn variant="ghost" onClick={handlers.reopenForm} style={{flex:1}}>🔓 마감 취소</Btn>
+              ):(
+                <Btn variant="danger" onClick={handlers.closeForm} style={{flex:1}}>🔒 마감하기</Btn>
+              )}
+              <Btn variant="green" onClick={()=>setBridgeNameOpen(true)} disabled={bridging} style={{flex:1}}>
+                {bridging?'생성 중…':'📋 이어서 정산하기'}
+              </Btn>
+            </div>
+          )}
+          {unpaidXList.length>0&&form.account?.bank&&(
+            <Btn onClick={()=>setDunningOpen(true)} style={{marginTop:8,background:C.purple,fontSize:13}}>
+              📢 일괄 독촉 {unpaidXList.length}명
+            </Btn>
           )}
         </div>
       )}
