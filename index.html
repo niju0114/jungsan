@@ -168,7 +168,7 @@ const rowToEv = r => ({
   attendanceOpen:r.attendance_open||false, createdAt:r.created_at,
   sourceFormCode:r.source_form_code||null,
   feeConfig:r.fee_config||null,
-  memberMeta:r.member_meta||{},
+  paidFeeKeys:Array.isArray(r.member_meta?.paidFeeKeys)?r.member_meta.paidFeeKeys:[],
 });
 const evToRow = (ev, uid) => ({
   code:ev.code, name:ev.name, date:ev.date, pin:ev.pin,
@@ -177,7 +177,7 @@ const evToRow = (ev, uid) => ({
   attendance_open:ev.attendanceOpen,
   source_form_code:ev.sourceFormCode||null,
   fee_config:ev.feeConfig||null,
-  member_meta:ev.memberMeta||{},
+  member_meta:{paidFeeKeys:ev.paidFeeKeys||[]},
   ...(uid?{user_id:uid}:{}),
 });
 const rowToForm = r => ({
@@ -276,7 +276,7 @@ const calcAmounts = ev => {
     if(isFeeRound){
       (r.members||[]).forEach(k=>{
         if(a[k]!==undefined)
-          a[k]+=ev.memberMeta?.[k]?.paidFee?(fc.paidFeeAmount||0):(fc.unpaidFeeAmount||0);
+          a[k]+=(ev.paidFeeKeys||[]).includes(k)?(fc.paidFeeAmount||0):(fc.unpaidFeeAmount||0);
       });
     } else {
       const share=Math.ceil(r.amount/totalCount);
@@ -710,10 +710,14 @@ function App() {
   };
 
   const saveProfile=async(prof)=>{
+    const allPaidKeys=new Set((prof.groups||[]).flatMap(g=>g.paidFeeMembers||[]));
+    const syncedEvents=events.map(ev=>({...ev,paidFeeKeys:ev.members.filter(k=>allPaidKeys.has(k))}));
+    setEvents(syncedEvents);
     setProfile(prof);
     if(user?.id){
       const {error}=await api.upsertProfile({id:user.id,account:prof.account,groups:prof.groups,updated_at:new Date().toISOString()});
-      if(error) showToast('저장 실패',C.red);
+      if(error){showToast('저장 실패',C.red);return;}
+      await Promise.all(syncedEvents.map(ev=>api.updateEvent(ev.code,evToRow(ev))));
     }
   };
 
@@ -1603,10 +1607,8 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
     if(selected.length===0){setErr('참여자를 1명 이상 선택해주세요');return;}
     setLoading(true);
     const code=genCode();
-    const isPaidFee=k=>groups.some(g=>(g.paidFeeMembers||[]).includes(k));
-    const memberMeta={};
-    selected.forEach(k=>{memberMeta[k]={paidFee:isPaidFee(k)};});
-    const ev={code,name:name.trim(),date,pin:'',account:{bank,number,holder},members:selected,memberMap,rounds:[],payments:{},attendance:{},attendanceOpen:false,createdAt:new Date().toISOString(),memberMeta,feeConfig:null,sourceFormCode:null};
+    const paidFeeKeys=selected.filter(k=>groups.some(g=>(g.paidFeeMembers||[]).includes(k)));
+    const ev={code,name:name.trim(),date,pin:'',account:{bank,number,holder},members:selected,memberMap,rounds:[],payments:{},attendance:{},attendanceOpen:false,createdAt:new Date().toISOString(),paidFeeKeys,feeConfig:null,sourceFormCode:null};
     const ok=await createEvent(ev);
     setLoading(false);
     if(ok){nav.setCurrentCode(ev.code);nav.setView('adminEvent');}
@@ -1813,20 +1815,9 @@ function AttendanceSection({event,updateEvent,onDone,groups}){
     const isAbsent=event.attendance[k]===false;
     updateEvent({...event,attendance:{...event.attendance,[k]:isAbsent?true:false}});
   };
-  const togglePaidFee=(k,e)=>{
-    e.stopPropagation();
-    const prev=!!event.memberMeta?.[k]?.paidFee;
-    updateEvent({...event,memberMeta:{...event.memberMeta,[k]:{...(event.memberMeta?.[k]||{}),paidFee:!prev}}});
-  };
-  const setAllPaidFee=(val)=>{
-    const meta={};
-    event.members.forEach(k=>meta[k]={...(event.memberMeta?.[k]||{}),paidFee:val});
-    updateEvent({...event,memberMeta:meta});
-  };
-
   const allPresent=event.members.every(k=>event.attendance[k]!==false);
   const filtered=event.members.filter(k=>!search||(mm[k]||k).includes(search));
-  const paidFeeCount=event.members.filter(k=>event.memberMeta?.[k]?.paidFee).length;
+  const paidFeeCount=(event.paidFeeKeys||[]).length;
 
   // groups가 2개 이상일 때만 그룹 묶음 표시
   const useGroupView=(groups||[]).length>1&&!search;
@@ -1847,7 +1838,7 @@ function AttendanceSection({event,updateEvent,onDone,groups}){
   const MemberRow=({k})=>{
     const att=event.attendance[k];
     const isAbsent=att===false;
-    const paidFee=!!event.memberMeta?.[k]?.paidFee;
+    const paidFee=(event.paidFeeKeys||[]).includes(k);
     return(
       <div key={k} onClick={()=>toggleAtt(k)} className="press" style={{
         background:isAbsent?C.inputBg:C.cardBg,borderRadius:12,padding:'10px 14px',marginBottom:6,
@@ -1857,11 +1848,7 @@ function AttendanceSection({event,updateEvent,onDone,groups}){
       }}>
         <div style={{fontWeight:600,color:isAbsent?C.textDim:C.text,fontSize:14,textDecoration:isAbsent?'line-through':'none'}}>{mm[k]||k}</div>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <button onClick={e=>togglePaidFee(k,e)} style={{
-            fontSize:11,fontWeight:700,borderRadius:8,padding:'3px 8px',border:'none',cursor:'pointer',
-            background:paidFee?C.green+'22':C.inputBg,color:paidFee?C.green:C.textDim,
-            transition:'all 0.15s',
-          }}>학비{paidFee?' 납부':' 미납'}</button>
+          {paidFee&&<span style={{fontSize:11,fontWeight:700,borderRadius:8,padding:'3px 8px',background:C.green+'22',color:C.green}}>학비 납부</span>}
           <div style={{
             width:28,height:28,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',
             background:isAbsent?C.redBg:C.green,
@@ -1889,15 +1876,7 @@ function AttendanceSection({event,updateEvent,onDone,groups}){
         {allPresent?'✓ 전원 참석':'전원 참석'}
       </button>
 
-      {/* 학비 일괄 버튼 */}
-      <div style={{display:'flex',gap:6,marginBottom:12}}>
-        <button onClick={()=>setAllPaidFee(true)} style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.green}40`,background:paidFeeCount===event.members.length?C.green+'22':C.inputBg,color:C.green,fontSize:12,fontWeight:700,cursor:'pointer'}}>
-          학비 전체 납부 ({paidFeeCount}/{event.members.length})
-        </button>
-        <button onClick={()=>setAllPaidFee(false)} style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontSize:12,fontWeight:700,cursor:'pointer'}}>
-          전체 미납 초기화
-        </button>
-      </div>
+      {paidFeeCount>0&&<div style={{fontSize:12,color:C.textDim,marginBottom:8,padding:'6px 10px',background:C.green+'11',borderRadius:8}}>학비 납부자 {paidFeeCount}명 · 명단에서 수정하세요</div>}
 
       <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="이름 검색..."
         style={{width:'100%',padding:'10px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:13,outline:'none',marginBottom:10}}
@@ -1918,7 +1897,7 @@ function AttendanceSection({event,updateEvent,onDone,groups}){
         )}
       </div>
 
-      <div style={{marginTop:4,fontSize:11,color:C.textDim,textAlign:'center'}}>탭하면 불참 처리돼요 · 학비 배지 탭으로 납부 여부 설정</div>
+      <div style={{marginTop:4,fontSize:11,color:C.textDim,textAlign:'center'}}>탭하면 불참 처리돼요 · 학비 납부 여부는 명단에서 수정</div>
     </div>
   );
 }
@@ -2229,8 +2208,8 @@ function ShareSection({event,showToast}){
 
   const directLink=getLink(`code=${event.code}`);
   const fc=event.feeConfig;
-  const paidFeeMembers=presentMembers.filter(k=>event.memberMeta?.[k]?.paidFee);
-  const unpaidFeeMembers=presentMembers.filter(k=>!event.memberMeta?.[k]?.paidFee);
+  const paidFeeMembers=presentMembers.filter(k=>(event.paidFeeKeys||[]).includes(k));
+  const unpaidFeeMembers=presentMembers.filter(k=>!(event.paidFeeKeys||[]).includes(k));
   const hasPaidLine=paidFeeMembers.length>0&&(fc?.paidFeeAmount||0)>0;
   const hasUnpaidLine=unpaidFeeMembers.length>0&&(fc?.unpaidFeeAmount||0)>0;
   const autoMsg=fc?.paidFeeAmount!=null&&(hasPaidLine||hasUnpaidLine)
@@ -3834,7 +3813,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
       account:form.account||{},members,memberMap,
       rounds:[],payments:{},attendance:{},attendanceOpen:false,
       createdAt:new Date().toISOString(),
-      sourceFormCode:form.code,feeConfig:null,memberMeta:{},
+      sourceFormCode:form.code,feeConfig:null,paidFeeKeys:[],
     };
     const ok=await createEvent(ev);
     setBridging(false);
