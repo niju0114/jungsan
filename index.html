@@ -3252,7 +3252,7 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
     const newSubs=[...subs];
     const s=newSubs[idx];
     const wasPaid=s.paid||s.paymentStatus==='matched';
-    newSubs[idx]={...s,paid:!wasPaid,paymentStatus:wasPaid?'pending':'matched',matchedBy:'manual',matchedAt:new Date().toISOString()};
+    newSubs[idx]={...s,paid:!wasPaid,paymentStatus:wasPaid?'pending':'matched',matchedBy:'manual',matchedAt:new Date().toISOString(),prevPaymentStatus:wasPaid?undefined:s.paymentStatus};
     await updateForm({...form,submissions:newSubs});
   };
 
@@ -3324,11 +3324,10 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
       undoPaid:async(idx,prevStatus)=>{
         const newSubs=[...subs];
         const s=newSubs[idx];
-        newSubs[idx]={...s,paid:false,paymentStatus:prevStatus||'pending',matchedBy:null,matchedAt:null};
+        newSubs[idx]={...s,paid:false,paymentStatus:prevStatus||s.prevPaymentStatus||'pending',matchedBy:null,matchedAt:null,prevPaymentStatus:undefined};
         await updateForm({...form,submissions:newSubs});
       },
-      closeForm:async()=>{if(!window.confirm('신청을 마감할까요?')) return; await updateForm({...form,status:'closed'}); showToast('신청이 마감됐어요');},
-      reopenForm:async()=>{await updateForm({...form,status:'open'}); showToast('신청이 다시 열렸어요');},
+      closeForm:async()=>{await updateForm({...form,status:'closed'}); showToast('신청이 마감됐어요');},
       copyLink:()=>{copyText(getLink(`form=${form.code}`)); showToast('링크가 복사됐어요!');},
     },
   };
@@ -3407,7 +3406,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
             {onCardDunning&&cardBtn('독촉',()=>onCardDunning(s),{color:C.purple,background:'transparent',border:`1px solid ${C.purple}40`})}
           </>}
           {section==='done'&&onUndoPaid&&(
-            cardBtn('되돌리기',()=>onUndoPaid(s._idx,'pending'),{color:C.textDim,background:'transparent',border:`1px solid ${C.border}`})
+            cardBtn('되돌리기',()=>onUndoPaid(s._idx,s.prevPaymentStatus||'pending'),{color:C.textDim,background:'transparent',border:`1px solid ${C.border}`})
           )}
         </div>
       </div>
@@ -3825,6 +3824,18 @@ function DunningModal({eventName, account, link, unpaidList, showToast, onClose}
   );
 }
 
+function CloseFormModal({onConfirm,onClose}){
+  return(
+    <Modal isOpen={true} onClose={onClose} title="신청 마감">
+      <div style={{fontSize:14,color:C.textMid,marginBottom:20,lineHeight:1.7}}>이 신청폼을 종료할까요?<br/>종료 후 되돌릴 수 없습니다.</div>
+      <div style={{display:'flex',gap:8}}>
+        <Btn variant="ghost" onClick={onClose} style={{flex:1}}>취소</Btn>
+        <Btn variant="danger" onClick={onConfirm} style={{flex:2}}>🔒 종료하기</Btn>
+      </div>
+    </Modal>
+  );
+}
+
 function BridgeNameModal({form, subsCount, onConfirm, onClose}){
   const [name,setName]=useState(form.name);
   return(
@@ -3844,6 +3855,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
   const [tab,setTab]=useState('submissions');
   const [shareOpen,setShareOpen]=useState(false);
   const [dunningOpen,setDunningOpen]=useState(false);
+  const [closeConfirmOpen,setCloseConfirmOpen]=useState(false);
   const [bridging,setBridging]=useState(false);
   const [bridgeNameOpen,setBridgeNameOpen]=useState(false);
   const [bankGuideOpen,setBankGuideOpen]=useState(()=>new Set());
@@ -3899,12 +3911,6 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
     <div className="fade-up screen" style={{background:C.pageBg}}>
       <Header title={form.name} onBack={()=>nav.setView('home')}/>
 
-      {/* 헤더 정보 */}
-      <div style={{padding:'2px 20px 8px'}}>
-        <div style={{fontSize:13,color:C.textDim}}>{form.date}{form.time?` ${form.time}`:''}{form.amount?` · ${fmtKRW(form.amount)}`:' · 참가비 없음'}</div>
-        <div style={{fontSize:13,color:C.textMid,marginTop:2}}>신청 {subs.length}{form.maxPeople?`/${form.maxPeople}명`:'명'}{form.amount&&needsAction>0?` · 처리 필요 ${needsAction}명`:''}</div>
-      </div>
-
       <FlowStepper
         steps={['폼 생성','공유','대조']}
         current={slide}
@@ -3935,9 +3941,8 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
 
       {slide===1&&(
         <div style={{padding:'10px 16px 24px'}}>
-          <div style={{display:'flex',gap:8,marginBottom:8}}>
-            <Btn onClick={()=>setShareOpen(true)} style={{flex:2,background:C.purple}}>공유하기</Btn>
-            <Btn variant="ghost" onClick={isClosed?handlers.reopenForm:handlers.closeForm} style={{flex:1,fontSize:13}}>{isClosed?'열기':'마감'}</Btn>
+          <div style={{marginBottom:8}}>
+            <Btn onClick={()=>setShareOpen(true)} style={{background:C.purple}}>공유하기</Btn>
           </div>
           <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
             unregisteredCount={unregisteredCount} groups={groups}
@@ -3973,22 +3978,19 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
               onReset={()=>handlers.setMatchResults(null)} onCopyNudge={handlers.copyNudge}
               onTogglePaid={handlers.togglePaid}/>
           )}
-          {createEvent&&(
-            <div style={{display:'flex',gap:8,marginTop:16}}>
-              {isClosed?(
-                <Btn variant="ghost" onClick={handlers.reopenForm} style={{flex:1}}>🔓 마감 취소</Btn>
-              ):(
-                <Btn variant="danger" onClick={handlers.closeForm} style={{flex:1}}>🔒 마감하기</Btn>
-              )}
-              <Btn variant="green" onClick={()=>setBridgeNameOpen(true)} disabled={bridging} style={{flex:1}}>
-                {bridging?'생성 중…':'📋 이어서 정산하기'}
-              </Btn>
-            </div>
+          {!isClosed&&needsAction===0&&subs.length>0&&(
+            <Btn variant="danger" onClick={()=>setCloseConfirmOpen(true)} style={{marginTop:16}}>🔒 마감하기</Btn>
           )}
           {unpaidXList.length>0&&form.account?.bank&&(
             <Btn onClick={()=>setDunningOpen(true)} style={{marginTop:8,background:C.purple,fontSize:13}}>
               📢 일괄 독촉 {unpaidXList.length}명
             </Btn>
+          )}
+          {createEvent&&subs.length>0&&(
+            <div style={{marginTop:24,paddingTop:16,borderTop:`1px solid ${C.border}`}}>
+              <div style={{fontSize:12,color:C.textMid,marginBottom:8}}>행사 후 추가 정산(뒷풀이 등)이 필요하면</div>
+              <Btn variant="ghost" small onClick={()=>setBridgeNameOpen(true)}>📋 이어서 정산하기 →</Btn>
+            </div>
           )}
         </div>
       )}
@@ -3997,6 +3999,9 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
       {dunningOpen&&form.account?.bank&&(
         <DunningModal eventName={form.name} account={form.account} link={getLink(`form=${form.code}`)}
           unpaidList={unpaidXList} showToast={showToast} onClose={()=>setDunningOpen(false)}/>
+      )}
+      {closeConfirmOpen&&(
+        <CloseFormModal onConfirm={async()=>{setCloseConfirmOpen(false);await handlers.closeForm();nav.setView('home');}} onClose={()=>setCloseConfirmOpen(false)}/>
       )}
       {bridgeNameOpen&&(
         <BridgeNameModal form={form} subsCount={subs.length} onConfirm={name=>{setBridgeNameOpen(false);startBridge(name);}} onClose={()=>setBridgeNameOpen(false)}/>
