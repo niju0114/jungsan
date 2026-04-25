@@ -3333,7 +3333,7 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
 
 function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCount, groups,
                          searchQ, setSearchQ, groupFilter, setGroupFilter,
-                         onTogglePaid, onBulkConfirm, onDunning}){
+                         onTogglePaid, onBulkConfirm}){
   const [sortByTime,setSortByTime]=useState(true);
   const [confirmBulk,setConfirmBulk]=useState(false);
   const requestedCount=subs.filter(s=>!s.paid&&s.paymentStatus!=='matched'&&s.paymentStatus==='requested').length;
@@ -3360,8 +3360,8 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
         onBlur={e=>e.target.style.boxShadow='none'}
       />
       {requestedCount>0&&(
-        <button onClick={()=>setConfirmBulk(true)} className="press" style={{width:'100%',padding:'12px',borderRadius:12,background:C.yellowBg,border:`1.5px solid ${C.yellow}40`,color:C.yellow,fontWeight:800,fontSize:13,cursor:'pointer',marginBottom:8}}>
-          남은 요청 {requestedCount}명 모두 확인 완료
+        <button onClick={()=>setConfirmBulk(true)} className="press" style={{width:'100%',padding:'9px 12px',borderRadius:10,background:C.inputBg,border:`1px solid ${C.border}`,color:C.textMid,fontWeight:600,fontSize:12,cursor:'pointer',marginBottom:8,textAlign:'left'}}>
+          ✓ 요청됨 {requestedCount}명 확인 완료 처리
         </button>
       )}
       <ConfirmBulkModal isOpen={confirmBulk} onClose={()=>setConfirmBulk(false)} count={requestedCount} onConfirm={onBulkConfirm}/>
@@ -3422,9 +3422,6 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
                 {fmtRelTime(s.createdAt)}
                 {isPaid&&s.matchedAt&&<span style={{color:C.green}}>입금 {fmtTime(s.matchedAt)}</span>}
               </div>
-              {!isPaid&&!isRequested&&form.account?.bank&&(
-                <button onClick={()=>onDunning(s)} style={{fontSize:11,color:C.orange,background:C.orange+'18',border:'none',borderRadius:8,padding:'4px 10px',cursor:'pointer',fontWeight:700,flexShrink:0}}>💬 독촉</button>
-              )}
             </div>
           </div>
         );
@@ -3776,17 +3773,17 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
   const [shareOpen,setShareOpen]=useState(false);
   const [dunningOpen,setDunningOpen]=useState(false);
   const [bridging,setBridging]=useState(false);
+  const [menuOpen,setMenuOpen]=useState(false);
   const [bankGuideOpen,setBankGuideOpen]=useState(()=>new Set());
   const toggleBankGuide=(id)=>setBankGuideOpen(prev=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;});
   const [uploadMode,setUploadMode]=useState('file');
-  const [viewCount,setViewCount]=useState(0);
   const fileRef=useRef(null);
   const isClosed=form.status==='closed';
   const subs=form.submissions||[];
   const groups=profile?.groups||[];
+  const unpaidCount=subs.filter(s=>!(s.paid||s.paymentStatus==='matched')).length;
+  const phase=subs.length===0?1:unpaidCount>0?2:3;
   const unpaidXList=subs.filter(s=>!s.paid&&s.paymentStatus!=='matched'&&s.paymentStatus!=='requested').map(s=>({name:s.name,amount:form.amount}));
-
-  useEffect(()=>{api.getViewCount(null,form.code).then(c=>setViewCount(c));},[form.code]);
 
   const {filteredSubs,groupCounts,unregisteredCount,matchResults,uploading,
          searchQ,setSearchQ,groupFilter,setGroupFilter,handlers}=useFormAdmin(form,updateForm,profile,saveProfile,showToast);
@@ -3815,75 +3812,66 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
     if(ok){nav.setCurrentCode(ev.code);nav.setView('adminEvent');}
   };
 
+  const mi={width:'100%',padding:'14px 18px',background:'none',border:'none',cursor:'pointer',fontSize:14,color:C.text,textAlign:'left',fontWeight:600,display:'flex',alignItems:'center',gap:10};
+  const md={height:1,background:C.pageBg,margin:'0 16px'};
+
   return(
     <div className="fade-up screen" style={{background:C.pageBg}}>
-      <Header title={form.name} onBack={()=>nav.setView('home')}/>
-      
-      {/* 상단 요약 */}
-      <div style={{padding:'8px 16px 0'}}>
-        <Card>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-            <div>
-              <div style={{fontSize:13,color:C.textDim}}>{form.date}</div>
-              <div style={{fontSize:22,fontWeight:900,color:C.text}}>{form.amount?fmtKRW(form.amount):'참가비 없음'}</div>
+      <Header title={form.name} onBack={()=>nav.setView('home')} right={
+        <div style={{position:'relative'}}>
+          <button onClick={()=>setMenuOpen(o=>!o)} style={{background:C.inputBg,border:'none',borderRadius:12,color:C.textMid,cursor:'pointer',width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center'}}><span className="ms" style={{fontSize:22}}>more_horiz</span></button>
+          {menuOpen&&<div onClick={()=>setMenuOpen(false)} style={{position:'fixed',inset:0,zIndex:40}}/>}
+          {menuOpen&&(
+            <div style={{position:'absolute',right:0,top:48,background:C.cardBg,borderRadius:16,boxShadow:'0 8px 32px rgba(0,0,0,0.12)',zIndex:50,minWidth:190,overflow:'hidden'}}>
+              <button onClick={()=>{setShareOpen(true);setMenuOpen(false);}} style={mi}>👥 링크 공유</button>
+              {form.account?.bank&&<><div style={md}/>
+              <button onClick={()=>{setDunningOpen(true);setMenuOpen(false);}} disabled={!unpaidXList.length} style={{...mi,color:unpaidXList.length?C.text:C.textDim,cursor:unpaidXList.length?'pointer':'default'}}>📢 독촉{unpaidXList.length===0?' (미입금 없음)':''}</button></>}
+              {subs.length>0&&createEvent&&<><div style={md}/>
+              <button onClick={()=>{startBridge();setMenuOpen(false);}} style={mi}>📋 이 명단으로 정산 시작</button></>}
+              <div style={md}/>
+              <button onClick={()=>{isClosed?handlers.reopenForm():handlers.closeForm();setMenuOpen(false);}} style={{...mi,color:isClosed?C.green:C.red}}>{isClosed?'🔓 신청 다시 열기':'🔒 신청 마감하기'}</button>
             </div>
-            <div style={{textAlign:'right'}}>
-              <div style={{fontSize:28,fontWeight:900,color:C.accent}}>{subs.length}{form.maxPeople?`/${form.maxPeople}`:''}</div>
-              <div style={{fontSize:11,color:C.textDim}}>신청</div>
-            </div>
-          </div>
-          <div style={{display:'flex',gap:8}}>
-            <div style={{flex:1,background:C.accentBg,borderRadius:12,padding:'10px',textAlign:'center'}}>
-              <div style={{fontSize:20,fontWeight:900,color:C.accent}}>{viewCount}</div>
-              <div style={{fontSize:11,color:C.accent,fontWeight:600}}>👀 조회수</div>
-            </div>
-            <div style={{flex:1,background:C.accentBg,borderRadius:12,padding:'10px',textAlign:'center'}}>
-              <div style={{fontSize:20,fontWeight:900,color:C.accent}}>{subs.length}</div>
-              <div style={{fontSize:11,color:C.accent,fontWeight:600}}>신청수</div>
-            </div>
-            <div style={{flex:1,background:C.redBg,borderRadius:12,padding:'10px',textAlign:'center'}}>
-              <div style={{fontSize:20,fontWeight:900,color:C.red}}>{subs.filter(s=>!(s.paid||s.paymentStatus==='matched')).length}</div>
-              <div style={{fontSize:11,color:C.red,fontWeight:600}}>미입금수</div>
-            </div>
-          </div>
-        </Card>
+          )}
+        </div>
+      }/>
+
+      {/* 헤더 정보 */}
+      <div style={{padding:'2px 20px 12px'}}>
+        <div style={{fontSize:13,color:C.textDim}}>{form.date}{form.amount?` · ${fmtKRW(form.amount)}`:' · 참가비 없음'}</div>
+        <div style={{fontSize:13,color:C.textMid,marginTop:2}}>신청 {subs.length}{form.maxPeople?`/${form.maxPeople}명`:'명'}{form.amount?` · 미입금 ${unpaidCount}명`:''}</div>
       </div>
 
-      {/* 신청→정산 브리지 CTA */}
-      {subs.length>0&&createEvent&&(
-        <div style={{padding:'8px 16px 0'}}>
-          <Btn onClick={startBridge} disabled={bridging} style={{background:C.green,fontSize:14}}>
-            {bridging?'생성 중…':'📋 이 명단으로 정산 시작하기'}
-          </Btn>
+      {/* Phase 1: 링크 공유 강조 */}
+      {phase===1&&(
+        <div style={{padding:'0 16px 10px'}}>
+          <Btn onClick={()=>setShareOpen(true)}>👥 링크 공유하기</Btn>
         </div>
       )}
 
-      {/* 공유 CTA */}
-      <div style={{padding:'8px 16px 0',display:'flex',gap:8}}>
-        <Btn onClick={()=>setShareOpen(true)} style={{flex:2}}>👥 링크 공유</Btn>
-        {unpaidXList.length>0&&form.account?.bank&&(
-          <Btn variant="secondary" onClick={()=>setDunningOpen(true)} style={{flex:1}}>📢 독촉</Btn>
-        )}
-      </div>
+      {/* Phase 2: 일괄 독촉 보조 버튼 */}
+      {phase===2&&unpaidXList.length>0&&form.account?.bank&&(
+        <div style={{padding:'0 16px 10px'}}>
+          <Btn variant="secondary" onClick={()=>setDunningOpen(true)} style={{fontSize:13}}>📢 미납자 {unpaidXList.length}명 일괄 독촉</Btn>
+        </div>
+      )}
 
       {/* 탭 */}
-      <div style={{display:'flex',padding:'8px 16px',gap:6}}>
-        {[['submissions','신청 목록'],['verify','입금 대조']].map(([key,label])=>(
+      <div style={{display:'flex',padding:'0 16px 10px',gap:6}}>
+        {[['submissions','신청 목록'],['verify','입금 자동 대조']].map(([key,label])=>(
           <button key={key} onClick={()=>setTab(key)} style={{
             flex:1,padding:'10px 4px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',
-            background:tab===key?C.accent:'#fff',color:tab===key?'#fff':C.textMid,
-            border:'none',
+            background:tab===key?C.accent:C.cardBg,color:tab===key?'#fff':C.textMid,
+            border:`1px solid ${tab===key?C.accent:C.border}`,
           }}>{label}</button>
         ))}
       </div>
 
-      <div style={{padding:'8px 16px 16px'}}>
+      <div style={{padding:'0 16px 24px'}}>
         {tab==='submissions'&&(
           <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
             unregisteredCount={unregisteredCount} groups={groups}
             searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
-            onTogglePaid={handlers.togglePaid} onBulkConfirm={handlers.bulkConfirmRequested}
-            onDunning={handlers.handleDunning}/>
+            onTogglePaid={handlers.togglePaid} onBulkConfirm={handlers.bulkConfirmRequested}/>
         )}
         {tab==='verify'&&(
           <VerifyTab form={form} subs={subs} groups={groups} matchResults={matchResults} uploading={uploading}
@@ -3895,14 +3883,14 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
         )}
       </div>
 
-      {/* 하단 마감 버튼 */}
-      <div style={{padding:'0 16px 24px'}}>
-        {isClosed?(
-          <Btn variant="secondary" onClick={handlers.reopenForm}>신청 다시 열기</Btn>
-        ):(
-          <Btn variant="danger" onClick={handlers.closeForm}>신청 마감하기</Btn>
-        )}
-      </div>
+      {/* Phase 3: 정산 시작 */}
+      {phase===3&&createEvent&&(
+        <div style={{padding:'0 16px 24px',marginTop:-16}}>
+          <Btn onClick={startBridge} disabled={bridging} style={{background:C.green,fontSize:14}}>
+            {bridging?'생성 중…':'📋 이 명단으로 정산 시작하기'}
+          </Btn>
+        </div>
+      )}
 
       {shareOpen&&<FormShareModal form={form} showToast={showToast} onClose={()=>setShareOpen(false)}/>}
       {dunningOpen&&form.account?.bank&&(
