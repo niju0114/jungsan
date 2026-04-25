@@ -3337,7 +3337,8 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
                          onTogglePaid, onBulkConfirm, onCardDunning}){
   const [sortByTime,setSortByTime]=useState(true);
   const [confirmBulk,setConfirmBulk]=useState(false);
-  const requestedCount=subs.filter(s=>!s.paid&&s.paymentStatus!=='matched'&&s.paymentStatus==='requested').length;
+  const [showDone,setShowDone]=useState(false);
+
   if(subs.length===0) return(
     <div style={{textAlign:'center',padding:'40px 0'}}>
       <div style={{fontSize:40,marginBottom:12}}>📭</div>
@@ -3345,14 +3346,47 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
       <div style={{color:C.textDim,fontSize:13,marginTop:4}}>링크를 공유해보세요</div>
     </div>
   );
-  const displaySubs=sortByTime
-    ? [...filteredSubs].sort((a,b)=>{
-        const la=s=>{const t1=s.matchedAt?new Date(s.matchedAt):null;const t2=s.requestedAt?new Date(s.requestedAt):null;if(!t1&&!t2)return null;if(!t1)return t2;if(!t2)return t1;return t1>t2?t1:t2;};
-        const ta=la(a),tb=la(b);
-        if(!ta&&!tb) return 0; if(!ta) return 1; if(!tb) return -1;
-        return tb-ta;
-      })
-    : filteredSubs;
+
+  const byTime=(arr,key)=>sortByTime
+    ?[...arr].sort((a,b)=>new Date(b[key]||b.createdAt)-new Date(a[key]||a.createdAt))
+    :arr;
+  const requested=byTime(filteredSubs.filter(s=>!s.paid&&s.paymentStatus!=='matched'&&s.paymentStatus==='requested'),'requestedAt');
+  const unpaid=byTime(filteredSubs.filter(s=>!s.paid&&s.paymentStatus!=='matched'&&s.paymentStatus!=='requested'),'createdAt');
+  const done=byTime(filteredSubs.filter(s=>s.paid||s.paymentStatus==='matched'),'matchedAt');
+
+  const cardBtn=(label,onClick,style)=>(
+    <button onClick={onClick} style={{fontSize:11,borderRadius:6,padding:'3px 8px',cursor:'pointer',fontWeight:700,...style}}>{label}</button>
+  );
+
+  const renderCard=(s,section)=>(
+    <div key={s._idx} style={{background:'#fff',borderRadius:16,padding:'14px 16px',marginBottom:8}}>
+      <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6,minWidth:0}}>
+        {s._group&&<span style={{padding:'2px 8px',borderRadius:8,fontSize:10,fontWeight:700,background:C.accentBg,color:C.accent,flexShrink:0}}>{s._group}</span>}
+        {!s._group&&groups.length>0&&<span style={{padding:'2px 8px',borderRadius:8,fontSize:10,fontWeight:700,background:C.redBg,color:C.red,flexShrink:0}}>미등록</span>}
+        <span style={{fontWeight:800,color:C.text,fontSize:15,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</span>
+        <span style={{color:C.textDim,fontSize:12,flexShrink:0}}>{s.phone}</span>
+      </div>
+      {Object.entries(s.data||{}).filter(([k])=>!['name','phone'].includes(k)).map(([k,v])=>(
+        <div key={k} style={{fontSize:12,color:C.textMid,marginTop:3}}>
+          <span style={{color:C.textDim}}>{fieldLabel(k)}:</span> {Array.isArray(v)?v.join(', '):v}
+        </div>
+      ))}
+      <div style={{fontSize:11,color:C.textDim,marginTop:6,display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+        <div style={{display:'flex',gap:8}}>
+          {fmtRelTime(s.createdAt)}
+          {section==='done'&&s.matchedAt&&<span style={{color:C.green}}>입금 {fmtTime(s.matchedAt)}</span>}
+        </div>
+        <div style={{display:'flex',gap:6}}>
+          {section==='requested'&&cardBtn('확인',()=>onTogglePaid(s._idx),{color:C.green,background:C.greenBg,border:'none'})}
+          {section==='unpaid'&&<>
+            {cardBtn('확인',()=>onTogglePaid(s._idx),{color:C.green,background:C.greenBg,border:'none'})}
+            {onCardDunning&&cardBtn('독촉',()=>onCardDunning(s),{color:C.purple,background:'transparent',border:`1px solid ${C.purple}40`})}
+          </>}
+        </div>
+      </div>
+    </div>
+  );
+
   return(
     <div>
       <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름 또는 연락처 검색"
@@ -3360,12 +3394,6 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
         onFocus={e=>e.target.style.boxShadow=`0 0 0 2px ${C.accent}40`}
         onBlur={e=>e.target.style.boxShadow='none'}
       />
-      {requestedCount>0&&(
-        <button onClick={()=>setConfirmBulk(true)} className="press" style={{width:'100%',padding:'9px 12px',borderRadius:10,background:C.inputBg,border:`1px solid ${C.border}`,color:C.textMid,fontWeight:600,fontSize:12,cursor:'pointer',marginBottom:8,textAlign:'left'}}>
-          ✓ 요청됨 {requestedCount}명 확인 완료 처리
-        </button>
-      )}
-      <ConfirmBulkModal isOpen={confirmBulk} onClose={()=>setConfirmBulk(false)} count={requestedCount} onConfirm={onBulkConfirm}/>
       <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:6,marginBottom:8}}>
         {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>⏱ 시간순</span>}
         <button onClick={()=>setSortByTime(v=>!v)} style={{
@@ -3393,43 +3421,32 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
           )}
         </div>
       )}
-      {displaySubs.map(s=>{
-        const isPaid=s.paid||s.paymentStatus==='matched';
-        const isRequested=s.paymentStatus==='requested';
-        return(
-          <div key={s._idx} style={{background:'#fff',borderRadius:16,padding:'14px 16px',marginBottom:8}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
-              <div style={{display:'flex',alignItems:'center',gap:6,flex:1,minWidth:0}}>
-                {s._group&&<span style={{padding:'2px 8px',borderRadius:8,fontSize:10,fontWeight:700,background:C.accentBg,color:C.accent,flexShrink:0}}>{s._group}</span>}
-                {!s._group&&groups.length>0&&<span style={{padding:'2px 8px',borderRadius:8,fontSize:10,fontWeight:700,background:C.redBg,color:C.red,flexShrink:0}}>미등록</span>}
-                <span style={{fontWeight:800,color:C.text,fontSize:15,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</span>
-                <span style={{color:C.textDim,fontSize:12,flexShrink:0}}>{s.phone}</span>
-              </div>
-              <button onClick={()=>onTogglePaid(s._idx)} className="press" style={{
-                width:36,height:36,borderRadius:'50%',fontSize:15,fontWeight:900,cursor:'pointer',flexShrink:0,marginLeft:6,
-                background:isPaid?C.green:isRequested?C.yellowBg:C.redBg,
-                color:isPaid?'#fff':isRequested?C.yellow:C.red,border:'none',
-              }}>
-                {isPaid?'O':isRequested?'△':'X'}
-              </button>
-            </div>
-            {Object.entries(s.data||{}).filter(([k])=>!['name','phone'].includes(k)).map(([k,v])=>(
-              <div key={k} style={{fontSize:12,color:C.textMid,marginTop:3}}>
-                <span style={{color:C.textDim}}>{fieldLabel(k)}:</span> {Array.isArray(v)?v.join(', '):v}
-              </div>
-            ))}
-            <div style={{fontSize:11,color:C.textDim,marginTop:4,display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
-              <div style={{display:'flex',gap:8}}>
-                {fmtRelTime(s.createdAt)}
-                {isPaid&&s.matchedAt&&<span style={{color:C.green}}>입금 {fmtTime(s.matchedAt)}</span>}
-              </div>
-              {onCardDunning&&!isPaid&&!isRequested&&(
-                <button onClick={()=>onCardDunning(s)} style={{fontSize:11,color:C.purple,background:'transparent',border:`1px solid ${C.purple}40`,borderRadius:6,padding:'2px 8px',cursor:'pointer',fontWeight:700}}>독촉</button>
-              )}
-            </div>
+
+      {requested.length>0&&(
+        <div style={{marginBottom:unpaid.length>0||done.length>0?12:0}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+            <div style={{fontSize:12,fontWeight:700,color:C.textMid}}>📩 요청됨 ({requested.length}명)</div>
+            {cardBtn(`${requested.length}명 모두 확인`,()=>setConfirmBulk(true),{color:C.green,background:C.greenBg,border:'none'})}
           </div>
-        );
-      })}
+          {requested.map(s=>renderCard(s,'requested'))}
+        </div>
+      )}
+      {unpaid.length>0&&(
+        <div style={{marginBottom:done.length>0?12:0}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.textMid,marginBottom:8}}>❌ 미입금 ({unpaid.length}명)</div>
+          {unpaid.map(s=>renderCard(s,'unpaid'))}
+        </div>
+      )}
+      {done.length>0&&(
+        <div>
+          <button onClick={()=>setShowDone(v=>!v)} style={{width:'100%',padding:'8px 12px',borderRadius:10,background:C.inputBg,border:`1px solid ${C.border}`,color:C.textMid,fontWeight:600,fontSize:12,cursor:'pointer',textAlign:'left',display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:showDone?6:0}}>
+            <span>✅ 완료 {done.length}명</span>
+            <span style={{fontSize:10}}>{showDone?'▲':'▼'}</span>
+          </button>
+          {showDone&&done.map(s=>renderCard(s,'done'))}
+        </div>
+      )}
+      <ConfirmBulkModal isOpen={confirmBulk} onClose={()=>setConfirmBulk(false)} count={requested.length} onConfirm={onBulkConfirm}/>
     </div>
   );
 }
@@ -3804,6 +3821,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
 
   const {filteredSubs,groupCounts,unregisteredCount,matchResults,uploading,
          searchQ,setSearchQ,groupFilter,setGroupFilter,handlers}=useFormAdmin(form,updateForm,profile,saveProfile,showToast);
+  useEffect(()=>{if(phase!==3)setTab('submissions');},[phase]);
 
   const startBridge=async(name)=>{
     setBridging(true);
@@ -3877,26 +3895,28 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
         )}
       </div>
 
-      {/* 탭 */}
-      <div style={{display:'flex',padding:'0 16px 10px',gap:6}}>
-        {[['submissions','신청 목록'],['verify','입금 자동 대조']].map(([key,label])=>(
-          <button key={key} onClick={()=>setTab(key)} style={{
-            flex:1,padding:'10px 4px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',
-            background:tab===key?C.accent:C.cardBg,color:tab===key?'#fff':C.textMid,
-            border:`1px solid ${tab===key?C.accent:C.border}`,
-          }}>{label}</button>
-        ))}
-      </div>
+      {/* 탭 (phase 3만) */}
+      {phase===3&&(
+        <div style={{display:'flex',padding:'0 16px 10px',gap:6}}>
+          {[['submissions','신청 목록'],['verify','입금 자동 대조']].map(([key,label])=>(
+            <button key={key} onClick={()=>setTab(key)} style={{
+              flex:1,padding:'10px 4px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',
+              background:tab===key?C.accent:C.cardBg,color:tab===key?'#fff':C.textMid,
+              border:`1px solid ${tab===key?C.accent:C.border}`,
+            }}>{label}</button>
+          ))}
+        </div>
+      )}
 
       <div style={{padding:'0 16px 24px'}}>
-        {tab==='submissions'&&(
+        {(phase!==3||tab==='submissions')&&(
           <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
             unregisteredCount={unregisteredCount} groups={groups}
             searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
             onTogglePaid={handlers.togglePaid} onBulkConfirm={handlers.bulkConfirmRequested}
             onCardDunning={phase===3&&form.account?.bank?handleCardDunning:null}/>
         )}
-        {tab==='verify'&&(
+        {phase===3&&tab==='verify'&&(
           <VerifyTab form={form} subs={subs} groups={groups} matchResults={matchResults} uploading={uploading}
             bankGuideOpen={bankGuideOpen} setBankGuideOpen={setBankGuideOpen}
             uploadMode={uploadMode} setUploadMode={setUploadMode} fileRef={fileRef}
