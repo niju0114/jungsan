@@ -27,7 +27,7 @@
     #root { max-width: 480px; margin: 0 auto; min-height: 100vh; min-height: -webkit-fill-available; min-height: 100dvh; background: #F2F3F5; padding-bottom: env(safe-area-inset-bottom); }
     .screen { min-height: 100vh; min-height: -webkit-fill-available; min-height: 100dvh; }
     input, textarea, button { font-family: inherit; }
-    input::placeholder, textarea::placeholder { color: #A0AEC0; }
+    input::placeholder, textarea::placeholder { color: #8B95A1; }
     ::-webkit-scrollbar { width: 3px; }
     ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 2px; }
     @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
@@ -69,7 +69,9 @@ const C = {
   orange:'#FF6B2B', orangeBg:'#FFF4EE',
   yellow:'#C57700', yellowBg:'#FFF8DD',
   text:'#191F28', textMid:'#4E5968', textDim:'#8B95A1',
-  border:'#F2F3F5',
+  border:'#E8ECF0', borderStrong:'#E5E8EB',
+  shadow:'0 1px 4px rgba(0,0,0,0.06)',
+  purple:'#8B5CF6', disabled:'#D1D5DB',
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -468,8 +470,8 @@ const Spinner = ({size=20,color='#fff'}) => (
 const Btn = ({children,onClick,variant='primary',style={},disabled=false,small=false,loading=false}) => {
   const v = {
     primary:{background:`linear-gradient(135deg,#6366F1,#4F46E5)`,color:'#fff'},
-    secondary:{background:C.cardBg,color:C.textMid,border:`1px solid #E5E8EB`},
-    ghost:{background:'transparent',color:C.textDim,border:`1px solid #E5E8EB`},
+    secondary:{background:C.cardBg,color:C.textMid,border:`1px solid ${C.borderStrong}`},
+    ghost:{background:'transparent',color:C.textDim,border:`1px solid ${C.borderStrong}`},
     green:{background:C.green,color:'#fff'},
     danger:{background:C.red,color:'#fff'},
     orange:{background:C.orange,color:'#fff'},
@@ -802,7 +804,7 @@ function App() {
 function LandingScreen({nav}){
   return(
     <div className="fade-up screen" style={{background:'#fff',display:'flex',flexDirection:'column'}}>
-      <div style={{background:`linear-gradient(145deg,#6366F1 0%,#8B5CF6 100%)`,padding:'72px 28px 56px',textAlign:'center',position:'relative',overflow:'hidden'}}>
+      <div style={{background:`linear-gradient(145deg,#6366F1 0%,${C.purple} 100%)`,padding:'72px 28px 56px',textAlign:'center',position:'relative',overflow:'hidden'}}>
         <div style={{position:'absolute',inset:0,opacity:0.05,backgroundImage:'radial-gradient(circle,#fff 1px,transparent 1px)',backgroundSize:'24px 24px'}}/>
         <div style={{position:'relative'}}>
           <div style={{fontSize:56,marginBottom:16}}>🍻</div>
@@ -1397,7 +1399,7 @@ function SetupScreen({nav,profile,saveProfile}){
                 fontSize:13,fontWeight:700,cursor:'pointer',transition:'all 0.12s',display:'flex',alignItems:'center',gap:6,
               }}>
                 전체
-                <span style={{background:activeG===-1?'rgba(255,255,255,0.3)':'#E8ECF4',borderRadius:10,padding:'1px 7px',fontSize:11}}>
+                <span style={{background:activeG===-1?'rgba(255,255,255,0.3)':C.inputBg,borderRadius:10,padding:'1px 7px',fontSize:11}}>
                   {groups.reduce((s,g)=>s+(g.members||[]).length,0)}
                 </span>
               </button>
@@ -1409,7 +1411,7 @@ function SetupScreen({nav,profile,saveProfile}){
                 fontSize:13,fontWeight:700,cursor:'pointer',transition:'all 0.12s',display:'flex',alignItems:'center',gap:6,
               }}>
                 {g.name}
-                {g.members.length>0&&<span style={{background:activeG===i?'rgba(255,255,255,0.3)':'#E8ECF4',borderRadius:10,padding:'1px 7px',fontSize:11}}>{g.members.length}</span>}
+                {g.members.length>0&&<span style={{background:activeG===i?'rgba(255,255,255,0.3)':C.inputBg,borderRadius:10,padding:'1px 7px',fontSize:11}}>{g.members.length}</span>}
               </button>
             ))}
             {addingGroup?(
@@ -1432,7 +1434,7 @@ function SetupScreen({nav,profile,saveProfile}){
                     <div style={{fontSize:13,fontWeight:700,color:C.textMid}}>{cur.name} 명단</div>
                     {groups.length>1&&<button onClick={()=>delGroup(activeG)} style={{color:C.red,background:'none',border:'none',fontSize:12,cursor:'pointer',fontWeight:600}}>그룹 삭제</button>}
                   </div>
-                  <div style={{marginBottom:8,padding:'10px 12px',background:'#FFFBF0',borderRadius:10,border:`1px solid ${C.orange}30`,fontSize:12,color:C.textMid,lineHeight:1.9}}>
+                  <div style={{marginBottom:8,padding:'10px 12px',background:C.orangeBg,borderRadius:10,border:`1px solid ${C.orange}30`,fontSize:12,color:C.textMid,lineHeight:1.9}}>
                     💡 아래 형식으로 붙여넣으세요<br/>
                     <span style={{fontFamily:'monospace',color:C.text}}>홍길동 20211234</span><br/>
                     <span style={{fontFamily:'monospace',color:C.text}}>김철수, 20221111</span><br/>
@@ -2413,7 +2415,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
         {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>⏱ 시간순</span>}
         <button onClick={()=>setSortByTime(v=>!v)} style={{
           width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
-          background:sortByTime?C.accent:'#D1D5DB',position:'relative',transition:'background 0.2s',flexShrink:0,
+          background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
         }}>
           <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
             left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
@@ -2475,7 +2477,7 @@ function ParticipantSplashScreen({onDone}){
     return()=>{clearTimeout(t1);clearTimeout(t2);};
   },[]);
   return(
-    <div className="screen" style={{background:`linear-gradient(145deg,#6366F1 0%,#8B5CF6 100%)`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',transition:'opacity 0.2s',opacity:fading?0:1,position:'relative'}}>
+    <div className="screen" style={{background:`linear-gradient(145deg,#6366F1 0%,${C.purple} 100%)`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',transition:'opacity 0.2s',opacity:fading?0:1,position:'relative'}}>
       <button onClick={onDone} style={{position:'absolute',top:20,right:20,background:'rgba(255,255,255,0.2)',border:'none',borderRadius:20,padding:'6px 14px',color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer'}}>건너뛰기</button>
       <div style={{fontSize:64,marginBottom:16}}>🍻</div>
       <div style={{fontSize:28,fontWeight:900,color:'#fff',letterSpacing:-1,marginBottom:8}}>정산해</div>
@@ -3021,7 +3023,7 @@ function FormCreateScreen({nav,profile,createForm}){
               </div>
               <button onClick={()=>{setUseLimit(v=>!v);if(useLimit)setMaxPeople('');}} style={{
                 width:52,height:30,borderRadius:15,border:'none',cursor:'pointer',
-                background:useLimit?C.accent:'#D1D5DB',position:'relative',transition:'background 0.2s',
+                background:useLimit?C.accent:C.disabled,position:'relative',transition:'background 0.2s',
               }}>
                 <div style={{width:24,height:24,borderRadius:12,background:'#fff',position:'absolute',top:3,
                   left:useLimit?25:3,transition:'left 0.2s',boxShadow:'0 1px 3px rgba(0,0,0,0.2)'}}/>
@@ -3122,7 +3124,7 @@ function FormCreateScreen({nav,profile,createForm}){
                       padding:'7px 14px',borderRadius:10,fontSize:13,fontWeight:600,cursor:'pointer',
                       background:customType===val?C.accent:'#fff',
                       color:customType===val?'#fff':C.textMid,
-                      border:`1.5px solid ${customType===val?C.accent:'#E5E8EB'}`,
+                      border:`1.5px solid ${customType===val?C.accent:C.borderStrong}`,
                     }}>{label}</button>
                   ))}
                 </div>
@@ -3367,7 +3369,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
         {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>⏱ 시간순</span>}
         <button onClick={()=>setSortByTime(v=>!v)} style={{
           width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
-          background:sortByTime?C.accent:'#D1D5DB',position:'relative',transition:'background 0.2s',flexShrink:0,
+          background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
         }}>
           <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
             left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
@@ -3440,7 +3442,7 @@ function VerifyTab({form, subs, groups, matchResults, uploading, bankGuideOpen, 
     return(
       <div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:12}}>
-          {[[matchResults.matched.length,'매칭',C.green,C.greenBg],[pendingMismatch.length,'수동확인',C.orange,C.orangeBg],[matchResults.unpaid.length,'미입금',C.red,C.redBg],[matchResults.refund.length,'환불 대상','#8B5CF6','#F3F0FF']].map(([n,l,c,bg])=>(
+          {[[matchResults.matched.length,'매칭',C.green,C.greenBg],[pendingMismatch.length,'수동확인',C.orange,C.orangeBg],[matchResults.unpaid.length,'미입금',C.red,C.redBg],[matchResults.refund.length,'환불 대상',C.purple,C.accentBg]].map(([n,l,c,bg])=>(
             <div key={l} style={{background:bg,borderRadius:12,padding:'10px 4px',textAlign:'center'}}>
               <div style={{fontSize:18,fontWeight:900,color:c}}>{n}</div>
               <div style={{fontSize:10,color:c,fontWeight:600}}>{l}</div>
@@ -3537,12 +3539,12 @@ function VerifyTab({form, subs, groups, matchResults, uploading, bankGuideOpen, 
         })()}
         {!unpaidOnly&&matchResults.refund.length>0&&(
           <div style={{marginBottom:16}}>
-            <div style={{fontSize:13,fontWeight:800,color:'#8B5CF6',marginBottom:8}}>🔄 환불 대상 ({matchResults.refund.length}명)</div>
+            <div style={{fontSize:13,fontWeight:800,color:C.purple,marginBottom:8}}>🔄 환불 대상 ({matchResults.refund.length}명)</div>
             <div style={{fontSize:12,color:C.textMid,marginBottom:8,lineHeight:1.6}}>신청 내역 없이 입금한 건이에요</div>
             {matchResults.refund.map((d,i)=>(
               <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
                 <span style={{fontWeight:700,color:C.text,fontSize:14}}>{d.name}</span>
-                <span style={{color:'#8B5CF6',fontWeight:700,fontSize:13}}>{fmtKRW(d.amount)}</span>
+                <span style={{color:C.purple,fontWeight:700,fontSize:13}}>{fmtKRW(d.amount)}</span>
               </div>
             ))}
           </div>
@@ -3698,7 +3700,7 @@ function PasteFeeModal({members, memberMap, onApply, showToast, onClose}){
       )}
       <div style={{display:'flex',gap:8}}>
         <button onClick={onClose} style={{flex:1,padding:'12px',borderRadius:12,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontSize:14,fontWeight:700,cursor:'pointer'}}>취소</button>
-        <button onClick={apply} disabled={!pasteText.trim()} style={{flex:2,padding:'12px',borderRadius:12,border:'none',background:pasteText.trim()?C.accent:'#D1D5DB',color:'#fff',fontSize:14,fontWeight:700,cursor:pasteText.trim()?'pointer':'default'}}>적용</button>
+        <button onClick={apply} disabled={!pasteText.trim()} style={{flex:2,padding:'12px',borderRadius:12,border:'none',background:pasteText.trim()?C.accent:C.disabled,color:'#fff',fontSize:14,fontWeight:700,cursor:pasteText.trim()?'pointer':'default'}}>적용</button>
       </div>
     </Modal>
   );
