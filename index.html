@@ -545,6 +545,28 @@ const SelectGrid = ({options,value,onChange}) => (
   </div>
 );
 
+const FlowStepper = ({steps, current, done=[], onStepClick}) => (
+  <div style={{background:C.cardBg,padding:'14px 18px 0',borderBottom:`1px solid ${C.border}`}}>
+    <div style={{display:'flex',alignItems:'flex-start',gap:0}}>
+      {steps.map((label,i)=>{
+        const isActive=current===i;
+        const isDone=done[i]||current>i;
+        return(
+          <React.Fragment key={i}>
+            <button onClick={onStepClick?()=>onStepClick(i):undefined} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,flex:1,background:'none',border:'none',cursor:onStepClick?'pointer':'default',paddingBottom:12}}>
+              <div style={{width:26,height:26,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:isDone?C.green:isActive?C.accent:C.border,color:'#fff',fontSize:11,fontWeight:900,transition:'all 0.3s'}}>
+                {isDone?'✓':i+1}
+              </div>
+              <div style={{fontSize:10,fontWeight:isActive?700:400,color:isDone?C.green:isActive?C.accent:C.textDim,transition:'all 0.3s',whiteSpace:'nowrap'}}>{label}</div>
+            </button>
+            {i<steps.length-1&&<div style={{height:2,flex:2,background:isDone?C.green:C.border,marginTop:12,transition:'all 0.3s'}}/>}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  </div>
+);
+
 const Modal = ({isOpen, onClose, title, maxWidth=440, closeOnBackdrop=true, showCloseButton=true, zIndex=200, footer, children}) => {
   useEffect(()=>{
     if(!isOpen) return;
@@ -1748,26 +1770,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
         <button onClick={archiveEvent} style={{background:C.inputBg,border:'none',borderRadius:12,color:C.textMid,cursor:'pointer',padding:'8px 14px',fontSize:13,fontWeight:700}}>종료</button>
       </div>
 
-      {/* 프로그레스 바 */}
-      <div style={{background:C.cardBg,padding:'14px 18px 0',borderBottom:`1px solid ${C.border}`}}>
-        <div style={{display:'flex',alignItems:'flex-start',gap:0}}>
-          {steps.map((label,i)=>{
-            const isActive=slide===i;
-            const isDone=stepDone[i]||slide>i;
-            return(
-              <React.Fragment key={i}>
-                <button onClick={()=>setSlide(i)} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,flex:1,background:'none',border:'none',cursor:'pointer',paddingBottom:12}}>
-                  <div style={{width:26,height:26,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:isDone?C.green:isActive?C.accent:C.border,color:'#fff',fontSize:11,fontWeight:900,transition:'all 0.3s'}}>
-                    {isDone?'✓':i+1}
-                  </div>
-                  <div style={{fontSize:10,fontWeight:isActive?700:400,color:isDone?C.green:isActive?C.accent:C.textDim,transition:'all 0.3s',whiteSpace:'nowrap'}}>{label}</div>
-                </button>
-                {i<steps.length-1&&<div style={{height:2,flex:2,background:isDone?C.green:C.border,marginTop:12,transition:'all 0.3s'}}/>}
-              </React.Fragment>
-            );
-          })}
-        </div>
-      </div>
+      <FlowStepper steps={steps} current={slide} done={stepDone} onStepClick={setSlide}/>
 
       {/* 슬라이드 콘텐츠 */}
       <div style={{flex:1,overflow:'auto'}}>
@@ -3005,14 +3008,12 @@ function FormCreateScreen({nav,profile,createForm}){
   return(
     <div className="fade-up screen" style={{background:C.pageBg,display:'flex',flexDirection:'column'}}>
       <Header title="신청폼 만들기" onBack={()=>nav.setView('home')}/>
+      <FlowStepper steps={['폼 설정','공유','입금 확인','정산 시작']} current={0} done={[]}/>
       <div style={{flex:1,padding:'8px 16px 16px',overflow:'auto'}}>
         {/* 기본 정보 */}
         <Card>
           <Field label="행사명" value={name} onChange={setName} placeholder="5월 MT, 개강총회…"/>
-          <div style={{display:'flex',gap:8}}>
-            <div style={{flex:2}}><Field label="날짜" value={date} onChange={setDate} type="date"/></div>
-            <div style={{flex:1}}><Field label="시간" value={time} onChange={setTime} type="time"/></div>
-          </div>
+          <Field label="날짜·시간" value={date+(time?`T${time}`:'')} onChange={v=>{setDate(v.slice(0,10));setTime(v.length>10?v.slice(11,16):'');}} type="datetime-local"/>
           <Field label="참가비 (원)" value={amount} onChange={v=>setAmount(v.replace(/[^0-9]/g,''))} placeholder="30,000" inputMode="numeric"/>
           <Field label="장소 (선택)" value={place} onChange={setPlace} placeholder="강남 OO식당, 동아리방…"/>
           <div style={{marginBottom:14}}>
@@ -3333,7 +3334,7 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
 
 function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCount, groups,
                          searchQ, setSearchQ, groupFilter, setGroupFilter,
-                         onTogglePaid, onBulkConfirm}){
+                         onTogglePaid, onBulkConfirm, onCardDunning}){
   const [sortByTime,setSortByTime]=useState(true);
   const [confirmBulk,setConfirmBulk]=useState(false);
   const requestedCount=subs.filter(s=>!s.paid&&s.paymentStatus!=='matched'&&s.paymentStatus==='requested').length;
@@ -3422,6 +3423,9 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
                 {fmtRelTime(s.createdAt)}
                 {isPaid&&s.matchedAt&&<span style={{color:C.green}}>입금 {fmtTime(s.matchedAt)}</span>}
               </div>
+              {onCardDunning&&!isPaid&&!isRequested&&(
+                <button onClick={()=>onCardDunning(s)} style={{fontSize:11,color:C.purple,background:'transparent',border:`1px solid ${C.purple}40`,borderRadius:6,padding:'2px 8px',cursor:'pointer',fontWeight:700}}>독촉</button>
+              )}
             </div>
           </div>
         );
@@ -3637,18 +3641,17 @@ function FormShareTab({form, showToast}){
       ):(
         <div style={{background:C.inputBg,borderRadius:12,padding:'14px 16px',fontSize:13,color:C.textMid,lineHeight:1.85,marginBottom:12,whiteSpace:'pre-wrap'}}>{autoMsg}</div>
       )}
-      <div style={{display:'flex',gap:8,marginBottom:8}}>
+      <div style={{display:'flex',gap:8}}>
         <Btn onClick={async()=>{const msg=getMsg();const shared=await shareText(msg);if(!shared){await copyText(msg);showToast('메시지 복사됨');}else showToast('공유 완료');}} small style={{flex:2}}>💬 카톡 공유</Btn>
-        <Btn variant="secondary" onClick={async()=>{await copyText(formLink);showToast('링크가 복사됐어요!');}} small style={{flex:1}}>🔗 링크</Btn>
+        <Btn onClick={async()=>{await copyText(getMsg());showToast('메시지 복사됨');}} variant="ghost" small style={{flex:1}}>📋 복사</Btn>
       </div>
-      <Btn onClick={async()=>{await copyText(getMsg());showToast('메시지 복사됨');}} variant="ghost" small>📋 메시지 복사</Btn>
     </div>
   );
 }
 
 function FormShareModal({form, showToast, onClose}){
   return(
-    <Modal isOpen={true} onClose={onClose} title="링크 공유">
+    <Modal isOpen={true} onClose={onClose} title="공유하기">
       <FormShareTab form={form} showToast={showToast}/>
     </Modal>
   );
@@ -3767,13 +3770,27 @@ function DunningModal({eventName, account, link, unpaidList, showToast, onClose}
   );
 }
 
+function BridgeNameModal({form, subsCount, onConfirm, onClose}){
+  const [name,setName]=useState(form.name);
+  return(
+    <Modal isOpen={true} onClose={onClose} title="정산 시작하기">
+      <div style={{fontSize:13,color:C.textMid,marginBottom:16}}>신청자 {subsCount}명으로 정산 그룹을 만들어요. 원본 신청폼은 유지돼요.</div>
+      <Field label="정산 이름" value={name} onChange={setName} placeholder="5월 MT 정산"/>
+      <div style={{display:'flex',gap:8,marginTop:4}}>
+        <Btn variant="ghost" onClick={onClose} style={{flex:1}}>취소</Btn>
+        <Btn variant="green" onClick={()=>onConfirm(name.trim()||form.name)} disabled={!name.trim()} style={{flex:2}}>정산 시작</Btn>
+      </div>
+    </Modal>
+  );
+}
+
 // ── FormAdminScreen (대규모 관리자 대시보드) ──────────────────
 function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,createEvent}){
   const [tab,setTab]=useState('submissions');
   const [shareOpen,setShareOpen]=useState(false);
   const [dunningOpen,setDunningOpen]=useState(false);
   const [bridging,setBridging]=useState(false);
-  const [menuOpen,setMenuOpen]=useState(false);
+  const [bridgeNameOpen,setBridgeNameOpen]=useState(false);
   const [bankGuideOpen,setBankGuideOpen]=useState(()=>new Set());
   const toggleBankGuide=(id)=>setBankGuideOpen(prev=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;});
   const [uploadMode,setUploadMode]=useState('file');
@@ -3782,14 +3799,13 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
   const subs=form.submissions||[];
   const groups=profile?.groups||[];
   const unpaidCount=subs.filter(s=>!(s.paid||s.paymentStatus==='matched')).length;
-  const phase=subs.length===0?1:unpaidCount>0?2:3;
+  const phase=subs.length===0?2:unpaidCount>0?3:4;
   const unpaidXList=subs.filter(s=>!s.paid&&s.paymentStatus!=='matched'&&s.paymentStatus!=='requested').map(s=>({name:s.name,amount:form.amount}));
 
   const {filteredSubs,groupCounts,unregisteredCount,matchResults,uploading,
          searchQ,setSearchQ,groupFilter,setGroupFilter,handlers}=useFormAdmin(form,updateForm,profile,saveProfile,showToast);
 
-  const startBridge=async()=>{
-    if(!window.confirm(`신청자 ${subs.length}명으로 정산 그룹을 만들까요?\n원본 신청폼은 유지되고, 별도 정산 이벤트가 생성됩니다.`)) return;
+  const startBridge=async(name)=>{
     setBridging(true);
     const usedKeys=new Set();
     const members=[],memberMap={};
@@ -3801,7 +3817,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
     });
     const code=genCode();
     const ev={
-      code,name:form.name+' 정산',date:form.date,pin:'',
+      code,name,date:form.date,pin:'',
       account:form.account||{},members,memberMap,
       rounds:[],payments:{},attendance:{},attendanceOpen:false,
       createdAt:new Date().toISOString(),
@@ -3812,48 +3828,54 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
     if(ok){nav.setCurrentCode(ev.code);nav.setView('adminEvent');}
   };
 
-  const mi={width:'100%',padding:'14px 18px',background:'none',border:'none',cursor:'pointer',fontSize:14,color:C.text,textAlign:'left',fontWeight:600,display:'flex',alignItems:'center',gap:10};
-  const md={height:1,background:C.pageBg,margin:'0 16px'};
+  const handleCardDunning=async(s)=>{
+    if(!form.account?.bank) return;
+    const acct=form.account;
+    const msg=`[${form.name}] 입금 안내\n\n${s.name}님 아직 입금 확인이 안 됐어요.\n\n${acct.bank} ${acct.number} (${acct.holder})\n${fmtKRW(form.amount)}\n\n${getLink(`form=${form.code}`)}`;
+    const shared=await shareText(msg);
+    if(!shared){await copyText(msg);showToast('독촉 메시지 복사됐어요');}
+    else showToast('공유 완료');
+  };
 
   return(
     <div className="fade-up screen" style={{background:C.pageBg}}>
-      <Header title={form.name} onBack={()=>nav.setView('home')} right={
-        <div style={{position:'relative'}}>
-          <button onClick={()=>setMenuOpen(o=>!o)} style={{background:C.inputBg,border:'none',borderRadius:12,color:C.textMid,cursor:'pointer',width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center'}}><span className="ms" style={{fontSize:22}}>more_horiz</span></button>
-          {menuOpen&&<div onClick={()=>setMenuOpen(false)} style={{position:'fixed',inset:0,zIndex:40}}/>}
-          {menuOpen&&(
-            <div style={{position:'absolute',right:0,top:48,background:C.cardBg,borderRadius:16,boxShadow:'0 8px 32px rgba(0,0,0,0.12)',zIndex:50,minWidth:190,overflow:'hidden'}}>
-              <button onClick={()=>{setShareOpen(true);setMenuOpen(false);}} style={mi}>👥 링크 공유</button>
-              {form.account?.bank&&<><div style={md}/>
-              <button onClick={()=>{setDunningOpen(true);setMenuOpen(false);}} disabled={!unpaidXList.length} style={{...mi,color:unpaidXList.length?C.text:C.textDim,cursor:unpaidXList.length?'pointer':'default'}}>📢 독촉{unpaidXList.length===0?' (미입금 없음)':''}</button></>}
-              {subs.length>0&&createEvent&&<><div style={md}/>
-              <button onClick={()=>{startBridge();setMenuOpen(false);}} style={mi}>📋 이 명단으로 정산 시작</button></>}
-              <div style={md}/>
-              <button onClick={()=>{isClosed?handlers.reopenForm():handlers.closeForm();setMenuOpen(false);}} style={{...mi,color:isClosed?C.green:C.red}}>{isClosed?'🔓 신청 다시 열기':'🔒 신청 마감하기'}</button>
-            </div>
-          )}
-        </div>
-      }/>
+      <Header title={form.name} onBack={()=>nav.setView('home')}/>
 
       {/* 헤더 정보 */}
-      <div style={{padding:'2px 20px 12px'}}>
-        <div style={{fontSize:13,color:C.textDim}}>{form.date}{form.amount?` · ${fmtKRW(form.amount)}`:' · 참가비 없음'}</div>
+      <div style={{padding:'2px 20px 8px'}}>
+        <div style={{fontSize:13,color:C.textDim}}>{form.date}{form.time?` ${form.time}`:''}{form.amount?` · ${fmtKRW(form.amount)}`:' · 참가비 없음'}</div>
         <div style={{fontSize:13,color:C.textMid,marginTop:2}}>신청 {subs.length}{form.maxPeople?`/${form.maxPeople}명`:'명'}{form.amount?` · 미입금 ${unpaidCount}명`:''}</div>
       </div>
 
-      {/* Phase 1: 링크 공유 강조 */}
-      {phase===1&&(
-        <div style={{padding:'0 16px 10px'}}>
-          <Btn onClick={()=>setShareOpen(true)}>👥 링크 공유하기</Btn>
-        </div>
-      )}
+      <FlowStepper
+        steps={['폼 생성','공유','입금 확인','정산 시작']}
+        current={phase-1}
+        done={[true, phase>2, phase>3, false]}
+      />
 
-      {/* Phase 2: 일괄 독촉 보조 버튼 */}
-      {phase===2&&unpaidXList.length>0&&form.account?.bank&&(
-        <div style={{padding:'0 16px 10px'}}>
-          <Btn variant="secondary" onClick={()=>setDunningOpen(true)} style={{fontSize:13}}>📢 미납자 {unpaidXList.length}명 일괄 독촉</Btn>
-        </div>
-      )}
+      {/* 단계별 액션 */}
+      <div style={{padding:'10px 16px'}}>
+        {phase===2&&(
+          <div style={{display:'flex',gap:8}}>
+            <Btn onClick={()=>setShareOpen(true)} style={{flex:2,background:C.purple}}>공유하기</Btn>
+            <Btn variant="ghost" onClick={isClosed?handlers.reopenForm:handlers.closeForm} style={{flex:1,fontSize:13}}>{isClosed?'열기':'마감'}</Btn>
+          </div>
+        )}
+        {phase===3&&(
+          <>
+            <div style={{display:'flex',gap:8,marginBottom:6}}>
+              {form.account?.bank&&<Btn onClick={()=>setDunningOpen(true)} disabled={!unpaidXList.length} style={{flex:2,background:C.purple,opacity:unpaidXList.length?1:0.4}}>📢 일괄 독촉 {unpaidXList.length}명</Btn>}
+              <Btn variant="ghost" onClick={()=>setShareOpen(true)} style={{flex:1,fontSize:13}}>공유</Btn>
+            </div>
+            <Btn variant="ghost" onClick={isClosed?handlers.reopenForm:handlers.closeForm} style={{fontSize:13}}>{isClosed?'🔓 신청 다시 열기':'🔒 신청 마감하기'}</Btn>
+          </>
+        )}
+        {phase===4&&createEvent&&(
+          <Btn variant="green" onClick={()=>setBridgeNameOpen(true)} disabled={bridging}>
+            {bridging?'생성 중…':'정산 시작하기'}
+          </Btn>
+        )}
+      </div>
 
       {/* 탭 */}
       <div style={{display:'flex',padding:'0 16px 10px',gap:6}}>
@@ -3871,7 +3893,8 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
           <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
             unregisteredCount={unregisteredCount} groups={groups}
             searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
-            onTogglePaid={handlers.togglePaid} onBulkConfirm={handlers.bulkConfirmRequested}/>
+            onTogglePaid={handlers.togglePaid} onBulkConfirm={handlers.bulkConfirmRequested}
+            onCardDunning={phase===3&&form.account?.bank?handleCardDunning:null}/>
         )}
         {tab==='verify'&&(
           <VerifyTab form={form} subs={subs} groups={groups} matchResults={matchResults} uploading={uploading}
@@ -3883,19 +3906,13 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
         )}
       </div>
 
-      {/* Phase 3: 정산 시작 */}
-      {phase===3&&createEvent&&(
-        <div style={{padding:'0 16px 24px',marginTop:-16}}>
-          <Btn onClick={startBridge} disabled={bridging} style={{background:C.green,fontSize:14}}>
-            {bridging?'생성 중…':'📋 이 명단으로 정산 시작하기'}
-          </Btn>
-        </div>
-      )}
-
       {shareOpen&&<FormShareModal form={form} showToast={showToast} onClose={()=>setShareOpen(false)}/>}
       {dunningOpen&&form.account?.bank&&(
         <DunningModal eventName={form.name} account={form.account} link={getLink(`form=${form.code}`)}
           unpaidList={unpaidXList} showToast={showToast} onClose={()=>setDunningOpen(false)}/>
+      )}
+      {bridgeNameOpen&&(
+        <BridgeNameModal form={form} subsCount={subs.length} onConfirm={name=>{setBridgeNameOpen(false);startBridge(name);}} onClose={()=>setBridgeNameOpen(false)}/>
       )}
     </div>
   );
