@@ -14,7 +14,7 @@
   <meta name="twitter:title" content="정산해 💸">
   <meta name="twitter:description" content="총무의 부담을 1/10로 줄였어요.">
   <meta name="twitter:image" content="https://rainbow-cheesecake-008fbd.netlify.app/og.png">
-  <meta name="theme-color" content="#6366F1">
+  <meta name="theme-color" content="#F2F3F5">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍻</text></svg>">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=block">
@@ -1489,7 +1489,7 @@ function SetupScreen({nav,profile,saveProfile}){
                     <button onClick={()=>setGroups(gs=>gs.map(g=>({...g,paidFeeMembers:(g.members||[]).map(m=>m.name+(m.sid?'_'+m.sid:''))})))}
                       style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.green}40`,background:groups.every(g=>(g.members||[]).length>0&&(g.paidFeeMembers||[]).length===(g.members||[]).length)?C.green+'22':C.inputBg,color:C.green,fontSize:12,fontWeight:700,cursor:'pointer'}}>전원 납부자</button>
                     <button onClick={()=>setGroups(gs=>gs.map(g=>({...g,paidFeeMembers:[]})))}
-                      style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontSize:12,fontWeight:700,cursor:'pointer'}}>전원 미납부자</button>
+                      style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontSize:12,fontWeight:700,cursor:'pointer'}}>전원 미납자</button>
                     <button onClick={()=>setPfmOpen(true)}
                       style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.accent}40`,background:C.accentBg,color:C.accent,fontSize:12,fontWeight:700,cursor:'pointer'}}>명단 붙여넣기</button>
                   </div>
@@ -2011,7 +2011,7 @@ function FeeConfigSection({event,updateEvent}){
                   <span style={{fontSize:15,fontWeight:900,color:C.accent}}>{fmtKRW(pvPaid)}</span>
                 </div>
                 <div style={{display:'flex',justifyContent:'space-between'}}>
-                  <span style={{fontSize:13,color:C.textMid}}>학생회비 미납부자</span>
+                  <span style={{fontSize:13,color:C.textMid}}>학생회비 미납자</span>
                   <span style={{fontSize:15,fontWeight:900,color:C.red}}>{fmtKRW(pvUnpaid)}</span>
                 </div>
               </div>
@@ -2021,7 +2021,7 @@ function FeeConfigSection({event,updateEvent}){
           {fc.mode==='manual'&&(
             <div className="fade-up">
               <Field label="납부자 공지 금액 (원)" value={paidInput} onChange={v=>setPaidInput(v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="8000"/>
-              <Field label="미납부자 공지 금액 (원)" value={unpaidInput} onChange={v=>setUnpaidInput(v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="13000"/>
+              <Field label="미납자 공지 금액 (원)" value={unpaidInput} onChange={v=>setUnpaidInput(v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="13000"/>
               <Btn onClick={()=>saveFeeConfig('manual')} small>적용</Btn>
             </div>
           )}
@@ -2096,7 +2096,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups}){
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:isEditing?12:0}}>
               <div>
                 <div style={{fontWeight:800,color:C.text,fontSize:15}}>{r.label}</div>
-                {useFeeConfig&&<div style={{fontSize:12,color:C.textMid,marginTop:2}}>납부자 {fmtKRW(fc.paidFeeAmount)} · 미납부자 {fmtKRW(fc.unpaidFeeAmount)}</div>}
+                {useFeeConfig&&<div style={{fontSize:12,color:C.textMid,marginTop:2}}>납부자 {fmtKRW(fc.paidFeeAmount)} · 미납자 {fmtKRW(fc.unpaidFeeAmount)}</div>}
                 {!useFeeConfig&&r.amount>0&&<div style={{fontSize:12,color:C.textMid,marginTop:2}}>{r.members.length+(r.extraMembers?.length||0)}명 · 1인당 {fmtKRW(Math.ceil(r.amount/(r.members.length+(r.extraMembers?.length||0))))}{(r.extraMembers?.length||0)>0&&<span style={{color:C.orange,marginLeft:5}}>임시 {r.extraMembers.length}명 포함</span>}</div>}
                 {!useFeeConfig&&r.amount===0&&<div style={{fontSize:12,color:C.orange,marginTop:2}}>금액을 입력해주세요</div>}
               </div>
@@ -2236,7 +2236,7 @@ function ShareSection({event,showToast}){
   const autoMsg=fc?.paidFeeAmount!=null&&(hasPaidLine||hasUnpaidLine)
     ?[`[${event.date} ${event.name}] 정산 안내`,'',
       ...(hasPaidLine?[`📌 학생회비 납부자: ${fmtKRW(fc.paidFeeAmount)}`]:[]),
-      ...(hasUnpaidLine?[`📌 학생회비 미납부자: ${fmtKRW(fc.unpaidFeeAmount)}`]:[]),
+      ...(hasUnpaidLine?[`📌 학생회비 미납자: ${fmtKRW(fc.unpaidFeeAmount)}`]:[]),
       '','아래 링크에서 내가 낼 돈을 확인하고 입금해주세요.','','(정산해 · 간편한 모임 정산 서비스)'].join('\n')
     :`[${event.date} ${event.name}] 정산 안내\n\n아래 링크에서 내가 낼 돈을 확인하고 입금해주세요.\n\n(정산해 · 간편한 모임 정산 서비스)`;
 
@@ -2418,7 +2418,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
   return(
     <div>
       <div style={{display:'flex',gap:8,marginBottom:12}}>
-        {[[pc,'완료',C.green,C.greenBg],[totalCount-pc,'미입금',C.red,C.redBg]].map(([v,l,c,bg])=>(
+        {[[totalCount-pc,'미입금',C.red,C.redBg]].map(([v,l,c,bg])=>(
           <div key={l} style={{flex:1,background:bg,borderRadius:12,padding:'11px 8px',textAlign:'center',border:`1.5px solid ${c}30`}}>
             <div style={{fontSize:20,fontWeight:900,color:c}}>{v}</div>
             <div style={{fontSize:11,color:c,marginTop:2,fontWeight:600}}>{l}</div>
@@ -3447,8 +3447,6 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
               <div style={{display:'flex',gap:8}}>
                 {fmtRelTime(s.createdAt)}
                 {isPaid&&s.matchedAt&&<span style={{color:C.green}}>입금 {fmtTime(s.matchedAt)}</span>}
-                {s.matchedBy==='auto'&&<span style={{color:C.green}}>자동매칭</span>}
-                {s.matchedBy==='manual'&&<span style={{color:C.accent}}>수동확인</span>}
               </div>
               {!isPaid&&!isRequested&&form.account?.bank&&(
                 <button onClick={()=>onDunning(s)} style={{fontSize:11,color:C.orange,background:C.orange+'18',border:'none',borderRadius:8,padding:'4px 10px',cursor:'pointer',fontWeight:700,flexShrink:0}}>💬 독촉</button>
@@ -3727,7 +3725,7 @@ function PasteFeeModal({members, memberMap, onApply, showToast, onClose}){
         </div>
       )}
       <div style={{display:'flex',gap:8}}>
-        <button onClick={onClose} style={{flex:1,padding:'12px',borderRadius:12,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontSize:14,fontWeight:700,cursor:'pointer'}}>닫기</button>
+        <button onClick={onClose} style={{flex:1,padding:'12px',borderRadius:12,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontSize:14,fontWeight:700,cursor:'pointer'}}>취소</button>
         <button onClick={apply} disabled={!pasteText.trim()} style={{flex:2,padding:'12px',borderRadius:12,border:'none',background:pasteText.trim()?C.accent:'#D1D5DB',color:'#fff',fontSize:14,fontWeight:700,cursor:pasteText.trim()?'pointer':'default'}}>적용</button>
       </div>
     </Modal>
@@ -3791,7 +3789,7 @@ function DunningModal({eventName, account, link, unpaidList, showToast, onClose}
         <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',fontSize:12,color:C.textMid,lineHeight:1.85,marginBottom:6,whiteSpace:'pre-wrap',border:`1.5px solid ${C.border}`}}>{autoMsg}{'\n'}{link}</div>
       )}
       <div style={{display:'flex',gap:8,marginTop:8}}>
-        <Btn variant="ghost" onClick={onClose} style={{flex:1}}>닫기</Btn>
+        <Btn variant="ghost" onClick={onClose} style={{flex:1}}>취소</Btn>
         <Btn onClick={share} style={{flex:2}}>💬 카카오톡 공유</Btn>
       </div>
     </Modal>
@@ -3863,15 +3861,15 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
           <div style={{display:'flex',gap:8}}>
             <div style={{flex:1,background:C.accentBg,borderRadius:12,padding:'10px',textAlign:'center'}}>
               <div style={{fontSize:20,fontWeight:900,color:C.accent}}>{viewCount}</div>
-              <div style={{fontSize:11,color:C.accent,fontWeight:600}}>👀 조회 수</div>
+              <div style={{fontSize:11,color:C.accent,fontWeight:600}}>👀 조회수</div>
             </div>
             <div style={{flex:1,background:C.accentBg,borderRadius:12,padding:'10px',textAlign:'center'}}>
               <div style={{fontSize:20,fontWeight:900,color:C.accent}}>{subs.length}</div>
-              <div style={{fontSize:11,color:C.accent,fontWeight:600}}>신청 수</div>
+              <div style={{fontSize:11,color:C.accent,fontWeight:600}}>신청수</div>
             </div>
             <div style={{flex:1,background:C.redBg,borderRadius:12,padding:'10px',textAlign:'center'}}>
               <div style={{fontSize:20,fontWeight:900,color:C.red}}>{subs.filter(s=>!(s.paid||s.paymentStatus==='matched')).length}</div>
-              <div style={{fontSize:11,color:C.red,fontWeight:600}}>미입금 수</div>
+              <div style={{fontSize:11,color:C.red,fontWeight:600}}>미입금수</div>
             </div>
           </div>
         </Card>
@@ -4055,7 +4053,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
         )}
         <div style={{fontSize:14,color:C.textMid,marginBottom:28,lineHeight:1.7}}>
           {isConfirmed?'총무가 입금을 확인했어요':isRequested?(
-            <>입금 완료 요청을 보냈어요<br/><span style={{color:C.green,fontWeight:700}}>총무 확인 대기 중</span></>
+            <>입금 완료 요청을 보냈어요<br/><span style={{color:C.green,fontWeight:700}}>확인 대기</span></>
           ):(
             <>아래 계좌로 입금해주세요<br/><span style={{color:C.orange,fontWeight:700}}>입금 요청 중</span></>
           )}
@@ -4065,7 +4063,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
           <Card style={{textAlign:'left',marginBottom:16}}>
             <div style={{fontWeight:800,color:C.text,marginBottom:14,fontSize:15}}>💳 입금 정보</div>
             <div style={{background:C.inputBg,borderRadius:14,padding:'14px 16px',marginBottom:10}}>
-              <div style={{fontSize:12,color:C.textDim,marginBottom:4}}>입금액</div>
+              <div style={{fontSize:12,color:C.textDim,marginBottom:4}}>납부 금액</div>
               <div style={{fontSize:24,fontWeight:900,color:C.accent}}>{fmtKRW(form.amount)}</div>
             </div>
             <div style={{background:C.inputBg,borderRadius:14,padding:'14px 16px',marginBottom:14}}>
