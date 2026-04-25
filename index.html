@@ -3810,15 +3810,17 @@ function DunningModal({eventName, account, link, unpaidList, showToast, onClose}
           </div>
         )}
       </div>
-      {editMode?(
+      {unpaidList.length===0?(
+        <div style={{textAlign:'center',padding:'16px 0',color:C.textMid,fontSize:14}}>미입금자가 없어요 🎉</div>
+      ):(editMode?(
         <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={7}
           style={{width:'100%',padding:'10px 12px',borderRadius:10,border:`1.5px solid ${C.accent}`,background:C.inputBg,fontSize:12,color:C.text,lineHeight:1.85,resize:'vertical',outline:'none',boxSizing:'border-box',marginBottom:6}}/>
       ):(
         <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',fontSize:12,color:C.textMid,lineHeight:1.85,marginBottom:6,whiteSpace:'pre-wrap',border:`1.5px solid ${C.border}`}}>{autoMsg}{'\n'}{link}</div>
-      )}
+      ))}
       <div style={{display:'flex',gap:8,marginTop:8}}>
         <Btn variant="ghost" onClick={onClose} style={{flex:1}}>취소</Btn>
-        <Btn onClick={share} style={{flex:2}}>💬 카카오톡 공유</Btn>
+        {unpaidList.length>0&&<Btn onClick={share} style={{flex:2}}>💬 카카오톡 공유</Btn>}
       </div>
     </Modal>
   );
@@ -3852,7 +3854,7 @@ function BridgeNameModal({form, subsCount, onConfirm, onClose}){
 
 // ── FormAdminScreen (대규모 관리자 대시보드) ──────────────────
 function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,createEvent}){
-  const [tab,setTab]=useState('submissions');
+  const [showVerify,setShowVerify]=useState(false);
   const [shareOpen,setShareOpen]=useState(false);
   const [dunningOpen,setDunningOpen]=useState(false);
   const [closeConfirmOpen,setCloseConfirmOpen]=useState(false);
@@ -3868,12 +3870,12 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
   const unpaidCount=subs.filter(s=>!(s.paid||s.paymentStatus==='matched')).length;
   const needsAction=unpaidCount;
   const unpaidXList=subs.filter(s=>!s.paid&&s.paymentStatus!=='matched'&&s.paymentStatus!=='requested').map(s=>({name:s.name,amount:form.amount}));
-  const [slide,setSlide]=useState(()=>subs.length===0?1:2);
-  const stepDone=[true,subs.length>0,subs.length>0&&needsAction===0];
+  const [slide,setSlide]=useState(()=>subs.length===0?0:1);
+  const stepDone=[true,subs.length>0&&needsAction===0];
 
   const {filteredSubs,groupCounts,unregisteredCount,matchResults,uploading,
          searchQ,setSearchQ,groupFilter,setGroupFilter,handlers}=useFormAdmin(form,updateForm,profile,saveProfile,showToast);
-  useEffect(()=>{if(slide!==2)setTab('submissions');},[slide]);
+  useEffect(()=>{if(slide!==1)setShowVerify(false);},[slide]);
 
   const startBridge=async(name)=>{
     setBridging(true);
@@ -3912,7 +3914,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
       <Header title={form.name} onBack={()=>nav.setView('home')}/>
 
       <FlowStepper
-        steps={['폼 생성','공유','대조']}
+        steps={['폼 생성+공유','대조']}
         current={slide}
         done={stepDone}
         onStepClick={setSlide}
@@ -3936,61 +3938,45 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
               </div>
             ))}
           </Card>
+          <div style={{marginTop:12}}>
+            <Btn onClick={()=>setShareOpen(true)} style={{background:C.purple}}>👥 공유하기</Btn>
+          </div>
         </div>
       )}
 
       {slide===1&&(
         <div style={{padding:'10px 16px 24px'}}>
-          <div style={{marginBottom:8}}>
-            <Btn onClick={()=>setShareOpen(true)} style={{background:C.purple}}>공유하기</Btn>
-          </div>
-          <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
-            unregisteredCount={unregisteredCount} groups={groups}
-            searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
-            onTogglePaid={handlers.togglePaid} onUndoPaid={handlers.undoPaid} onBulkConfirm={handlers.bulkConfirmRequested}
-            onCardDunning={null}/>
-        </div>
-      )}
-
-      {slide===2&&(
-        <div style={{padding:'10px 16px 24px'}}>
-          <div style={{display:'flex',marginBottom:10,gap:6}}>
-            {[['submissions','신청 목록'],['verify','입금 자동 대조']].map(([key,label])=>(
-              <button key={key} onClick={()=>setTab(key)} style={{
-                flex:1,padding:'10px 4px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',
-                background:tab===key?C.accent:C.cardBg,color:tab===key?'#fff':C.textMid,
-                border:`1px solid ${tab===key?C.accent:C.border}`,
-              }}>{label}</button>
-            ))}
-          </div>
-          {tab==='submissions'&&(
-            <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
-              unregisteredCount={unregisteredCount} groups={groups}
-              searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
-              onTogglePaid={handlers.togglePaid} onUndoPaid={handlers.undoPaid} onBulkConfirm={handlers.bulkConfirmRequested}
-              onCardDunning={form.account?.bank?handleCardDunning:null}/>
-          )}
-          {tab==='verify'&&(
-            <VerifyTab form={form} subs={subs} groups={groups} matchResults={matchResults} uploading={uploading}
-              bankGuideOpen={bankGuideOpen} setBankGuideOpen={setBankGuideOpen}
-              uploadMode={uploadMode} setUploadMode={setUploadMode} fileRef={fileRef}
-              onUpload={handlers.handleExcel} onApply={handlers.applyMatched}
-              onReset={()=>handlers.setMatchResults(null)} onCopyNudge={handlers.copyNudge}
-              onTogglePaid={handlers.togglePaid}/>
-          )}
-          {!isClosed&&needsAction===0&&subs.length>0&&(
-            <Btn variant="danger" onClick={()=>setCloseConfirmOpen(true)} style={{marginTop:16}}>🔒 마감하기</Btn>
-          )}
-          {unpaidXList.length>0&&form.account?.bank&&(
-            <Btn onClick={()=>setDunningOpen(true)} style={{marginTop:8,background:C.purple,fontSize:13}}>
-              📢 일괄 독촉 {unpaidXList.length}명
-            </Btn>
-          )}
-          {createEvent&&subs.length>0&&(
-            <div style={{marginTop:24,paddingTop:16,borderTop:`1px solid ${C.border}`}}>
-              <div style={{fontSize:12,color:C.textMid,marginBottom:8}}>행사 후 추가 정산(뒷풀이 등)이 필요하면</div>
-              <Btn variant="ghost" small onClick={()=>setBridgeNameOpen(true)}>📋 이어서 정산하기 →</Btn>
-            </div>
+          {showVerify?(
+            <>
+              <button onClick={()=>setShowVerify(false)} style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',cursor:'pointer',color:C.textMid,fontSize:14,fontWeight:600,padding:'0 0 12px 0'}}>← 뒤로</button>
+              <VerifyTab form={form} subs={subs} groups={groups} matchResults={matchResults} uploading={uploading}
+                bankGuideOpen={bankGuideOpen} setBankGuideOpen={setBankGuideOpen}
+                uploadMode={uploadMode} setUploadMode={setUploadMode} fileRef={fileRef}
+                onUpload={handlers.handleExcel} onApply={handlers.applyMatched}
+                onReset={()=>{handlers.setMatchResults(null);setShowVerify(false);}} onCopyNudge={handlers.copyNudge}
+                onTogglePaid={handlers.togglePaid}/>
+            </>
+          ):(
+            <>
+              <div style={{display:'flex',marginBottom:10,gap:6}}>
+                <button onClick={()=>setShowVerify(true)} style={{flex:1,padding:'10px 4px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`}}>📥 입금 자동 대조</button>
+                <button onClick={()=>{if(!form.account?.bank){showToast('계좌 정보를 먼저 등록해주세요',C.orange);return;}setDunningOpen(true);}} style={{flex:1,padding:'10px 4px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`}}>📢 일괄 독촉</button>
+              </div>
+              <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
+                unregisteredCount={unregisteredCount} groups={groups}
+                searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
+                onTogglePaid={handlers.togglePaid} onUndoPaid={handlers.undoPaid} onBulkConfirm={handlers.bulkConfirmRequested}
+                onCardDunning={form.account?.bank?handleCardDunning:null}/>
+              {!isClosed&&needsAction===0&&subs.length>0&&(
+                <Btn variant="danger" onClick={()=>setCloseConfirmOpen(true)} style={{marginTop:16}}>🔒 마감하기</Btn>
+              )}
+              {createEvent&&subs.length>0&&(
+                <div style={{marginTop:24,paddingTop:16,borderTop:`1px solid ${C.border}`}}>
+                  <div style={{fontSize:12,color:C.textMid,marginBottom:8}}>행사 후 추가 정산(뒷풀이 등)이 필요하면</div>
+                  <Btn variant="ghost" small onClick={()=>setBridgeNameOpen(true)}>📋 이어서 정산하기 →</Btn>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
