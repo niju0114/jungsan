@@ -1817,7 +1817,6 @@ function AttendanceSection({event,updateEvent,onDone,groups}){
   };
   const allPresent=event.members.every(k=>event.attendance[k]!==false);
   const filtered=event.members.filter(k=>!search||(mm[k]||k).includes(search));
-  const paidFeeCount=(event.paidFeeKeys||[]).length;
 
   // groups가 2개 이상일 때만 그룹 묶음 표시
   const useGroupView=(groups||[]).length>1&&!search;
@@ -1838,7 +1837,6 @@ function AttendanceSection({event,updateEvent,onDone,groups}){
   const MemberRow=({k})=>{
     const att=event.attendance[k];
     const isAbsent=att===false;
-    const paidFee=(event.paidFeeKeys||[]).includes(k);
     return(
       <div key={k} onClick={()=>toggleAtt(k)} className="press" style={{
         background:isAbsent?C.inputBg:C.cardBg,borderRadius:12,padding:'10px 14px',marginBottom:6,
@@ -1847,14 +1845,11 @@ function AttendanceSection({event,updateEvent,onDone,groups}){
         opacity:isAbsent?0.6:1,transition:'all 0.15s',
       }}>
         <div style={{fontWeight:600,color:isAbsent?C.textDim:C.text,fontSize:14,textDecoration:isAbsent?'line-through':'none'}}>{mm[k]||k}</div>
-        <div style={{display:'flex',alignItems:'center',gap:8}}>
-          {paidFee&&<span style={{fontSize:11,fontWeight:700,borderRadius:8,padding:'3px 8px',background:C.green+'22',color:C.green}}>학비 납부</span>}
-          <div style={{
-            width:28,height:28,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',
-            background:isAbsent?C.redBg:C.green,
-            color:isAbsent?C.red:'#fff',fontWeight:900,fontSize:14,transition:'all 0.15s',
-          }}>{isAbsent?'✕':'○'}</div>
-        </div>
+        <div style={{
+          width:28,height:28,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',
+          background:isAbsent?C.redBg:C.green,
+          color:isAbsent?C.red:'#fff',fontWeight:900,fontSize:14,transition:'all 0.15s',
+        }}>{isAbsent?'✕':'○'}</div>
       </div>
     );
   };
@@ -1876,8 +1871,6 @@ function AttendanceSection({event,updateEvent,onDone,groups}){
         {allPresent?'✓ 전원 참석':'전원 참석'}
       </button>
 
-      {paidFeeCount>0&&<div style={{fontSize:12,color:C.textDim,marginBottom:8,padding:'6px 10px',background:C.green+'11',borderRadius:8}}>학비 납부자 {paidFeeCount}명 · 명단에서 수정하세요</div>}
-
       <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="이름 검색..."
         style={{width:'100%',padding:'10px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:13,outline:'none',marginBottom:10}}
       />
@@ -1897,7 +1890,7 @@ function AttendanceSection({event,updateEvent,onDone,groups}){
         )}
       </div>
 
-      <div style={{marginTop:4,fontSize:11,color:C.textDim,textAlign:'center'}}>탭하면 불참 처리돼요 · 학비 납부 여부는 명단에서 수정</div>
+      <div style={{marginTop:4,fontSize:11,color:C.textDim,textAlign:'center'}}>탭하면 불참 처리돼요</div>
     </div>
   );
 }
