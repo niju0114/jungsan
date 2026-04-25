@@ -3912,16 +3912,23 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
         <div style={{padding:'10px 16px 24px'}}>
           <div style={{marginBottom:8}}>
             {unpaidCount>0?(
-              <div style={{display:'flex',gap:8,marginBottom:6}}>
-                {form.account?.bank&&<Btn onClick={()=>setDunningOpen(true)} disabled={!unpaidXList.length} style={{flex:2,background:C.purple,opacity:unpaidXList.length?1:0.4}}>📢 일괄 독촉 {unpaidXList.length}명</Btn>}
-                <Btn variant="ghost" onClick={()=>setShareOpen(true)} style={{flex:1,fontSize:13}}>공유</Btn>
-              </div>
+              <>
+                <div style={{display:'flex',gap:8,marginBottom:6}}>
+                  {form.account?.bank&&<Btn onClick={()=>setDunningOpen(true)} disabled={!unpaidXList.length} style={{flex:2,background:C.purple,opacity:unpaidXList.length?1:0.4}}>📢 일괄 독촉 {unpaidXList.length}명</Btn>}
+                  <Btn variant="ghost" onClick={()=>setShareOpen(true)} style={{flex:1,fontSize:13}}>공유</Btn>
+                </div>
+                <Btn variant="ghost" onClick={isClosed?handlers.reopenForm:handlers.closeForm} style={{fontSize:13}}>{isClosed?'🔓 신청 다시 열기':'🔒 신청 마감하기'}</Btn>
+              </>
             ):(
-              createEvent&&<Btn variant="green" onClick={()=>setBridgeNameOpen(true)} disabled={bridging} style={{marginBottom:6}}>
-                {bridging?'생성 중…':'정산 시작하기'}
-              </Btn>
+              createEvent&&(
+                <div style={{display:'flex',gap:8,marginBottom:6}}>
+                  {!isClosed&&<Btn variant="danger" onClick={handlers.closeForm} style={{flex:1}}>🔒 신청 마감하기</Btn>}
+                  <Btn variant="green" onClick={()=>setBridgeNameOpen(true)} disabled={bridging} style={{flex:1}}>
+                    {bridging?'생성 중…':'📋 이어서 정산하기'}
+                  </Btn>
+                </div>
+              )
             )}
-            <Btn variant="ghost" onClick={isClosed?handlers.reopenForm:handlers.closeForm} style={{fontSize:13}}>{isClosed?'🔓 신청 다시 열기':'🔒 신청 마감하기'}</Btn>
           </div>
           <div style={{display:'flex',marginBottom:10,gap:6}}>
             {[['submissions','신청 목록'],['verify','입금 자동 대조']].map(([key,label])=>(
