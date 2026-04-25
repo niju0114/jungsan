@@ -3816,12 +3816,13 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
   const subs=form.submissions||[];
   const groups=profile?.groups||[];
   const unpaidCount=subs.filter(s=>!(s.paid||s.paymentStatus==='matched')).length;
-  const phase=subs.length===0?2:unpaidCount>0?3:4;
   const unpaidXList=subs.filter(s=>!s.paid&&s.paymentStatus!=='matched'&&s.paymentStatus!=='requested').map(s=>({name:s.name,amount:form.amount}));
+  const [slide,setSlide]=useState(()=>subs.length===0?1:2);
+  const stepDone=[true,subs.length>0,subs.length>0&&unpaidCount===0];
 
   const {filteredSubs,groupCounts,unregisteredCount,matchResults,uploading,
          searchQ,setSearchQ,groupFilter,setGroupFilter,handlers}=useFormAdmin(form,updateForm,profile,saveProfile,showToast);
-  useEffect(()=>{if(phase!==3)setTab('submissions');},[phase]);
+  useEffect(()=>{if(slide!==2)setTab('submissions');},[slide]);
 
   const startBridge=async(name)=>{
     setBridging(true);
@@ -3866,65 +3867,88 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
       </div>
 
       <FlowStepper
-        steps={['폼 생성','공유','입금 확인','정산 시작']}
-        current={phase-1}
-        done={[true, phase>2, phase>3, false]}
+        steps={['폼 생성','공유','대조']}
+        current={slide}
+        done={stepDone}
+        onStepClick={setSlide}
       />
 
-      {/* 단계별 액션 */}
-      <div style={{padding:'10px 16px'}}>
-        {phase===2&&(
-          <div style={{display:'flex',gap:8}}>
-            <Btn onClick={()=>setShareOpen(true)} style={{flex:2,background:C.purple}}>공유하기</Btn>
-            <Btn variant="ghost" onClick={isClosed?handlers.reopenForm:handlers.closeForm} style={{flex:1,fontSize:13}}>{isClosed?'열기':'마감'}</Btn>
-          </div>
-        )}
-        {phase===3&&(
-          <>
-            <div style={{display:'flex',gap:8,marginBottom:6}}>
-              {form.account?.bank&&<Btn onClick={()=>setDunningOpen(true)} disabled={!unpaidXList.length} style={{flex:2,background:C.purple,opacity:unpaidXList.length?1:0.4}}>📢 일괄 독촉 {unpaidXList.length}명</Btn>}
-              <Btn variant="ghost" onClick={()=>setShareOpen(true)} style={{flex:1,fontSize:13}}>공유</Btn>
-            </div>
-            <Btn variant="ghost" onClick={isClosed?handlers.reopenForm:handlers.closeForm} style={{fontSize:13}}>{isClosed?'🔓 신청 다시 열기':'🔒 신청 마감하기'}</Btn>
-          </>
-        )}
-        {phase===4&&createEvent&&(
-          <Btn variant="green" onClick={()=>setBridgeNameOpen(true)} disabled={bridging}>
-            {bridging?'생성 중…':'정산 시작하기'}
-          </Btn>
-        )}
-      </div>
-
-      {/* 탭 (phase 3만) */}
-      {phase===3&&(
-        <div style={{display:'flex',padding:'0 16px 10px',gap:6}}>
-          {[['submissions','신청 목록'],['verify','입금 자동 대조']].map(([key,label])=>(
-            <button key={key} onClick={()=>setTab(key)} style={{
-              flex:1,padding:'10px 4px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',
-              background:tab===key?C.accent:C.cardBg,color:tab===key?'#fff':C.textMid,
-              border:`1px solid ${tab===key?C.accent:C.border}`,
-            }}>{label}</button>
-          ))}
+      {slide===0&&(
+        <div style={{padding:'12px 16px 24px'}}>
+          <Card>
+            {[
+              ['이름', form.name],
+              ['날짜·시간', form.date+(form.time?` ${form.time}`:'')],
+              ['참가비', form.amount?fmtKRW(form.amount):'없음'],
+              form.place?['장소', form.place]:null,
+              form.maxPeople?['정원', `${form.maxPeople}명`]:null,
+              form.account?.bank?['계좌', `${form.account.bank} ${form.account.number}${form.account.holder?` (${form.account.holder})`:''}`]:null,
+              (form.fields?.length)?['추가 항목', form.fields.map(f=>f.label).join(', ')]:null,
+            ].filter(Boolean).map(([label,value])=>(
+              <div key={label} style={{display:'flex',gap:8,padding:'7px 0',borderBottom:`1px solid ${C.border}`}}>
+                <div style={{color:C.textDim,fontSize:13,width:68,flexShrink:0}}>{label}</div>
+                <div style={{color:C.text,fontSize:13,wordBreak:'break-all'}}>{value}</div>
+              </div>
+            ))}
+          </Card>
         </div>
       )}
 
-      <div style={{padding:'0 16px 24px'}}>
-        {(phase!==3||tab==='submissions')&&(
+      {slide===1&&(
+        <div style={{padding:'10px 16px 24px'}}>
+          <div style={{display:'flex',gap:8,marginBottom:8}}>
+            <Btn onClick={()=>setShareOpen(true)} style={{flex:2,background:C.purple}}>공유하기</Btn>
+            <Btn variant="ghost" onClick={isClosed?handlers.reopenForm:handlers.closeForm} style={{flex:1,fontSize:13}}>{isClosed?'열기':'마감'}</Btn>
+          </div>
           <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
             unregisteredCount={unregisteredCount} groups={groups}
             searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
             onTogglePaid={handlers.togglePaid} onBulkConfirm={handlers.bulkConfirmRequested}
-            onCardDunning={phase===3&&form.account?.bank?handleCardDunning:null}/>
-        )}
-        {phase===3&&tab==='verify'&&(
-          <VerifyTab form={form} subs={subs} groups={groups} matchResults={matchResults} uploading={uploading}
-            bankGuideOpen={bankGuideOpen} setBankGuideOpen={setBankGuideOpen}
-            uploadMode={uploadMode} setUploadMode={setUploadMode} fileRef={fileRef}
-            onUpload={handlers.handleExcel} onApply={handlers.applyMatched}
-            onReset={()=>handlers.setMatchResults(null)} onCopyNudge={handlers.copyNudge}
-            onTogglePaid={handlers.togglePaid}/>
-        )}
-      </div>
+            onCardDunning={null}/>
+        </div>
+      )}
+
+      {slide===2&&(
+        <div style={{padding:'10px 16px 24px'}}>
+          <div style={{marginBottom:8}}>
+            {unpaidCount>0?(
+              <div style={{display:'flex',gap:8,marginBottom:6}}>
+                {form.account?.bank&&<Btn onClick={()=>setDunningOpen(true)} disabled={!unpaidXList.length} style={{flex:2,background:C.purple,opacity:unpaidXList.length?1:0.4}}>📢 일괄 독촉 {unpaidXList.length}명</Btn>}
+                <Btn variant="ghost" onClick={()=>setShareOpen(true)} style={{flex:1,fontSize:13}}>공유</Btn>
+              </div>
+            ):(
+              createEvent&&<Btn variant="green" onClick={()=>setBridgeNameOpen(true)} disabled={bridging} style={{marginBottom:6}}>
+                {bridging?'생성 중…':'정산 시작하기'}
+              </Btn>
+            )}
+            <Btn variant="ghost" onClick={isClosed?handlers.reopenForm:handlers.closeForm} style={{fontSize:13}}>{isClosed?'🔓 신청 다시 열기':'🔒 신청 마감하기'}</Btn>
+          </div>
+          <div style={{display:'flex',marginBottom:10,gap:6}}>
+            {[['submissions','신청 목록'],['verify','입금 자동 대조']].map(([key,label])=>(
+              <button key={key} onClick={()=>setTab(key)} style={{
+                flex:1,padding:'10px 4px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',
+                background:tab===key?C.accent:C.cardBg,color:tab===key?'#fff':C.textMid,
+                border:`1px solid ${tab===key?C.accent:C.border}`,
+              }}>{label}</button>
+            ))}
+          </div>
+          {tab==='submissions'&&(
+            <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
+              unregisteredCount={unregisteredCount} groups={groups}
+              searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
+              onTogglePaid={handlers.togglePaid} onBulkConfirm={handlers.bulkConfirmRequested}
+              onCardDunning={form.account?.bank?handleCardDunning:null}/>
+          )}
+          {tab==='verify'&&(
+            <VerifyTab form={form} subs={subs} groups={groups} matchResults={matchResults} uploading={uploading}
+              bankGuideOpen={bankGuideOpen} setBankGuideOpen={setBankGuideOpen}
+              uploadMode={uploadMode} setUploadMode={setUploadMode} fileRef={fileRef}
+              onUpload={handlers.handleExcel} onApply={handlers.applyMatched}
+              onReset={()=>handlers.setMatchResults(null)} onCopyNudge={handlers.copyNudge}
+              onTogglePaid={handlers.togglePaid}/>
+          )}
+        </div>
+      )}
 
       {shareOpen&&<FormShareModal form={form} showToast={showToast} onClose={()=>setShareOpen(false)}/>}
       {dunningOpen&&form.account?.bank&&(
