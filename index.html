@@ -3326,6 +3326,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
                          onSetSubPaid, onCardDunning}){
   const [sortByTime,setSortByTime]=useState(true);
   const [guideOpen,setGuideOpen]=useState(false);
+  const [tooltipIdx,setTooltipIdx]=useState(null);
 
   if(subs.length===0) return(
     <div style={{textAlign:'center',padding:'40px 0'}}>
@@ -3349,7 +3350,20 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
         <div style={{flex:1,minWidth:0}}>
           <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4,minWidth:0}}>
             {s._group&&<span style={{padding:'2px 7px',borderRadius:8,fontSize:10,fontWeight:700,background:C.accentBg,color:C.accent,flexShrink:0}}>{s._group}</span>}
-            {!s._group&&groups.length>0&&<span style={{padding:'2px 7px',borderRadius:8,fontSize:10,fontWeight:700,background:C.redBg,color:C.red,flexShrink:0}}>미등록</span>}
+            {!s._group&&groups.length>0&&(
+              <span
+                title="학생회비 명단에 없는 사용자"
+                onClick={e=>{e.stopPropagation();setTooltipIdx(i=>i===s._idx?null:s._idx);}}
+                style={{fontSize:13,flexShrink:0,cursor:'default',position:'relative'}}
+              >
+                ⚠️
+                {tooltipIdx===s._idx&&(
+                  <span style={{position:'absolute',left:0,top:20,background:'#333',color:'#fff',fontSize:10,padding:'3px 8px',borderRadius:6,whiteSpace:'nowrap',zIndex:10,fontWeight:600}}>
+                    학생회비 명단에 없는 사용자
+                  </span>
+                )}
+              </span>
+            )}
             <span style={{fontWeight:800,color:C.text,fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</span>
           </div>
           {firstField&&(
@@ -3357,12 +3371,11 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
               <span style={{color:C.textDim}}>{firstField.label}:</span> {Array.isArray(s.data?.[firstField.id])?s.data[firstField.id].join(', '):s.data?.[firstField.id]||''}
             </div>
           )}
-          <div style={{display:'flex',alignItems:'center',gap:8,marginTop:4}}>
-            <span style={{fontSize:11,color:C.textDim}}>{fmtRelTime(s.createdAt)}</span>
-            {onCardDunning&&sliderValue(s)===false&&(
+          {onCardDunning&&sliderValue(s)===false&&(
+            <div style={{marginTop:4}}>
               <button onClick={e=>{e.stopPropagation();onCardDunning(s);}} style={{fontSize:11,color:C.purple,background:'transparent',border:`1px solid ${C.purple}40`,borderRadius:6,padding:'2px 8px',cursor:'pointer',fontWeight:700}}>독촉</button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
         <PaidSlider value={sliderValue(s)} onChange={v=>onSetSubPaid(s._idx,v)}/>
       </div>
@@ -3371,11 +3384,11 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
 
   return(
     <div>
-      <button onClick={()=>setGuideOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:11,color:C.textDim,marginBottom:guideOpen?6:10,padding:0,display:'flex',alignItems:'center',gap:4}}>
+      <button onClick={()=>setGuideOpen(v=>!v)} style={{width:'100%',background:C.inputBg,border:'none',cursor:'pointer',fontSize:11,color:C.textDim,marginBottom:10,padding:'8px 12px',borderRadius:10,display:'flex',alignItems:'center',gap:4}}>
         ❓ 이렇게 쓰세요 {guideOpen?'▲':'▼'}
       </button>
       {guideOpen&&(
-        <div style={{background:C.inputBg,padding:'12px 14px',borderRadius:12,marginBottom:10,fontSize:12,color:C.textMid,lineHeight:1.8}}>
+        <div style={{background:C.inputBg,padding:'12px 14px',borderRadius:12,marginBottom:10,fontSize:12,color:C.textMid,lineHeight:1.8,marginTop:-6}}>
           <div style={{fontWeight:700,color:C.text,marginBottom:2}}>1️⃣ 수동 대조</div>
           <div>○ 표시된 사람 중 미입금자를 통장에서 직접 확인하고 X로 바꾸세요</div>
           <div style={{textAlign:'center',color:C.textDim,margin:'8px 0'}}>또는</div>
@@ -3897,21 +3910,23 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
           ):(
             <>
               <div style={{display:'flex',marginBottom:10,gap:6}}>
-                <button onClick={()=>setShowVerify(true)} style={{flex:1,padding:'10px 4px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`}}>📥 입금 자동 대조</button>
-                <button onClick={()=>{if(!form.account?.bank){showToast('계좌 정보를 먼저 등록해주세요',C.orange);return;}setDunningOpen(true);}} style={{flex:1,padding:'10px 4px',borderRadius:12,fontSize:13,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`}}>📢 일괄 독촉</button>
+                <button onClick={()=>setShowVerify(true)} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`}}>📥 입금 자동 대조</button>
+                <button onClick={()=>{if(!form.account?.bank){showToast('계좌 정보를 먼저 등록해주세요',C.orange);return;}setDunningOpen(true);}} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`}}>📢 일괄 독촉</button>
               </div>
               <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
                 unregisteredCount={unregisteredCount} groups={groups}
                 searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
                 onSetSubPaid={handlers.setSubPaid}
                 onCardDunning={form.account?.bank?handleCardDunning:null}/>
-              {!isClosed&&subs.length>0&&(
-                <Btn variant="danger" onClick={()=>setCloseConfirmOpen(true)} style={{marginTop:16}}>🔒 마감하기</Btn>
-              )}
               {createEvent&&subs.length>0&&(
-                <div style={{marginTop:24,paddingTop:16,borderTop:`1px solid ${C.border}`}}>
-                  <div style={{fontSize:12,color:C.textMid,marginBottom:8}}>행사 후 추가 정산(뒷풀이 등)이 필요하면</div>
-                  <Btn variant="ghost" small onClick={()=>setBridgeNameOpen(true)}>📋 이어서 정산하기 →</Btn>
+                <div style={{marginTop:16,paddingTop:14,borderTop:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  <span style={{fontSize:12,color:C.textMid}}>행사 후 추가 정산이 필요하면</span>
+                  <button onClick={()=>setBridgeNameOpen(true)} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:C.accent,fontWeight:700,padding:'4px 0',display:'flex',alignItems:'center',gap:3}}>📋 이어서 정산하기 →</button>
+                </div>
+              )}
+              {!isClosed&&subs.length>0&&(
+                <div style={{marginTop:16,textAlign:'center'}}>
+                  <button onClick={()=>setCloseConfirmOpen(true)} style={{background:'none',border:'none',cursor:'pointer',fontSize:11,color:C.textDim,padding:'6px 12px'}}>🔒 마감하기</button>
                 </div>
               )}
             </>
