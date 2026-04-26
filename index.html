@@ -405,7 +405,8 @@ const matchEngine = {
     return {deposits};
   },
 
-  match(deposits, subs, expectedAmount) {
+  match(deposits, subs, getExpectedAmount) {
+    const getAmt=typeof getExpectedAmount==='function'?getExpectedAmount:()=>getExpectedAmount;
     const dupMap={};
     subs.forEach(s=>{const n=this.normalize(s.name||'');if(!dupMap[n])dupMap[n]=[];dupMap[n].push({name:s.name,studentId:s.studentId||''});});
     const getDups=s=>{const arr=dupMap[this.normalize(s.name||'')];return arr&&arr.length>1?arr:null;};
@@ -415,22 +416,23 @@ const matchEngine = {
 
     // 1차: 정확 매칭
     deposits.forEach(dep=>{
-      const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='exact'&&dep.amount===expectedAmount);
+      const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='exact'&&dep.amount===getAmt(s));
       if(idx>=0){matched.push({sub:subsCopy[idx],deposit:dep,type:'exact',duplicates:getDups(subsCopy[idx])});subsCopy[idx]._matched=true;dep.matched=true;}
     });
     // 2차: 이름 매칭 + 금액 불일치
     deposits.forEach(dep=>{
       if(dep.matched) return;
       const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='exact');
-      if(idx>=0){amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-expectedAmount,duplicates:getDups(subsCopy[idx])});subsCopy[idx]._matched=true;dep.matched=true;}
+      if(idx>=0){amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-getAmt(subsCopy[idx]),duplicates:getDups(subsCopy[idx])});subsCopy[idx]._matched=true;dep.matched=true;}
     });
     // 3차: 부분 매칭
     deposits.forEach(dep=>{
       if(dep.matched) return;
       const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='partial');
       if(idx>=0){
-        if(dep.amount===expectedAmount) matched.push({sub:subsCopy[idx],deposit:dep,type:'partial',duplicates:getDups(subsCopy[idx])});
-        else amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-expectedAmount,duplicates:getDups(subsCopy[idx])});
+        const ea=getAmt(subsCopy[idx]);
+        if(dep.amount===ea) matched.push({sub:subsCopy[idx],deposit:dep,type:'partial',duplicates:getDups(subsCopy[idx])});
+        else amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-ea,duplicates:getDups(subsCopy[idx])});
         subsCopy[idx]._matched=true;dep.matched=true;
       }
     });
@@ -3311,7 +3313,7 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
       const parsed=matchEngine.parseExcel(data);
       if(parsed.error){showToast(parsed.error,C.red);setUploading(false);return;}
       if(parsed.deposits.length===0){showToast('입금 내역이 없어요',C.red);setUploading(false);return;}
-      const results=matchEngine.match(parsed.deposits,subs,form.amount);
+      const results=matchEngine.match(parsed.deposits,subs,s=>getUserAmount(form,s.name,s.data?.studentId));
       setMatchResults(results);
       showToast(`${results.totalDeposits}건 분석 완료`);
     }catch(err){
@@ -3564,7 +3566,7 @@ function VerifyTab({form, subs, groups, matchResults, uploading, bankGuideOpen, 
                 {m.duplicates&&<div style={{fontSize:11,color:C.orange,marginTop:4}}>{m.duplicates.every(d=>d.studentId)?m.duplicates.map(d=>`${d.name}(${String(d.studentId).slice(-4)})`).join('와 ')+' 중 누가 입금했는지 확인 필요':`${m.sub.name}가 명단에 ${m.duplicates.length}명 있어요`}</div>}
                 <div style={{fontSize:12,color:C.orange,marginTop:4}}>
                   {m.diff>0?`${fmtKRW(m.diff)} 초과 입금`:`${fmtKRW(Math.abs(m.diff))} 부족`}
-                  <span style={{color:C.textDim,marginLeft:8}}>예상: {fmtKRW(form.amount)}</span>
+                  <span style={{color:C.textDim,marginLeft:8}}>예상: {fmtKRW(getUserAmount(form,m.sub.name,m.sub.data?.studentId))}</span>
                 </div>
               </div>
             ))}
@@ -3578,7 +3580,7 @@ function VerifyTab({form, subs, groups, matchResults, uploading, bankGuideOpen, 
               {matchResults.unpaid.map((s,i)=>(
                 <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
                   <div><span style={{fontWeight:700,color:C.text,fontSize:14}}>{s.name}</span><span style={{color:C.textDim,fontSize:12,marginLeft:8}}>{s.phone}</span></div>
-                  <span style={{color:C.red,fontWeight:700,fontSize:13}}>{fmtKRW(form.amount)}</span>
+                  <span style={{color:C.red,fontWeight:700,fontSize:13}}>{fmtKRW(getUserAmount(form,s.name,s.data?.studentId))}</span>
                 </div>
               ))}
               <Btn variant="secondary" onClick={onCopyNudge} style={{marginTop:8}} small>콕 찌르기 메시지 복사</Btn>
@@ -3601,7 +3603,7 @@ function VerifyTab({form, subs, groups, matchResults, uploading, bankGuideOpen, 
                   {section.items.map((s,i)=>(
                     <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
                       <div><span style={{fontWeight:700,color:C.text,fontSize:14}}>{s.name}</span><span style={{color:C.textDim,fontSize:12,marginLeft:8}}>{s.phone}</span></div>
-                      <span style={{color:C.red,fontWeight:700,fontSize:13}}>{fmtKRW(form.amount)}</span>
+                      <span style={{color:C.red,fontWeight:700,fontSize:13}}>{fmtKRW(getUserAmount(form,s.name,s.data?.studentId))}</span>
                     </div>
                   ))}
                 </div>
