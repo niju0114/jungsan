@@ -2277,6 +2277,75 @@ function ShareSection({event,showToast}){
   );
 }
 
+// ── EventVerifySection ─────────────────────────────────────
+function EventVerifySection({event,amounts,matchResults,onApply,onReset}){
+  const mm=event.memberMap||{};
+  return(
+    <div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:12}}>
+        {[[matchResults.matched.length,'매칭',C.green,C.greenBg],[matchResults.amountMismatch.length,'금액불일치',C.orange,C.orangeBg],[matchResults.unpaid.length,'미입금',C.red,C.redBg],[matchResults.refund.length,'환불대상',C.purple,C.accentBg]].map(([n,l,c,bg])=>(
+          <div key={l} style={{background:bg,borderRadius:12,padding:'10px 4px',textAlign:'center'}}>
+            <div style={{fontSize:18,fontWeight:900,color:c}}>{n}</div>
+            <div style={{fontSize:10,color:c,fontWeight:600}}>{l}</div>
+          </div>
+        ))}
+      </div>
+      {matchResults.matched.length>0&&<Btn variant="green" onClick={onApply} style={{marginBottom:16}}>✓ 매칭 {matchResults.matched.length}명 입금 확인 처리</Btn>}
+      {matchResults.matched.length>0&&(
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:800,color:C.green,marginBottom:8}}>✅ 매칭 완료 ({matchResults.matched.length}명)</div>
+          {matchResults.matched.map((m,i)=>(
+            <div key={i} style={{padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{fontWeight:700,color:C.text,fontSize:14}}>{mm[m.sub.key]||m.sub.name}</span>
+              <span style={{color:C.green,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {matchResults.amountMismatch.length>0&&(
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:800,color:C.orange,marginBottom:8}}>⚠ 금액 불일치 ({matchResults.amountMismatch.length}명) — 수동 확인 필요</div>
+          {matchResults.amountMismatch.map((m,i)=>(
+            <div key={i} style={{padding:'12px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <span style={{fontWeight:700,color:C.text,fontSize:14}}>{mm[m.sub.key]||m.sub.name}</span>
+                <span style={{color:C.orange,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
+              </div>
+              <div style={{fontSize:12,color:C.orange,marginTop:4}}>
+                {m.diff>0?`${fmtKRW(m.diff)} 초과 입금`:`${fmtKRW(Math.abs(m.diff))} 부족`}
+                <span style={{color:C.textDim,marginLeft:8}}>예상: {fmtKRW(amounts[m.sub.key]||0)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {matchResults.unpaid.length>0&&(
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:800,color:C.red,marginBottom:8}}>❌ 미입금 ({matchResults.unpaid.length}명)</div>
+          {matchResults.unpaid.map((s,i)=>(
+            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+              <span style={{fontWeight:700,color:C.text,fontSize:14}}>{mm[s.key]||s.name}</span>
+              <span style={{color:C.red,fontWeight:700,fontSize:13}}>{fmtKRW(amounts[s.key]||0)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {matchResults.refund.length>0&&(
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:800,color:C.purple,marginBottom:8}}>🔄 환불 대상 ({matchResults.refund.length}명)</div>
+          {matchResults.refund.map((d,i)=>(
+            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+              <span style={{fontWeight:700,color:C.text,fontSize:14}}>{d.name}</span>
+              <span style={{color:C.purple,fontWeight:700,fontSize:13}}>{fmtKRW(d.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <Btn variant="secondary" onClick={onReset}>다시 업로드</Btn>
+    </div>
+  );
+}
+
 // ── StatusSection ──────────────────────────────────────────
 function StatusSection({event,updateEvent,groups,showToast}){
   const [sortByTime,setSortByTime]=useState(true);
@@ -2409,6 +2478,9 @@ function StatusSection({event,updateEvent,groups,showToast}){
   });
   const [confirmBulk,setConfirmBulk]=useState(false);
   const [dunningOpen,setDunningOpen]=useState(false);
+  const [matchResults,setMatchResults]=useState(null);
+  const [uploading,setUploading]=useState(false);
+  const excelFileRef=useRef(null);
 
   const applyBulkConfirm=()=>{
     const now=new Date().toISOString();
@@ -2416,6 +2488,38 @@ function StatusSection({event,updateEvent,groups,showToast}){
     requestedKeys.forEach(k=>{newPayments[k]={paid:true,requested:false,time:now,by:'admin'};});
     updateEvent({...event,payments:newPayments});
     setConfirmBulk(false);
+  };
+
+  const handleExcel=async e=>{
+    const file=e.target.files?.[0];
+    if(!file) return;
+    setUploading(true);
+    try{
+      const data=await file.arrayBuffer();
+      const parsed=matchEngine.parseExcel(data);
+      if(parsed.error){showToast(parsed.error,C.red);setUploading(false);return;}
+      if(parsed.deposits.length===0){showToast('입금 내역이 없어요',C.red);setUploading(false);return;}
+      const esubs=presentMembers.map(k=>({name:mm[k]||k,key:k}));
+      const results=matchEngine.match(parsed.deposits,esubs,s=>amounts[s.key]||0);
+      setMatchResults(results);
+      showToast(`${results.totalDeposits}건 분석 완료`);
+    }catch(err){
+      console.error(err);
+      showToast('파일을 읽을 수 없어요',C.red);
+    }
+    setUploading(false);
+    if(excelFileRef.current) excelFileRef.current.value='';
+  };
+
+  const applyExcelMatched=()=>{
+    if(!matchResults) return;
+    const now=new Date().toISOString();
+    const newPayments={...event.payments};
+    matchResults.matched.forEach(m=>{newPayments[m.sub.key]={paid:true,requested:false,time:now,by:'admin'};});
+    updateEvent({...event,payments:newPayments});
+    const cnt=matchResults.matched.length;
+    setMatchResults(null);
+    showToast(`${cnt}명 입금 확인 처리됐어요`);
   };
 
   return(
@@ -2439,6 +2543,13 @@ function StatusSection({event,updateEvent,groups,showToast}){
         </button>
       )}
       <ConfirmBulkModal isOpen={confirmBulk} onClose={()=>setConfirmBulk(false)} count={requestedKeys.length} onConfirm={applyBulkConfirm}/>
+      <input ref={excelFileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleExcel} style={{display:'none'}}/>
+      {event.account?.bank&&!matchResults&&(
+        <button onClick={()=>excelFileRef.current?.click()} disabled={uploading} className="press" style={{width:'100%',padding:'12px',borderRadius:12,background:C.accent+'15',border:`1.5px solid ${C.accent}40`,color:C.accent,fontWeight:800,fontSize:13,cursor:uploading?'default':'pointer',marginBottom:8}}>
+          {uploading?'분석 중...':'📊 거래내역 대조'}
+        </button>
+      )}
+      {!matchResults&&<>
       {surplus>0&&<div style={{fontSize:11,color:C.textMid,textAlign:'center',marginBottom:10}}>소수점을 올림해서 총액보다 <span style={{color:C.text,fontWeight:700}}>{fmtKRW(surplus)}</span> 더 걷혀요 <span style={{color:C.textDim}}>(총무 손해 방지)</span></div>}
       <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:6,marginBottom:8}}>
         {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>⏱ 시간순</span>}
@@ -2489,6 +2600,8 @@ function StatusSection({event,updateEvent,groups,showToast}){
         </div>
       )}
       {unpaidList.length===0&&pc>0&&<div style={{textAlign:'center',color:C.green,fontWeight:900,fontSize:15,padding:'16px 0'}}>🎉 전원 완료!</div>}
+      </>}
+      {matchResults&&<EventVerifySection event={event} amounts={amounts} matchResults={matchResults} onApply={applyExcelMatched} onReset={()=>setMatchResults(null)}/>}
       {dunningOpen&&event.account?.bank&&(
         <DunningModal eventName={event.name} account={event.account} link={directLink}
           unpaidList={unpaidXList} showToast={showToast} onClose={()=>setDunningOpen(false)}/>
