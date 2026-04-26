@@ -2907,55 +2907,56 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
 
 // ── HelpScreen ─────────────────────────────────────────────
 function HelpScreen({nav}){
-  const [guideKey,setGuideKey]=useState(null);
-  const guides={
-    form:{icon:'💌',title:'신청 받고 정산하기',sub:'MT, 회비, 야식마차',color:C.orange,bg:C.orangeBg,
-      steps:[
-        {n:'1',title:'시작 전 준비',desc:'명단·계좌 설정에서 명단과 입금 계좌를 먼저 등록해주세요.'},
-        {n:'2',title:'신청폼 만들기',desc:'홈 → 새로 만들기 → 신청 받을 일이 있어요. 신청폼 정보를 입력하고 생성합니다.'},
-        {n:'3',title:'링크 공유',desc:'생성된 링크를 단톡방에 공유하면 참여자들이 직접 신청합니다.'},
-        {n:'4',title:'입금 대조',desc:'관리자 화면에서 거래내역 Excel을 업로드하면 자동으로 입금을 확인합니다.'},
-      ]},
-    direct:{icon:'👥',title:'바로 정산하기',sub:'뒷풀이, 술자리',color:C.accent,bg:C.accentBg,
-      steps:[
-        {n:'1',title:'새 정산 만들기',desc:'홈 → 새로 만들기 → 그냥 바로 정산하면 돼요. 참여자를 선택하고 생성합니다.'},
-        {n:'2',title:'출석 체크',desc:'현장에서 참여자 출석을 체크합니다.'},
-        {n:'3',title:'금액 입력',desc:'차수별 총 금액을 입력하면 자동으로 N빵 계산됩니다.'},
-        {n:'4',title:'링크 공유',desc:'카톡 공유 버튼으로 개인 링크를 공유하면 참여자가 입금 후 완료 처리합니다.'},
-      ]},
-  };
-  const guide=guideKey?guides[guideKey]:null;
+  const Sep=()=><div style={{height:1,background:C.border,margin:'28px 0'}}/>;
+  const Steps=({items,color})=>items.map((s,i)=>(
+    <div key={i} style={{display:'flex',gap:12,marginBottom:10,alignItems:'flex-start'}}>
+      <div style={{width:22,height:22,borderRadius:'50%',background:color,color:'#fff',fontWeight:800,fontSize:11,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:2}}>{i+1}</div>
+      <div style={{fontSize:14,color:C.text,lineHeight:1.6,paddingTop:2}}>{s}</div>
+    </div>
+  ));
   return(
     <div className="fade-up screen" style={{background:C.pageBg}}>
       <Header title="도움말" onBack={()=>nav.setView('home')}/>
-      <div style={{padding:'16px 16px 32px'}}>
-        <div style={{fontWeight:900,color:C.text,fontSize:17,marginBottom:4}}>사용방법</div>
-        <div style={{fontSize:13,color:C.textMid,marginBottom:20}}>상황에 맞는 방법을 확인해보세요</div>
-        {Object.entries(guides).map(([key,g])=>(
-          <button key={key} onClick={()=>setGuideKey(key)} className="press"
-            style={{width:'100%',padding:'20px',borderRadius:16,marginBottom:12,background:g.bg,border:`1px solid ${g.color}20`,cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:14}}>
-            <div style={{width:48,height:48,borderRadius:14,background:g.color,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,flexShrink:0}}>{g.icon}</div>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:4}}>{g.title}</div>
-              <div style={{fontSize:11,color:g.color,fontWeight:600}}>{g.sub}</div>
-            </div>
-            <span className="ms" style={{color:g.color}}>chevron_right</span>
-          </button>
-        ))}
+      <div style={{padding:'20px 20px 56px'}}>
+
+        <div style={{marginBottom:0}}>
+          <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:8}}>시작 전</div>
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8}}>명단과 받을 계좌를 등록해두세요.</div>
+        </div>
+
+        <Sep/>
+
+        <div>
+          <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:4}}>📩 신청 받고 정산하기</div>
+          <div style={{fontSize:12,color:C.orange,fontWeight:600,marginBottom:12}}>MT, 학생회비, 야식 등</div>
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8,marginBottom:16}}>신청폼을 만들어 공유하면 사용자가 직접 신청하고 송금해요. 거래내역 Excel을 올리면 입금이 자동 확인돼요.</div>
+          <Steps color={C.orange} items={['신청폼 만들기','카톡으로 공유','거래내역 Excel 자동 대조','미입금자 콕 찌르기']}/>
+        </div>
+
+        <Sep/>
+
+        <div>
+          <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:4}}>👥 바로 정산하기</div>
+          <div style={{fontSize:12,color:C.accent,fontWeight:600,marginBottom:12}}>술자리, 뒷풀이, 회식</div>
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8,marginBottom:16}}>모인 사람들로 즉석 정산. 출석 체크하고 금액 입력하면 멤버별 본인 금액이 자동 계산돼요.</div>
+          <Steps color={C.accent} items={['멤버 출석 체크','금액 입력 (차수별 추가 가능)','카톡으로 공유','거래내역 Excel 자동 대조','미입금자 콕 찌르기']}/>
+        </div>
+
+        <Sep/>
+
+        <div>
+          <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:10}}>학생회비 차등 정산</div>
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8}}>정산 만들 때 <strong style={{color:C.text}}>"두 갈래 금액"</strong>을 선택하면 학생회비 납부자/미납자에게 다른 금액이 자동 적용돼요.</div>
+        </div>
+
+        <Sep/>
+
+        <div>
+          <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:10}}>행사 후 추가 정산</div>
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8}}>신청폼 마감 후 뒷풀이가 생기면 <strong style={{color:C.text}}>"이어서 정산하기"</strong>로 같은 멤버를 그대로 가져와 정산할 수 있어요.</div>
+        </div>
+
       </div>
-      {guide&&(
-        <Modal isOpen={true} onClose={()=>setGuideKey(null)} title={guide.icon+' '+guide.title}>
-          {guide.steps.map((s,i)=>(
-            <div key={i} style={{display:'flex',gap:14,marginBottom:20}}>
-              <div style={{width:28,height:28,borderRadius:'50%',background:guide.color,color:'#fff',fontWeight:900,fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>{s.n}</div>
-              <div>
-                <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:4}}>{s.title}</div>
-                <div style={{fontSize:13,color:C.textMid,lineHeight:1.7}}>{s.desc}</div>
-              </div>
-            </div>
-          ))}
-        </Modal>
-      )}
     </div>
   );
 }
