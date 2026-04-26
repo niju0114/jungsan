@@ -844,6 +844,7 @@ function App() {
       {user&&view==='adminEvent'&&currentEvent&&<AdminEventScreen nav={nav} event={currentEvent} updateEvent={updateEvent} showToast={showToast} profile={profile}/>}
       {user&&view==='formAdmin'&&currentForm&&<FormAdminScreen nav={nav} form={currentForm} updateForm={updateForm} showToast={showToast} profile={profile} saveProfile={saveProfile} createEvent={createEvent}/>}
       {user&&view==='history'&&<HistoryScreen nav={nav} events={events} forms={forms} deleteEvent={deleteEvent} deleteForm={deleteForm}/>}
+      {user&&view==='help'&&<HelpScreen nav={nav}/>}
       {showGuide&&<GuideModal onClose={()=>setShowGuide(false)} onFeedback={()=>{setShowGuide(false);setShowFeedback(true);}}/>}
       {showOnboarding&&<OnboardingModal onClose={()=>setShowOnboarding(false)}/>}
       <Toast msg={toast?.msg} color={toast?.color}/>
@@ -1177,7 +1178,7 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
         <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:8,marginBottom:20}}>
           {[
             {icon:'manage_accounts',label:'명단·계좌',action:()=>nav.setView('setup')},
-            {icon:'help',label:'도움말',action:onGuide},
+            {icon:'help',label:'도움말',action:()=>nav.setView('help')},
           ].map(({icon,label,action})=>(
             <button key={label} onClick={action} className="press" style={{
               padding:'18px 8px',borderRadius:16,background:'#fff',
@@ -1626,6 +1627,9 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
   const [err,setErr]=useState('');
   const [loading,setLoading]=useState(false);
   const [activeG,setActiveG]=useState(-1);
+  const [dupModalM,setDupModalM]=useState(null);
+  const [dupInput,setDupInput]=useState('');
+  const [extraMemberMap,setExtraMemberMap]=useState({});
   const groups=profile.groups||[];
   const allFromGroups=groups.flatMap(g=>g.members||[]);
   const extraMembers=parseMembers(extraText).filter(m=>!allFromGroups.find(x=>x.name===m.name&&x.sid===m.sid));
@@ -1637,15 +1641,31 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
   allMembers.forEach(m=>{memberMap[m.name+(m.sid?`_${m.sid}`:'')] = displayName(m);});
   const visibleMembers=activeG===-1?allMembers:(groups[activeG]?.members||[]);
 
+  const dupBaseKeys=React.useMemo(()=>{
+    const kc={};
+    allMembers.forEach(m=>{const k=m.name+(m.sid?`_${m.sid}`:'');kc[k]=(kc[k]||0)+1;});
+    return new Set(Object.keys(kc).filter(k=>kc[k]>1));
+  },[allMembers.length]);
+
   const toggle=m=>{
     const k=m.name+(m.sid?`_${m.sid}`:'');
-    setSelected(s=>s.includes(k)?s.filter(x=>x!==k):[...s,k]);
+    if(dupBaseKeys.has(k)){setDupModalM(m);setDupInput('');}
+    else setSelected(s=>s.includes(k)?s.filter(x=>x!==k):[...s,k]);
   };
   const selectGroup=gIdx=>{
     const gm=gIdx===-1?allMembers:(groups[gIdx]?.members||[]);
     const keys=gm.map(m=>m.name+(m.sid?`_${m.sid}`:''));
     const allSel=keys.every(k=>selected.includes(k));
     setSelected(s=>allSel?s.filter(k=>!keys.includes(k)):[...new Set([...s,...keys])]);
+  };
+  const confirmDup=()=>{
+    if(!dupInput.trim()||!dupModalM) return;
+    const uniqueKey=dupModalM.name+'__'+dupInput.trim();
+    if(!selected.includes(uniqueKey)){
+      setSelected(s=>[...s,uniqueKey]);
+      setExtraMemberMap(prev=>({...prev,[uniqueKey]:dupModalM.name+' ('+dupInput.trim()+')'}));
+    }
+    setDupModalM(null);setDupInput('');
   };
 
   const create=async()=>{
@@ -1656,7 +1676,8 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
     setLoading(true);
     const code=genCode();
     const paidFeeKeys=selected.filter(k=>groups.some(g=>(g.paidFeeMembers||[]).includes(k)));
-    const ev={code,name:name.trim(),date,pin:'',account:{bank,number,holder},members:selected,memberMap,rounds:[],payments:{},attendance:{},attendanceOpen:false,createdAt:new Date().toISOString(),paidFeeKeys,feeConfig:null,sourceFormCode:null};
+    const fullMemberMap={...memberMap,...extraMemberMap};
+    const ev={code,name:name.trim(),date,pin:'',account:{bank,number,holder},members:selected,memberMap:fullMemberMap,rounds:[],payments:{},attendance:{},attendanceOpen:false,createdAt:new Date().toISOString(),paidFeeKeys,feeConfig:null,sourceFormCode:null};
     const ok=await createEvent(ev);
     setLoading(false);
     if(ok){nav.setCurrentCode(ev.code);nav.setView('adminEvent');}
@@ -1714,16 +1735,28 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
             </div>
           )}
           <div style={{display:'flex',flexWrap:'wrap',gap:7,marginBottom:allMembers.length>0?14:0}}>
-            {visibleMembers.map(m=>{
+            {visibleMembers.map((m,mi)=>{
               const k=m.name+(m.sid?`_${m.sid}`:'');
-              const sel=selected.includes(k);
+              const isDup=dupBaseKeys.has(k);
+              const dupCount=isDup?selected.filter(sk=>sk.startsWith(k+'__')).length:0;
+              const sel=isDup?dupCount>0:selected.includes(k);
               return(
-                <button key={k} onClick={()=>toggle(m)} className="press" style={{padding:'8px 14px',borderRadius:20,border:`2px solid ${sel?C.accent:C.border}`,cursor:'pointer',fontSize:13,fontWeight:600,background:sel?C.accentBg:C.cardBg,color:sel?C.accent:C.textMid,transition:'all 0.12s'}}>
-                  {displayName(m)}
+                <button key={`${k}_${mi}`} onClick={()=>toggle(m)} className="press" style={{padding:'8px 14px',borderRadius:20,border:`2px solid ${sel?C.accent:C.border}`,cursor:'pointer',fontSize:13,fontWeight:600,background:sel?C.accentBg:C.cardBg,color:sel?C.accent:C.textMid,transition:'all 0.12s'}}>
+                  {displayName(m)}{isDup&&dupCount>0?` ✓${dupCount}`:''}
                 </button>
               );
             })}
           </div>
+          {Object.entries(extraMemberMap).filter(([k])=>selected.includes(k)).length>0&&(
+            <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:8}}>
+              {Object.entries(extraMemberMap).filter(([k])=>selected.includes(k)).map(([k,label])=>(
+                <span key={k} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'4px 10px 4px 12px',borderRadius:16,background:C.accentBg,border:`1.5px solid ${C.accent}40`,fontSize:12,color:C.accent,fontWeight:600}}>
+                  {label}
+                  <button onClick={()=>setSelected(s=>s.filter(x=>x!==k))} style={{background:'none',border:'none',cursor:'pointer',color:C.accent,fontSize:16,lineHeight:1,padding:'0 2px'}}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
           {allMembers.length===0&&(
             <div style={{background:C.accentBg,borderRadius:14,padding:'14px 16px',marginBottom:10,border:`1px solid ${C.accent}20`}}>
               <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:4}}>등록된 명단이 없네요</div>
@@ -1739,6 +1772,19 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
         {err&&<div style={{color:C.red,fontSize:13,marginBottom:12,padding:'11px 14px',background:C.redBg,borderRadius:10}}>⚠ {err}</div>}
         <Btn onClick={create} loading={loading}>정산 생성하기 →</Btn>
       </div>
+      {dupModalM&&(
+        <Modal isOpen={true} onClose={()=>setDupModalM(null)} title="동명이인 구분">
+          <div style={{fontSize:14,color:C.textMid,marginBottom:16,lineHeight:1.7}}>
+            <strong style={{color:C.text}}>{dupModalM.name}</strong>이(가) {allMembers.filter(m=>m.name===dupModalM.name&&!m.sid).length}명이에요.<br/>
+            학번 뒷자리를 입력해주세요.
+          </div>
+          <Field label="" value={dupInput} onChange={setDupInput} placeholder="예: 1234"/>
+          <div style={{display:'flex',gap:8,marginTop:12}}>
+            <Btn variant="ghost" onClick={()=>setDupModalM(null)} style={{flex:1}}>취소</Btn>
+            <Btn onClick={confirmDup} style={{flex:2}}>추가</Btn>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -2513,7 +2559,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
     const now=new Date().toISOString();
     const newPayments={...event.payments};
     matchResults.matched.forEach(m=>{newPayments[m.sub.key]={paid:true,requested:false,time:now,by:'admin'};});
-    updateEvent({...event,payments:newPayments});
+    updateEvent({...event,payments:newPayments,refundList:(matchResults.refund||[]).map(d=>({name:d.name,amount:d.amount}))});
     const cnt=matchResults.matched.length;
     setMatchResults(null);
     showToast(`${cnt}명 입금 확인 처리됐어요`);
@@ -2622,7 +2668,7 @@ function ParticipantSplashScreen({onDone}){
 // ── ParticipantScreen ──────────────────────────────────────
 function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showToast}){
   // participantKey(이름 또는 전체 키)를 실제 member key로 해석
-  const getBaseName=k=>k.includes('_')?k.substring(0,k.lastIndexOf('_')):k;
+  const getBaseName=k=>{const di=k.indexOf('__');if(di>=0)return k.substring(0,di);return k.includes('_')?k.substring(0,k.lastIndexOf('_')):k;};
   const resolveKey=()=>{
     const pk=participantKey;
     if(!pk) return {key:'',isDup:false};
@@ -2855,6 +2901,61 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
         </div>
       </div>
 
+    </div>
+  );
+}
+
+// ── HelpScreen ─────────────────────────────────────────────
+function HelpScreen({nav}){
+  const [guideKey,setGuideKey]=useState(null);
+  const guides={
+    form:{icon:'💌',title:'신청 받고 정산하기',sub:'MT, 회비, 야식마차',color:C.orange,bg:C.orangeBg,
+      steps:[
+        {n:'1',title:'시작 전 준비',desc:'명단·계좌 설정에서 명단과 입금 계좌를 먼저 등록해주세요.'},
+        {n:'2',title:'신청폼 만들기',desc:'홈 → 새로 만들기 → 신청 받을 일이 있어요. 신청폼 정보를 입력하고 생성합니다.'},
+        {n:'3',title:'링크 공유',desc:'생성된 링크를 단톡방에 공유하면 참여자들이 직접 신청합니다.'},
+        {n:'4',title:'입금 대조',desc:'관리자 화면에서 거래내역 Excel을 업로드하면 자동으로 입금을 확인합니다.'},
+      ]},
+    direct:{icon:'👥',title:'바로 정산하기',sub:'뒷풀이, 술자리',color:C.accent,bg:C.accentBg,
+      steps:[
+        {n:'1',title:'새 정산 만들기',desc:'홈 → 새로 만들기 → 그냥 바로 정산하면 돼요. 참여자를 선택하고 생성합니다.'},
+        {n:'2',title:'출석 체크',desc:'현장에서 참여자 출석을 체크합니다.'},
+        {n:'3',title:'금액 입력',desc:'차수별 총 금액을 입력하면 자동으로 N빵 계산됩니다.'},
+        {n:'4',title:'링크 공유',desc:'카톡 공유 버튼으로 개인 링크를 공유하면 참여자가 입금 후 완료 처리합니다.'},
+      ]},
+  };
+  const guide=guideKey?guides[guideKey]:null;
+  return(
+    <div className="fade-up screen" style={{background:C.pageBg}}>
+      <Header title="도움말" onBack={()=>nav.setView('home')}/>
+      <div style={{padding:'16px 16px 32px'}}>
+        <div style={{fontWeight:900,color:C.text,fontSize:17,marginBottom:4}}>사용방법</div>
+        <div style={{fontSize:13,color:C.textMid,marginBottom:20}}>상황에 맞는 방법을 확인해보세요</div>
+        {Object.entries(guides).map(([key,g])=>(
+          <button key={key} onClick={()=>setGuideKey(key)} className="press"
+            style={{width:'100%',padding:'20px',borderRadius:16,marginBottom:12,background:g.bg,border:`1px solid ${g.color}20`,cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:14}}>
+            <div style={{width:48,height:48,borderRadius:14,background:g.color,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,flexShrink:0}}>{g.icon}</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:4}}>{g.title}</div>
+              <div style={{fontSize:11,color:g.color,fontWeight:600}}>{g.sub}</div>
+            </div>
+            <span className="ms" style={{color:g.color}}>chevron_right</span>
+          </button>
+        ))}
+      </div>
+      {guide&&(
+        <Modal isOpen={true} onClose={()=>setGuideKey(null)} title={guide.icon+' '+guide.title}>
+          {guide.steps.map((s,i)=>(
+            <div key={i} style={{display:'flex',gap:14,marginBottom:20}}>
+              <div style={{width:28,height:28,borderRadius:'50%',background:guide.color,color:'#fff',fontWeight:900,fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>{s.n}</div>
+              <div>
+                <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:4}}>{s.title}</div>
+                <div style={{fontSize:13,color:C.textMid,lineHeight:1.7}}>{s.desc}</div>
+              </div>
+            </div>
+          ))}
+        </Modal>
+      )}
     </div>
   );
 }
