@@ -827,7 +827,7 @@ function App() {
       {view==='participantEvent'&&currentEvent&&<ParticipantScreen nav={nav} event={currentEvent} updateEvent={updateEvent} participantKey={participantKey} showToast={showToast}/>}
       {view==='formSubmit'&&currentForm&&<FormSubmitScreen nav={nav} form={currentForm} updateForm={updateForm} showToast={showToast}/>}
       {user&&view==='home'&&<HomeScreen nav={nav} user={user} profile={profile} events={events} forms={forms} showToast={showToast} onGuide={()=>setShowGuide(true)} showFeedback={showFeedback} onFeedbackDone={()=>setShowFeedback(false)}/>}
-      {user&&view==='setup'&&<SetupScreen nav={nav} profile={profile} saveProfile={saveProfile}/>}
+      {user&&view==='setup'&&<SetupScreen nav={nav} profile={profile} saveProfile={saveProfile} showToast={showToast}/>}
       {user&&view==='create'&&<CreateScreen nav={nav} profile={profile} events={events} createEvent={createEvent} showToast={showToast}/>}
       {user&&view==='formCreate'&&<FormCreateScreen nav={nav} profile={profile} createForm={createForm}/>}
       {user&&view==='adminEvent'&&currentEvent&&<AdminEventScreen nav={nav} event={currentEvent} updateEvent={updateEvent} showToast={showToast} profile={profile}/>}
@@ -1364,7 +1364,7 @@ function GuideModal({onClose,onFeedback}){
 }
 
 // ── SetupScreen ────────────────────────────────────────────
-function SetupScreen({nav,profile,saveProfile}){
+function SetupScreen({nav,profile,saveProfile,showToast}){
   const [bank,setBank]=useState(profile.account?.bank||'');
   const [number,setNumber]=useState(profile.account?.number||'');
   const [holder,setHolder]=useState(profile.account?.holder||'');
@@ -1531,10 +1531,6 @@ function SetupScreen({nav,profile,saveProfile}){
                     <div style={{fontSize:12,color:C.textDim}}>납부자 {groups.reduce((s,g)=>s+(g.paidFeeMembers||[]).length,0)}/{groups.reduce((s,g)=>s+g.members.length,0)}명</div>
                   </div>
                   <div style={{display:'flex',gap:6}}>
-                    <button onClick={()=>setGroups(gs=>gs.map(g=>({...g,paidFeeMembers:(g.members||[]).map(m=>m.name+(m.sid?'_'+m.sid:''))})))}
-                      style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.green}40`,background:groups.every(g=>(g.members||[]).length>0&&(g.paidFeeMembers||[]).length===(g.members||[]).length)?C.green+'22':C.inputBg,color:C.green,fontSize:12,fontWeight:700,cursor:'pointer'}}>전원 납부자</button>
-                    <button onClick={()=>setGroups(gs=>gs.map(g=>({...g,paidFeeMembers:[]})))}
-                      style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontSize:12,fontWeight:700,cursor:'pointer'}}>전원 미납자</button>
                     <button onClick={()=>setPfmOpen(true)}
                       style={{flex:1,padding:'7px',borderRadius:10,border:`1.5px solid ${C.accent}40`,background:C.accentBg,color:C.accent,fontSize:12,fontWeight:700,cursor:'pointer'}}>명단 붙여넣기</button>
                   </div>
@@ -1557,8 +1553,10 @@ function SetupScreen({nav,profile,saveProfile}){
               if(!toAdd.length) return g;
               return {...g,paidFeeMembers:[...new Set([...(g.paidFeeMembers||[]),...toAdd])]};
             }));
+            setPfmOpen(false);
+            showToast(`납부자 ${matched.size}명 적용됐어요`);
           }}
-          showToast={()=>{}}
+          showToast={showToast}
           onClose={()=>setPfmOpen(false)}
         />}
         <Btn onClick={save} loading={saving} variant={saved?'green':'primary'}>{saved?'✓ 저장됐어요!':'저장하기'}</Btn>
@@ -3695,7 +3693,7 @@ function FormShareTab({form, showToast}){
     `📅 ${form.date}`,
     form.time?`🕐 ${form.time}`:null,
     form.place?`📍 ${form.place}`:null,
-    form.amount>0?(form.amountPaid?`💰 참가비 ${fmtKRW(form.amount)} (납부자 ${fmtKRW(form.amountPaid)})`:`💰 참가비 ${fmtKRW(form.amount)}`):`💰 참가비 없음`,
+    form.amount>0?(form.amountPaid?`💰 참가비: 미납자 ${fmtKRW(form.amount)} / 납부자 ${fmtKRW(form.amountPaid)}`:`💰 참가비 ${fmtKRW(form.amount)}`):`💰 참가비 없음`,
     form.maxPeople?`👥 선착순 ${form.maxPeople}명`:null,
     '',
     '아래 링크에서 신청해주세요!',
@@ -4041,22 +4039,6 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
   const [submitted,setSubmitted]=useState(false);
   const [mySubmission,setMySubmission]=useState(null);
   const [splashDone,setSplashDone]=useState(()=>!!localStorage.getItem('splash_form_'+form.code));
-  const [matchedFee,setMatchedFee]=useState(null); // null | 'paid' | 'unpaid' | 'unknown' | 'conflict'
-
-  useEffect(()=>{
-    if(!form.amountPaid){setMatchedFee(null);return;}
-    const name=(values.name||'').trim();
-    if(!name){setMatchedFee(null);return;}
-    const t=setTimeout(()=>{
-      const matches=(form.memberList||[]).filter(m=>m.name===name);
-      if(!matches.length) setMatchedFee('unknown');
-      else if(matches.every(m=>m.isPaidFee)) setMatchedFee('paid');
-      else if(matches.every(m=>!m.isPaidFee)) setMatchedFee('unpaid');
-      else setMatchedFee('conflict');
-    },500);
-    return()=>clearTimeout(t);
-  },[values.name,form.amountPaid]);
-
   const isClosed=form.status==='closed';
   const isFull=form.maxPeople&&(form.submissions||[]).length>=form.maxPeople;
 
@@ -4332,52 +4314,6 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
           ))}
         </Card>
 
-        {form.amountPaid&&(
-          <div style={{background:C.cardBg,borderRadius:16,padding:'14px 16px',marginBottom:12,border:`1px solid ${C.border}`}}>
-            <div style={{fontSize:12,color:C.textDim,marginBottom:8,fontWeight:600}}>참가비</div>
-            {matchedFee==='paid'&&(
-              <div>
-                <div style={{fontSize:20,fontWeight:900,color:C.accent}}>💳 {fmtKRW(form.amountPaid)}</div>
-                <div style={{fontSize:12,color:C.textMid,marginTop:3}}>학생회비 납부자 가격</div>
-                <div style={{fontSize:11,color:C.textDim,marginTop:2}}>{fmtKRW(form.amount)} (미납자)</div>
-              </div>
-            )}
-            {matchedFee==='unpaid'&&(
-              <div>
-                <div style={{fontSize:20,fontWeight:900,color:C.text}}>{fmtKRW(form.amount)}</div>
-                <div style={{fontSize:12,color:C.textMid,marginTop:3}}>학생회비 미납자 가격</div>
-                <div style={{fontSize:11,color:C.textDim,marginTop:2}}>{fmtKRW(form.amountPaid)} (납부자)</div>
-              </div>
-            )}
-            {matchedFee==='unknown'&&(
-              <div>
-                <div style={{fontSize:20,fontWeight:900,color:C.text}}>{fmtKRW(form.amount)}</div>
-                <div style={{fontSize:12,color:C.textMid,marginTop:3}}>학생회비 미납자 가격</div>
-                <div style={{fontSize:11,color:C.orange,marginTop:4}}>명단 미등록 · 납부자라면 총무에게 문의하세요</div>
-              </div>
-            )}
-            {matchedFee==='conflict'&&(
-              <div>
-                <div style={{fontSize:20,fontWeight:900,color:C.text}}>{fmtKRW(form.amount)}</div>
-                <div style={{fontSize:12,color:C.textMid,marginTop:3}}>학생회비 미납자 가격</div>
-                <div style={{fontSize:11,color:C.orange,marginTop:4}}>동명이인이 있어 확인이 필요해요</div>
-              </div>
-            )}
-            {!matchedFee&&(
-              <div>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
-                  <span style={{fontSize:13,color:C.textMid}}>학생회비 미납자</span>
-                  <span style={{fontWeight:700,color:C.text}}>{fmtKRW(form.amount)}</span>
-                </div>
-                <div style={{display:'flex',justifyContent:'space-between'}}>
-                  <span style={{fontSize:13,color:C.textMid}}>학생회비 납부자</span>
-                  <span style={{fontWeight:700,color:C.accent}}>💳 {fmtKRW(form.amountPaid)}</span>
-                </div>
-                <div style={{fontSize:11,color:C.textDim,marginTop:6}}>이름을 입력하면 본인 가격이 표시돼요</div>
-              </div>
-            )}
-          </div>
-        )}
         <Btn onClick={submit} loading={loading} variant="orange">신청하기 →</Btn>
       </div>
     </div>
