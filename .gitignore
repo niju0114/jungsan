@@ -2,3 +2,8 @@
 *.sql
 !sql/*.sql
 parse_check.js
+gen-og.mjs
+check-og.mjs
+node_modules/
+package.json
+package-lock.json
