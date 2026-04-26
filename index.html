@@ -184,6 +184,7 @@ const evToRow = (ev, uid) => ({
 });
 const rowToForm = r => ({
   code:r.code, name:r.name, date:r.date, amount:r.amount||0,
+  amountPaid:r.amount_paid||null,
   maxPeople:r.max_people||null, account:r.account||{},
   fields:r.fields||[], submissions:r.submissions||[],
   status:r.status||'open', createdAt:r.created_at,
@@ -191,6 +192,7 @@ const rowToForm = r => ({
 });
 const formToRow = (f, uid) => ({
   code:f.code, name:f.name, date:f.date, amount:f.amount,
+  amount_paid:f.amountPaid||null,
   max_people:f.maxPeople, account:f.account, fields:f.fields,
   submissions:f.submissions, status:f.status,
   time:f.time||null, place:f.place||null,
@@ -2913,6 +2915,8 @@ function FormCreateScreen({nav,profile,createForm}){
   const [name,setName]=useState('');
   const [date,setDate]=useState(new Date().toISOString().slice(0,10));
   const [amount,setAmount]=useState('');
+  const [amountPaid,setAmountPaid]=useState('');
+  const [feeMode,setFeeMode]=useState('single');
   const [useLimit,setUseLimit]=useState(false);
   const [maxPeople,setMaxPeople]=useState('');
   const [bank,setBank]=useState(profile.account?.bank||'');
@@ -2961,6 +2965,7 @@ function FormCreateScreen({nav,profile,createForm}){
     setErr('');
     if(!name.trim()){setErr('행사명을 입력해주세요');return;}
     if(!amount||isNaN(Number(amount))){setErr('참가비를 입력해주세요');return;}
+    if(feeMode==='twoTier'&&(!amountPaid||isNaN(Number(amountPaid)))){setErr('납부자 가격을 입력해주세요');return;}
     const b=bank.trim()||profile.account?.bank||'';
     const n=number.trim()||profile.account?.number||'';
     const h=holder.trim()||profile.account?.holder||'';
@@ -2972,6 +2977,7 @@ function FormCreateScreen({nav,profile,createForm}){
     const cleanFields=fields.map(f=>({...f,options:(f.options||[]).map(o=>o.trim()).filter(Boolean)}));
     const form={
       code,name:name.trim(),date,amount:Number(amount),
+      amountPaid:feeMode==='twoTier'?Number(amountPaid):null,
       maxPeople:useLimit&&maxPeople?Number(maxPeople):null,
       account:{bank:b,number:n,holder:h},fields:cleanFields,
       submissions:[],status:'open',createdAt:new Date().toISOString(),
@@ -2991,7 +2997,31 @@ function FormCreateScreen({nav,profile,createForm}){
         <Card>
           <Field label="행사명" value={name} onChange={setName} placeholder="5월 MT, 개강총회…"/>
           <Field label="날짜·시간" value={date+(time?`T${time}`:'')} onChange={v=>{setDate(v.slice(0,10));setTime(v.length>10?v.slice(11,16):'');}} type="datetime-local"/>
-          <Field label="참가비 (원)" value={amount} onChange={v=>setAmount(v.replace(/[^0-9]/g,''))} placeholder="30,000" inputMode="numeric"/>
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:8}}>금액 설정</div>
+            <div style={{display:'flex',background:C.inputBg,borderRadius:10,padding:3,marginBottom:10}}>
+              {[['single','단일 금액'],['twoTier','두 갈래 금액']].map(([mode,label])=>(
+                <button key={mode} onClick={()=>{
+                  if(mode==='twoTier'&&feeMode==='single'){setFeeMode('twoTier');}
+                  else if(mode==='single'&&feeMode==='twoTier'){setAmountPaid('');setFeeMode('single');}
+                }} style={{flex:1,padding:'7px 0',borderRadius:8,fontSize:13,
+                  fontWeight:feeMode===mode?700:500,cursor:'pointer',border:'none',
+                  background:feeMode===mode?'#fff':'transparent',
+                  color:feeMode===mode?C.accent:C.textDim,
+                  boxShadow:feeMode===mode?'0 1px 3px rgba(0,0,0,0.12)':'none',transition:'all 0.15s'}}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {feeMode==='single'?(
+              <Field label="참가비 (원)" value={amount} onChange={v=>setAmount(v.replace(/[^0-9]/g,''))} placeholder="30,000" inputMode="numeric"/>
+            ):(
+              <>
+                <Field label="학생회비 미납자 가격 (원)" value={amount} onChange={v=>setAmount(v.replace(/[^0-9]/g,''))} placeholder="5,000" inputMode="numeric"/>
+                <Field label="학생회비 납부자 가격 (원)" value={amountPaid} onChange={v=>setAmountPaid(v.replace(/[^0-9]/g,''))} placeholder="4,000" inputMode="numeric"/>
+              </>
+            )}
+          </div>
           <Field label="장소 (선택)" value={place} onChange={setPlace} placeholder="강남 OO식당, 동아리방…"/>
           <div style={{marginBottom:14}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:useLimit?10:0}}>
