@@ -1316,8 +1316,7 @@ function ModeSelectModal({profile,nav,onClose}){
         <div style={{display:'flex',alignItems:'center',gap:14}}>
           <div style={{width:48,height:48,borderRadius:14,background:C.orange,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>💌</div>
           <div style={{flex:1}}>
-            <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>신청 받을 일이 있어요</div>
-            <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>신청을 먼저 받고 입금까지 받아요</div>
+            <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:4}}>신청 받을 일이 있어요</div>
             <div style={{fontSize:11,color:C.orange,fontWeight:600}}>MT, 회비, 야식마차</div>
           </div>
           <span className="ms" style={{color:C.orange}}>chevron_right</span>
@@ -1327,8 +1326,7 @@ function ModeSelectModal({profile,nav,onClose}){
         <div style={{display:'flex',alignItems:'center',gap:14}}>
           <div style={{width:48,height:48,borderRadius:14,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>👥</div>
           <div style={{flex:1}}>
-            <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>그냥 바로 정산하면 돼요</div>
-            <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>모인 사람으로 N빵해요</div>
+            <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:4}}>그냥 바로 정산하면 돼요</div>
             <div style={{fontSize:11,color:C.accent,fontWeight:600}}>뒷풀이, 공지 후 술자리(회식)</div>
           </div>
           <span className="ms" style={{color:C.accent}}>chevron_right</span>
@@ -2376,9 +2374,6 @@ function StatusSection({event,updateEvent,groups,showToast}){
            +allExtraEntries.filter(e=>event.payments?.[e.key]?.paid).length;
   const unpaidList=presentMembers.filter(k=>!event.payments?.[k]?.paid);
   const directLink=getLink(`code=${event.code}`);
-  const nl='\n';
-  const acct=event.account?.bank?('💳 '+event.account.bank+' '+event.account.number+' ('+event.account.holder+')'):'';
-  const nudgeMsg=unpaidList.length===0?'':['['+event.name+'] 콕 찌르기',nl,...unpaidList.map(k=>('• '+(mm[k]||k)+'  '+fmtKRW(amounts[k]||0))),acct,nl,directLink].filter(Boolean).join(nl);
 
   const toggle=k=>{
     const cur=event.payments?.[k]?.paid;
@@ -2440,7 +2435,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
       e.stopPropagation();
       const msg=buildDunningMsg({name:displayName,eventName:event.name,amount:displayAmount,account:event.account,link:directLink});
       const shared=await shareText(msg);
-      if(!shared){await copyText(msg);showToast('독촉 메시지 복사됐어요');}
+      if(!shared){await copyText(msg);showToast('콕 찌르기 복사됐어요');}
       else showToast('공유 완료');
     };
     return(
@@ -2461,7 +2456,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
         </div>
         {canDunning&&(
           <div style={{borderTop:`1px solid ${C.border}`,padding:'6px 14px',display:'flex',justifyContent:'flex-end'}}>
-            <button onClick={dunning} style={{fontSize:12,color:C.orange,background:C.orange+'18',border:'none',borderRadius:8,padding:'5px 12px',cursor:'pointer',fontWeight:700}}>💬 독촉</button>
+            <button onClick={dunning} style={{fontSize:12,color:C.orange,background:C.orange+'18',border:'none',borderRadius:8,padding:'5px 12px',cursor:'pointer',fontWeight:700}}>💬 콕 찌르기</button>
           </div>
         )}
       </div>
@@ -2524,42 +2519,45 @@ function StatusSection({event,updateEvent,groups,showToast}){
 
   return(
     <div>
-      <div style={{display:'flex',gap:8,marginBottom:12}}>
-        {[[totalCount-pc,'미입금',C.red,C.redBg]].map(([v,l,c,bg])=>(
-          <div key={l} style={{flex:1,background:bg,borderRadius:12,padding:'11px 8px',textAlign:'center',border:`1.5px solid ${c}30`}}>
-            <div style={{fontSize:20,fontWeight:900,color:c}}>{v}</div>
-            <div style={{fontSize:11,color:c,marginTop:2,fontWeight:600}}>{l}</div>
-          </div>
-        ))}
-      </div>
-      {unpaidXKeys.length>0&&event.account?.bank&&(
-        <button onClick={()=>setDunningOpen(true)} className="press" style={{width:'100%',padding:'12px',borderRadius:12,background:C.orange+'15',border:`1.5px solid ${C.orange}40`,color:C.orange,fontWeight:800,fontSize:13,cursor:'pointer',marginBottom:8}}>
-          📢 미납자 {unpaidXKeys.length}명 일괄 독촉
-        </button>
-      )}
-      {requestedKeys.length>0&&(
-        <button onClick={()=>setConfirmBulk(true)} className="press" style={{width:'100%',padding:'12px',borderRadius:12,background:C.yellowBg,border:`1.5px solid ${C.yellow}40`,color:C.yellow,fontWeight:800,fontSize:13,cursor:'pointer',marginBottom:10}}>
-          남은 요청 {requestedKeys.length}명 모두 확인 완료
-        </button>
-      )}
-      <ConfirmBulkModal isOpen={confirmBulk} onClose={()=>setConfirmBulk(false)} count={requestedKeys.length} onConfirm={applyBulkConfirm}/>
       <input ref={excelFileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleExcel} style={{display:'none'}}/>
       {event.account?.bank&&!matchResults&&(
-        <button onClick={()=>excelFileRef.current?.click()} disabled={uploading} className="press" style={{width:'100%',padding:'12px',borderRadius:12,background:C.accent+'15',border:`1.5px solid ${C.accent}40`,color:C.accent,fontWeight:800,fontSize:13,cursor:uploading?'default':'pointer',marginBottom:8}}>
+        <button onClick={()=>excelFileRef.current?.click()} disabled={uploading} className="press" style={{width:'100%',padding:'14px',borderRadius:12,background:C.accent,border:'none',color:'#fff',fontWeight:800,fontSize:14,cursor:uploading?'default':'pointer',marginBottom:12}}>
           {uploading?'분석 중...':'📊 거래내역 대조'}
         </button>
       )}
+      {!matchResults&&(unpaidXKeys.length>0&&!!event.account?.bank||requestedKeys.length>0)&&(
+        <div style={{display:'flex',gap:8,marginBottom:16}}>
+          {unpaidXKeys.length>0&&event.account?.bank&&(
+            <button onClick={()=>setDunningOpen(true)} className="press" style={{flex:1,padding:'9px',borderRadius:10,background:'transparent',border:`1.5px solid ${C.border}`,color:C.textMid,fontWeight:700,fontSize:12,cursor:'pointer'}}>
+              💬 미납자 {unpaidXKeys.length}명 콕 찌르기
+            </button>
+          )}
+          {requestedKeys.length>0&&(
+            <button onClick={()=>setConfirmBulk(true)} className="press" style={{flex:1,padding:'9px',borderRadius:10,background:C.yellowBg,border:`1.5px solid ${C.yellow}40`,color:C.yellow,fontWeight:700,fontSize:12,cursor:'pointer'}}>
+              ✓ {requestedKeys.length}명 확인 완료
+            </button>
+          )}
+        </div>
+      )}
+      <ConfirmBulkModal isOpen={confirmBulk} onClose={()=>setConfirmBulk(false)} count={requestedKeys.length} onConfirm={applyBulkConfirm}/>
       {!matchResults&&<>
-      {surplus>0&&<div style={{fontSize:11,color:C.textMid,textAlign:'center',marginBottom:10}}>소수점을 올림해서 총액보다 <span style={{color:C.text,fontWeight:700}}>{fmtKRW(surplus)}</span> 더 걷혀요 <span style={{color:C.textDim}}>(총무 손해 방지)</span></div>}
-      <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:6,marginBottom:8}}>
-        {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>⏱ 시간순</span>}
-        <button onClick={()=>setSortByTime(v=>!v)} style={{
-          width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
-          background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
-        }}>
-          <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
-            left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
-        </button>
+      {surplus>0&&<div style={{fontSize:11,color:C.textDim,textAlign:'center',marginBottom:12}}>소수점을 올림해서 총액보다 <span style={{fontWeight:700,color:C.textMid}}>{fmtKRW(surplus)}</span> 더 걷혀요</div>}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+        <div style={{fontSize:12,fontWeight:600}}>
+          <span style={{color:C.red}}>🔴 미입금 {totalCount-pc}</span>
+          <span style={{color:C.textDim,margin:'0 5px'}}>·</span>
+          <span style={{color:C.green}}>🟢 입금확인 {pc}</span>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:6}}>
+          {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>⏱ 시간순</span>}
+          <button onClick={()=>setSortByTime(v=>!v)} style={{
+            width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
+            background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+          }}>
+            <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
+              left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
+          </button>
+        </div>
       </div>
       {useGroupView?(
         groupSections.map(section=>(
@@ -2585,18 +2583,9 @@ function StatusSection({event,updateEvent,groups,showToast}){
           )}
         </>
       )}
-
-      {/* 콕 찌르기 */}
       {zeroMembers.length>0&&(
         <div style={{fontSize:11,color:C.textDim,textAlign:'center',marginTop:12,marginBottom:8}}>
           이번 정산에 참여하지 않은 {zeroMembers.length}명 ({zeroMembers.map(k=>mm[k]||k).join(', ')})
-        </div>
-      )}
-      {unpaidList.length>0&&(
-        <div style={{marginTop:16}}>
-          <div style={{fontWeight:700,color:C.text,fontSize:13,marginBottom:8}}>콕 찌르기 <span style={{color:C.red}}>({unpaidList.length}명)</span></div>
-          <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',fontSize:12,color:C.textMid,lineHeight:1.85,marginBottom:8,whiteSpace:'pre-wrap',border:`1.5px solid ${C.border}`}}>{nudgeMsg}</div>
-          <Btn onClick={()=>copyText(nudgeMsg)} variant="secondary" small>콕 찌르기 복사</Btn>
         </div>
       )}
       {unpaidList.length===0&&pc>0&&<div style={{textAlign:'center',color:C.green,fontWeight:900,fontSize:15,padding:'16px 0'}}>🎉 전원 완료!</div>}
@@ -3470,7 +3459,7 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
     const link=getLink(`form=${form.code}`);
     const msg=buildDunningMsg({name:s.name,eventName:form.name,amount:getUserAmount(form,s.name,s.data?.studentId),account:form.account,link});
     const shared=await shareText(msg);
-    if(!shared){await copyText(msg);showToast('독촉 메시지 복사됐어요');}
+    if(!shared){await copyText(msg);showToast('콕 찌르기 복사됐어요');}
     else showToast('공유 완료');
   };
 
@@ -3554,7 +3543,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
           )}
           {onCardDunning&&sliderValue(s)===false&&(
             <div style={{marginTop:4}}>
-              <button onClick={e=>{e.stopPropagation();onCardDunning(s);}} style={{fontSize:11,color:C.purple,background:'transparent',border:`1px solid ${C.purple}40`,borderRadius:6,padding:'2px 8px',cursor:'pointer',fontWeight:700}}>독촉</button>
+              <button onClick={e=>{e.stopPropagation();onCardDunning(s);}} style={{fontSize:11,color:C.purple,background:'transparent',border:`1px solid ${C.purple}40`,borderRadius:6,padding:'2px 8px',cursor:'pointer',fontWeight:700}}>콕 찌르기</button>
             </div>
           )}
         </div>
@@ -3575,7 +3564,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
           <div style={{textAlign:'center',color:C.textDim,margin:'8px 0'}}>또는</div>
           <div style={{fontWeight:700,color:C.text,marginBottom:2}}>2️⃣ 자동 대조</div>
           <div>[입금 자동 대조] 탭에서 거래내역 Excel 업로드</div>
-          <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${C.border}`}}>✅ 미입금자가 확인되면 일괄 독촉 또는 개별 독촉 가능</div>
+          <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${C.border}`}}>✅ 미입금자가 확인되면 콕 찌르기 가능</div>
         </div>
       )}
       {subs.length>=5&&(
@@ -3921,12 +3910,12 @@ function DunningModal({eventName, account, link, unpaidList, showToast, onClose}
   const share=async()=>{
     const msg=getMsg();
     const shared=await shareText(msg);
-    if(!shared){await copyText(msg);showToast('독촉 메시지 복사됐어요');}
+    if(!shared){await copyText(msg);showToast('콕 찌르기 복사됐어요');}
     else showToast('공유 완료');
   };
 
   return(
-    <Modal isOpen={true} onClose={onClose} title="📢 일괄 독촉">
+    <Modal isOpen={true} onClose={onClose} title="📢 콕 찌르기">
       <div style={{display:'flex',gap:6,marginBottom:14}}>
         {[['이름 제외',false],['이름 포함',true]].map(([label,val])=>(
           <button key={label} onClick={()=>setWithNames(val)} style={{flex:1,padding:'8px',borderRadius:10,fontSize:13,fontWeight:700,cursor:'pointer',border:'none',background:withNames===val?C.accent:C.inputBg,color:withNames===val?'#fff':C.textMid}}>{label}</button>
@@ -4037,7 +4026,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
     const acct=form.account;
     const msg=`[${form.name}] 입금 안내\n\n${s.name}님 아직 입금 확인이 안 됐어요.\n\n${acct.bank} ${acct.number} (${acct.holder})\n${fmtKRW(getUserAmount(form,s.name,s.data?.studentId))}\n\n${getLink(`form=${form.code}`)}`;
     const shared=await shareText(msg);
-    if(!shared){await copyText(msg);showToast('독촉 메시지 복사됐어요');}
+    if(!shared){await copyText(msg);showToast('콕 찌르기 복사됐어요');}
     else showToast('공유 완료');
   };
 
@@ -4098,7 +4087,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
             <>
               <div style={{display:'flex',marginBottom:10,gap:6}}>
                 <button onClick={()=>setShowVerify(true)} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`}}>📥 입금 자동 대조</button>
-                <button onClick={()=>{if(!form.account?.bank){showToast('계좌 정보를 먼저 등록해주세요',C.orange);return;}setDunningOpen(true);}} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`}}>📢 일괄 독촉</button>
+                <button onClick={()=>{if(!form.account?.bank){showToast('계좌 정보를 먼저 등록해주세요',C.orange);return;}setDunningOpen(true);}} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`}}>📢 콕 찌르기</button>
               </div>
               <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
                 unregisteredCount={unregisteredCount} groups={groups}
