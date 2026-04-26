@@ -1282,26 +1282,26 @@ function ModeSelectModal({profile,nav,onClose}){
           <Btn variant="orange" onClick={()=>{onClose();nav.setView('setup');}} small>명단·계좌 설정하러 가기</Btn>
         </div>
       )}
-      <div style={{fontWeight:900,color:C.text,fontSize:20,marginBottom:6,textAlign:'center'}}>무엇을 하시나요?</div>
+      <div style={{fontWeight:900,color:C.text,fontSize:20,marginBottom:6,textAlign:'center'}}>어떤 상황이세요?</div>
       <div style={{color:C.textMid,fontSize:13,marginBottom:24,textAlign:'center'}}>상황에 맞게 선택하세요</div>
       <button onClick={()=>{onClose();nav.setView('formCreate');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,marginBottom:12,background:C.orangeBg,border:`1px solid ${C.orange}20`,cursor:'pointer',textAlign:'left'}}>
         <div style={{display:'flex',alignItems:'center',gap:14}}>
-          <div style={{width:48,height:48,borderRadius:14,background:C.orange,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📝</div>
+          <div style={{width:48,height:48,borderRadius:14,background:C.orange,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>💌</div>
           <div style={{flex:1}}>
-            <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>미리 신청 받기</div>
-            <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>신청폼으로 참여자 모집</div>
-            <div style={{fontSize:11,color:C.orange,fontWeight:600}}>MT, 야식마차</div>
+            <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>신청 받을 일이 있어요</div>
+            <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>신청을 먼저 받고 입금까지 받아요</div>
+            <div style={{fontSize:11,color:C.orange,fontWeight:600}}>MT, 회비, 야식마차</div>
           </div>
           <span className="ms" style={{color:C.orange}}>chevron_right</span>
         </div>
       </button>
       <button onClick={()=>{onClose();nav.setView('create');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,background:C.accentBg,border:`1px solid ${C.accent}20`,cursor:'pointer',textAlign:'left'}}>
         <div style={{display:'flex',alignItems:'center',gap:14}}>
-          <div style={{width:48,height:48,borderRadius:14,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🧾</div>
+          <div style={{width:48,height:48,borderRadius:14,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>👥</div>
           <div style={{flex:1}}>
-            <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>끝나고 정산하기</div>
-            <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>명단 만들고 바로 정산</div>
-            <div style={{fontSize:11,color:C.accent,fontWeight:600}}>뒷풀이 2, 3차, 회식</div>
+            <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:2}}>그냥 바로 정산하면 돼요</div>
+            <div style={{fontSize:13,color:C.textMid,marginBottom:4}}>모인 사람으로 N빵해요</div>
+            <div style={{fontSize:11,color:C.accent,fontWeight:600}}>뒷풀이, 공지 후 술자리(회식)</div>
           </div>
           <span className="ms" style={{color:C.accent}}>chevron_right</span>
         </div>
