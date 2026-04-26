@@ -3347,6 +3347,8 @@ const PaidSlider=({value,onChange})=>(
 function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCount, groups,
                          searchQ, setSearchQ, groupFilter, setGroupFilter,
                          onSetSubPaid, onCardDunning}){
+  const [sortByTime,setSortByTime]=useState(true);
+
   if(subs.length===0) return(
     <div style={{textAlign:'center',padding:'40px 0'}}>
       <div style={{fontSize:40,marginBottom:12}}>📭</div>
@@ -3360,22 +3362,26 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
     return true;
   };
 
+  const firstField=form.fields.find(f=>f.id!=='name');
+
+  const sortedSubs=sortByTime
+    ?[...filteredSubs].sort((a,b)=>new Date(b.requestedAt||b.createdAt)-new Date(a.requestedAt||a.createdAt))
+    :filteredSubs;
+
   const renderCard=(s)=>(
     <div key={s._idx} style={{background:'#fff',borderRadius:16,padding:'12px 14px',marginBottom:8}}>
       <div style={{display:'flex',alignItems:'center',gap:8}}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4,minWidth:0}}>
-            {s.paymentStatus==='requested'&&<span style={{fontSize:14,flexShrink:0}}>📩</span>}
             {s._group&&<span style={{padding:'2px 7px',borderRadius:8,fontSize:10,fontWeight:700,background:C.accentBg,color:C.accent,flexShrink:0}}>{s._group}</span>}
             {!s._group&&groups.length>0&&<span style={{padding:'2px 7px',borderRadius:8,fontSize:10,fontWeight:700,background:C.redBg,color:C.red,flexShrink:0}}>미등록</span>}
             <span style={{fontWeight:800,color:C.text,fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</span>
-            <span style={{color:C.textDim,fontSize:12,flexShrink:0}}>{s.phone}</span>
           </div>
-          {Object.entries(s.data||{}).filter(([k])=>!['name','phone'].includes(k)).map(([k,v])=>(
-            <div key={k} style={{fontSize:11,color:C.textMid}}>
-              <span style={{color:C.textDim}}>{fieldLabel(k)}:</span> {Array.isArray(v)?v.join(', '):v}
+          {firstField&&(
+            <div style={{fontSize:11,color:C.textMid}}>
+              <span style={{color:C.textDim}}>{firstField.label}:</span> {Array.isArray(s.data?.[firstField.id])?s.data[firstField.id].join(', '):s.data?.[firstField.id]||''}
             </div>
-          ))}
+          )}
           <div style={{display:'flex',alignItems:'center',gap:8,marginTop:4}}>
             <span style={{fontSize:11,color:C.textDim}}>{fmtRelTime(s.createdAt)}</span>
             {onCardDunning&&sliderValue(s)===false&&(
@@ -3390,8 +3396,8 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
 
   return(
     <div>
-      <div style={{fontSize:11,color:C.textDim,marginBottom:10,lineHeight:1.6}}>기본 ○ 상태입니다. 통장 확인 후 미입금자만 × 슬라이드해주세요.</div>
-      {subs.length>=10&&(
+      <div style={{fontSize:11,color:C.textDim,marginBottom:10,lineHeight:1.6}}>💡 ○ 표시된 사람 중 미입금자만 X로 바꿔주세요</div>
+      {subs.length>=5&&(
         <>
           <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름 또는 연락처 검색"
             style={{width:'100%',padding:'10px 14px',background:'#fff',border:'none',borderRadius:12,fontSize:14,outline:'none',marginBottom:8,color:C.text}}
@@ -3399,7 +3405,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
             onBlur={e=>e.target.style.boxShadow='none'}
           />
           {groups.length>0&&(
-            <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:10}}>
+            <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:6}}>
               <button onClick={()=>setGroupFilter('all')} style={{padding:'5px 12px',borderRadius:16,fontSize:12,fontWeight:600,cursor:'pointer',background:groupFilter==='all'?C.accent:'#fff',color:groupFilter==='all'?'#fff':C.textMid,border:'none'}}>
                 전체 {subs.length}
               </button>
@@ -3415,9 +3421,19 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
               )}
             </div>
           )}
+          <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:6,marginBottom:8}}>
+            {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>⏱ 시간순</span>}
+            <button onClick={()=>setSortByTime(v=>!v)} style={{
+              width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
+              background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+            }}>
+              <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
+                left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
+            </button>
+          </div>
         </>
       )}
-      {filteredSubs.map(s=>renderCard(s))}
+      {sortedSubs.map(s=>renderCard(s))}
     </div>
   );
 }
