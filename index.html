@@ -2175,7 +2175,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups}){
       {event.rounds.length>0&&event.rounds[0].amount>0&&<div style={{textAlign:'right',fontSize:13,color:C.textMid,marginBottom:10}}>합계 <span style={{color:C.text,fontWeight:900}}>{fmtKRW(event.rounds.reduce((s,r)=>s+r.amount,0))}</span></div>}
 
       {/* 2차부터 추가 가능 */}
-      {event.rounds.length>0&&event.rounds[0].amount>0&&(
+      {event.rounds.length>0&&(event.rounds[0].amount>0||(fc?.paidFeeAmount!=null&&(fc.paidFeeAmount>0||fc.unpaidFeeAmount>0)))&&(
         adding?(
           <div style={{background:C.inputBg,borderRadius:14,padding:14,border:`1.5px solid ${C.accent}30`}}>
             <Field label="차수 이름" value={label} onChange={setLabel} placeholder="2차, 노래방…"/>
