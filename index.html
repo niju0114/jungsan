@@ -255,8 +255,12 @@ const parseMembers = text => {
     // 이름 1개일 때만 sid 매핑, 이름 2개 이상이면 sid 무시
     names.forEach((name,i)=>{
       const sid=names.length===1?(sids[0]||''):'';
-      const key=name+(sid?`_${sid}`:'');
-      if(!seen.has(key)){seen.add(key);result.push({name,sid});}
+      if(sid){
+        const key=name+`_${sid}`;
+        if(!seen.has(key)){seen.add(key);result.push({name,sid});}
+      } else {
+        result.push({name,sid:''}); // 학번 없는 동명이인 허용
+      }
     });
   });
   return result;
