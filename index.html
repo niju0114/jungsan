@@ -1133,14 +1133,14 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
         </div>
         <div style={{display:'flex',gap:10,marginBottom:16}}>
           {[[events.length,'총 정산',C.accent],[activeEvents.length,'진행 중',C.green]].map(([v,l,c])=>(
-            <div key={l} style={{background:C.inputBg,borderRadius:16,padding:'14px 18px',flex:1}}>
+            <div key={l} onClick={()=>nav.setView('history')} className="press" style={{background:C.inputBg,borderRadius:16,padding:'14px 18px',flex:1,cursor:'pointer'}}>
               <div style={{fontSize:24,fontWeight:900,color:c,letterSpacing:-0.5}}>{v}</div>
               <div style={{fontSize:12,color:C.textDim,marginTop:4,fontWeight:600}}>{l}</div>
             </div>
           ))}
         </div>
         {/* 새 정산 CTA — 프로필 영역 하단, 스크롤 없이 항상 보이도록 */}
-        <Btn onClick={()=>setModeSelect(true)} style={{padding:'18px',fontSize:17,borderRadius:20}}>＋ 새 정산·신청</Btn>
+        <Btn onClick={()=>setModeSelect(true)} style={{padding:'18px',fontSize:17,borderRadius:20}}>＋ 새로 만들기</Btn>
       </div>
 
       <div style={{padding:'16px 16px 32px'}}>
@@ -1149,7 +1149,7 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
           {[
             {icon:'receipt_long',label:'정산 내역',action:()=>nav.setView('history')},
             {icon:'manage_accounts',label:'명단·계좌',action:()=>nav.setView('setup')},
-            {icon:'help',label:'자주 묻는 질문',action:onGuide},
+            {icon:'help',label:'도움말',action:onGuide},
           ].map(({icon,label,action})=>(
             <button key={label} onClick={action} className="press" style={{
               padding:'18px 8px',borderRadius:16,background:'#fff',
@@ -1161,19 +1161,6 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
             </button>
           ))}
         </div>
-
-        {/* W₂ 미설정 안내 카드 */}
-        {(!profile.account?.bank&&!(profile.groups||[]).some(g=>(g.members||[]).length>0))&&(
-          <div onClick={()=>nav.setView('setup')} className="press" style={{background:'#fff',borderRadius:16,padding:'16px 20px',marginBottom:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-            <div>
-              <div style={{fontWeight:700,color:C.text,fontSize:15,marginBottom:4}}>⚙️ 설정 정리하기</div>
-              <div style={{fontSize:13,color:C.textMid}}>명단·계좌를 입력해두면 편해요</div>
-            </div>
-            <div style={{display:'flex',alignItems:'center',gap:2,color:C.accent,fontWeight:700,fontSize:13,flexShrink:0,marginLeft:12}}>
-              설정하러 가기<span className="ms" style={{fontSize:18,marginLeft:2}}>arrow_forward</span>
-            </div>
-          </div>
-        )}
 
         {/* 대규모 신청폼 있으면 표시 */}
         {activeForms.length>0&&(
@@ -1368,7 +1355,7 @@ function SetupScreen({nav,profile,saveProfile}){
     ?profile.groups.map(g=>g.name==='전체'?{...g,name:'기본'}:g)
     :[{id:'g1',name:'기본',rawText:'',members:[]}];
   const [groups,setGroups]=useState(_rawGroups);
-  const [activeG,setActiveG]=useState(-1);
+  const [activeG,setActiveG]=useState(0);
   const [saving,setSaving]=useState(false);
   const [saved,setSaved]=useState(false);
   const [addingGroup,setAddingGroup]=useState(false);
