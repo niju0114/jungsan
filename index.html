@@ -214,12 +214,17 @@ const fmtRelTime = iso => {
   return `${d.getMonth()+1}/${d.getDate()} ${ampm} ${h}:${String(d.getMinutes()).padStart(2,'0')}`;
 };
 const fmtKRW = n => (n||0).toLocaleString('ko-KR')+'원';
-const getUserAmount = (form, subName) => {
+const getUserAmount = (form, subName, subSid) => {
   if(!form.amountPaid) return form.amount;
-  const matches=(form.memberList||[]).filter(m=>m.name===subName);
+  const memberList=form.memberList||[];
+  if(subSid){
+    const exact=memberList.find(m=>m.name===subName&&m.sid===subSid);
+    if(exact) return exact.isPaidFee?form.amountPaid:form.amount;
+  }
+  const matches=memberList.filter(m=>m.name===subName);
   if(!matches.length) return form.amount;
   if(matches.every(m=>m.isPaidFee)) return form.amountPaid;
-  return form.amount; // 미납자 혼재 or 전원 미납 → 미납자 가격
+  return form.amount;
 };
 const buildMemberList = (profile) => {
   const allPaidKeys=new Set((profile?.groups||[]).flatMap(g=>g.paidFeeMembers||[]));
@@ -2867,7 +2872,7 @@ function HistoryScreen({nav,events,forms,deleteEvent,deleteForm}){
                   </div>
                   <Badge color={C.orange}>마감</Badge>
                 </div>
-                <div style={{marginTop:8,fontSize:12,color:C.textMid}}>총 <span style={{color:C.text,fontWeight:800}}>{fmtKRW((f.submissions||[]).reduce((sum,s)=>sum+getUserAmount(f,s.name),0))}</span></div>
+                <div style={{marginTop:8,fontSize:12,color:C.textMid}}>총 <span style={{color:C.text,fontWeight:800}}>{fmtKRW((f.submissions||[]).reduce((sum,s)=>sum+getUserAmount(f,s.name,s.data?.studentId),0))}</span></div>
                 <button onClick={()=>delForm(f.code)} style={{marginTop:10,padding:'6px 12px',borderRadius:8,background:C.redBg,color:C.red,border:'none',fontSize:12,fontWeight:600,cursor:'pointer'}}>삭제</button>
               </div>
             );
@@ -2988,13 +2993,16 @@ function FormCreateScreen({nav,profile,createForm}){
     setLoading(true);
     const code=genCode();
     const cleanFields=fields.map(f=>({...f,options:(f.options||[]).map(o=>o.trim()).filter(Boolean)}));
+    const finalFields=feeMode==='twoTier'&&!cleanFields.some(f=>f.id==='studentId')
+      ?[...cleanFields,{id:'studentId',type:'text',label:'학번',required:true}]
+      :cleanFields;
     const memberList=feeMode==='twoTier'?buildMemberList(profile):[];
     const form={
       code,name:name.trim(),date,amount:Number(amount),
       amountPaid:feeMode==='twoTier'?Number(amountPaid):null,
       memberList,
       maxPeople:useLimit&&maxPeople?Number(maxPeople):null,
-      account:{bank:b,number:n,holder:h},fields:cleanFields,
+      account:{bank:b,number:n,holder:h},fields:finalFields,
       submissions:[],status:'open',createdAt:new Date().toISOString(),
       time:time||null,place:place.trim()||null,
     };
@@ -3017,8 +3025,14 @@ function FormCreateScreen({nav,profile,createForm}){
             <div style={{display:'flex',background:C.inputBg,borderRadius:10,padding:3,marginBottom:10}}>
               {[['single','단일 금액'],['twoTier','두 갈래 금액']].map(([mode,label])=>(
                 <button key={mode} onClick={()=>{
-                  if(mode==='twoTier'&&feeMode==='single'){setFeeMode('twoTier');}
-                  else if(mode==='single'&&feeMode==='twoTier'){setAmountPaid('');setFeeMode('single');}
+                  if(mode==='twoTier'&&feeMode==='single'){
+                    setFeeMode('twoTier');
+                    setFields(fs=>fs.some(f=>f.id==='studentId')?fs:[...fs,{id:'studentId',type:'text',label:'학번',required:true}]);
+                  }
+                  else if(mode==='single'&&feeMode==='twoTier'){
+                    setAmountPaid('');setFeeMode('single');
+                    setFields(fs=>fs.filter(f=>f.id!=='studentId'));
+                  }
                 }} style={{flex:1,padding:'7px 0',borderRadius:8,fontSize:13,
                   fontWeight:feeMode===mode?700:500,cursor:'pointer',border:'none',
                   background:feeMode===mode?'#fff':'transparent',
@@ -3100,12 +3114,14 @@ function FormCreateScreen({nav,profile,createForm}){
                   {f.required&&<span style={{fontSize:11,color:C.red,marginLeft:4}}>*</span>}
                   {f.type==='textarea'&&<span style={{fontSize:11,color:C.accent,marginLeft:6}}>서술형</span>}
                 </div>
-                <button onClick={()=>updateField(f.id,'required',!f.required)} style={{background:f.required?C.redBg:'none',border:`1px solid ${f.required?C.red+'30':C.border}`,borderRadius:8,padding:'3px 8px',fontSize:10,fontWeight:700,color:f.required?C.red:C.textDim,cursor:'pointer'}}>
+                <button onClick={()=>updateField(f.id,'required',!f.required)} disabled={f.id==='studentId'&&feeMode==='twoTier'} style={{background:f.required?C.redBg:'none',border:`1px solid ${f.required?C.red+'30':C.border}`,borderRadius:8,padding:'3px 8px',fontSize:10,fontWeight:700,color:f.required?C.red:C.textDim,cursor:f.id==='studentId'&&feeMode==='twoTier'?'default':'pointer',opacity:f.id==='studentId'&&feeMode==='twoTier'?0.5:1}}>
                   {f.required?'필수':'선택'}
                 </button>
-                <button onClick={()=>removeField(f.id)} style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'flex'}}>
-                  <span className="ms ms-sm" style={{color:C.textDim}}>close</span>
-                </button>
+                {!(f.id==='studentId'&&feeMode==='twoTier')&&(
+                  <button onClick={()=>removeField(f.id)} style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'flex'}}>
+                    <span className="ms ms-sm" style={{color:C.textDim}}>close</span>
+                  </button>
+                )}
               </div>
               {['select','multiselect'].includes(f.type)&&(f.options||[]).length>0&&(
                 <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>
@@ -3324,7 +3340,7 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
   const unpaidNames=matchResults?matchResults.unpaid:subs.filter(s=>!s.paid&&s.paymentStatus!=='matched');
   const nudgeMsg=unpaidNames.length>0?[
     `[${form.name}] 입금 안내`,'',
-    ...unpaidNames.map(s=>`• ${s.name}  ${fmtKRW(getUserAmount(form,s.name))}`),
+    ...unpaidNames.map(s=>`• ${s.name}  ${fmtKRW(getUserAmount(form,s.name,s.data?.studentId))}`),
     '',`💳 ${form.account.bank} ${form.account.number}`,`예금주: ${form.account.holder}`,
   ].join('\n'):'';
 
@@ -3333,7 +3349,7 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
   const handleDunning=async(s)=>{
     if(!form.account?.bank) return;
     const link=getLink(`form=${form.code}`);
-    const msg=buildDunningMsg({name:s.name,eventName:form.name,amount:getUserAmount(form,s.name),account:form.account,link});
+    const msg=buildDunningMsg({name:s.name,eventName:form.name,amount:getUserAmount(form,s.name,s.data?.studentId),account:form.account,link});
     const shared=await shareText(msg);
     if(!shared){await copyText(msg);showToast('독촉 메시지 복사됐어요');}
     else showToast('공유 완료');
@@ -3866,7 +3882,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
   const subs=form.submissions||[];
   const groups=profile?.groups||[];
   const unpaidConfirmedCount=subs.filter(s=>s.paymentStatus==='unpaid_confirmed').length;
-  const unpaidXList=subs.filter(s=>s.paymentStatus==='unpaid_confirmed').map(s=>({name:s.name,amount:getUserAmount(form,s.name)}));
+  const unpaidXList=subs.filter(s=>s.paymentStatus==='unpaid_confirmed').map(s=>({name:s.name,amount:getUserAmount(form,s.name,s.data?.studentId)}));
   const [slide,setSlide]=useState(()=>subs.length===0?0:1);
   const stepDone=[true,subs.length>0];
 
@@ -3900,7 +3916,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
   const handleCardDunning=async(s)=>{
     if(!form.account?.bank) return;
     const acct=form.account;
-    const msg=`[${form.name}] 입금 안내\n\n${s.name}님 아직 입금 확인이 안 됐어요.\n\n${acct.bank} ${acct.number} (${acct.holder})\n${fmtKRW(getUserAmount(form,s.name))}\n\n${getLink(`form=${form.code}`)}`;
+    const msg=`[${form.name}] 입금 안내\n\n${s.name}님 아직 입금 확인이 안 됐어요.\n\n${acct.bank} ${acct.number} (${acct.holder})\n${fmtKRW(getUserAmount(form,s.name,s.data?.studentId))}\n\n${getLink(`form=${form.code}`)}`;
     const shared=await shareText(msg);
     if(!shared){await copyText(msg);showToast('독촉 메시지 복사됐어요');}
     else showToast('공유 완료');
@@ -4093,7 +4109,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
   if(submitted&&mySubmission){
     const isConfirmed=mySubmission.paid||mySubmission.paymentStatus==='matched';
     const isRequested=mySubmission.paymentStatus==='requested';
-    const myAmount=getUserAmount(form,mySubmission.name);
+    const myAmount=getUserAmount(form,mySubmission.name,mySubmission.data?.studentId);
     const tossLink=getTossLink(form.account.bank,form.account.number,myAmount);
     const kakaoLink=getKakaoBankLink(form.account.bank,form.account.number,myAmount);
     const accountText=`${form.account.bank} ${form.account.number}`;
