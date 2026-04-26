@@ -2931,7 +2931,6 @@ function FormCreateScreen({nav,profile,createForm}){
   const [amount,setAmount]=useState('');
   const [amountPaid,setAmountPaid]=useState('');
   const [feeMode,setFeeMode]=useState('single');
-  const [selectedGroupIdxs,setSelectedGroupIdxs]=useState([]);
   const [useLimit,setUseLimit]=useState(false);
   const [maxPeople,setMaxPeople]=useState('');
   const [bank,setBank]=useState(profile.account?.bank||'');
@@ -2981,7 +2980,6 @@ function FormCreateScreen({nav,profile,createForm}){
     if(!name.trim()){setErr('행사명을 입력해주세요');return;}
     if(!amount||isNaN(Number(amount))){setErr('참가비를 입력해주세요');return;}
     if(feeMode==='twoTier'&&(!amountPaid||isNaN(Number(amountPaid)))){setErr('납부자 가격을 입력해주세요');return;}
-    if(feeMode==='twoTier'&&selectedGroupIdxs.length===0){setErr('학생회비 구분을 위해 명단 그룹을 선택해주세요');return;}
     const b=bank.trim()||profile.account?.bank||'';
     const n=number.trim()||profile.account?.number||'';
     const h=holder.trim()||profile.account?.holder||'';
@@ -2989,12 +2987,8 @@ function FormCreateScreen({nav,profile,createForm}){
 
     setLoading(true);
     const code=genCode();
-    // 빈 옵션 제거
     const cleanFields=fields.map(f=>({...f,options:(f.options||[]).map(o=>o.trim()).filter(Boolean)}));
-    const allPaidKeys=new Set((profile.groups||[]).flatMap(g=>g.paidFeeMembers||[]));
-    const memberList=feeMode==='twoTier'
-      ?selectedGroupIdxs.flatMap(i=>(profile.groups[i]?.members||[])).map(m=>({name:m.name,sid:m.sid||'',isPaidFee:allPaidKeys.has(m.name+(m.sid?'_'+m.sid:''))}))
-      :[];
+    const memberList=feeMode==='twoTier'?buildMemberList(profile):[];
     const form={
       code,name:name.trim(),date,amount:Number(amount),
       amountPaid:feeMode==='twoTier'?Number(amountPaid):null,
@@ -3040,34 +3034,7 @@ function FormCreateScreen({nav,profile,createForm}){
               <>
                 <Field label="학생회비 미납자 가격 (원)" value={amount} onChange={v=>setAmount(v.replace(/[^0-9]/g,''))} placeholder="5,000" inputMode="numeric"/>
                 <Field label="학생회비 납부자 가격 (원)" value={amountPaid} onChange={v=>setAmountPaid(v.replace(/[^0-9]/g,''))} placeholder="4,000" inputMode="numeric"/>
-                <div style={{marginTop:4}}>
-                  <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:6}}>명단 그룹 선택</div>
-                  {!(profile.groups||[]).some(g=>(g.members||[]).length>0)?(
-                    <div style={{background:C.orangeBg,borderRadius:10,padding:'12px 14px'}}>
-                      <div style={{fontSize:12,color:C.orange,fontWeight:700,marginBottom:6}}>⚠️ 학생회비 납부자/미납자 자동 구분을 위해 명단 등록이 필요합니다.</div>
-                      <button onClick={()=>nav.setView('setup')} style={{background:'none',border:'none',color:C.accent,fontWeight:700,fontSize:12,cursor:'pointer',padding:0}}>명단·계좌 등록하러 가기 →</button>
-                    </div>
-                  ):(
-                    <>
-                      {(profile.groups||[]).map((g,i)=>{
-                        if(!(g.members||[]).length) return null;
-                        const isSel=selectedGroupIdxs.includes(i);
-                        return(
-                          <button key={i} onClick={()=>setSelectedGroupIdxs(prev=>isSel?prev.filter(x=>x!==i):[...prev,i])} style={{
-                            display:'flex',alignItems:'center',gap:8,width:'100%',padding:'10px 12px',
-                            borderRadius:10,border:`1.5px solid ${isSel?C.accent:C.border}`,
-                            background:isSel?C.accentBg:'#fff',marginBottom:6,cursor:'pointer',textAlign:'left',
-                          }}>
-                            <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${isSel?C.accent:C.border}`,background:isSel?C.accent:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:11,color:'#fff'}}>{isSel?'✓':''}</div>
-                            <span style={{fontSize:13,fontWeight:isSel?700:500,color:isSel?C.accent:C.text}}>{g.name||`그룹 ${i+1}`}</span>
-                            <span style={{fontSize:12,color:C.textDim,marginLeft:'auto'}}>{(g.members||[]).length}명</span>
-                          </button>
-                        );
-                      })}
-                      {selectedGroupIdxs.length>0&&<div style={{fontSize:11,color:C.textDim,marginTop:2}}>선택: {selectedGroupIdxs.reduce((s,i)=>s+(profile.groups[i]?.members||[]).length,0)}명</div>}
-                    </>
-                  )}
-                </div>
+                <div style={{fontSize:12,color:C.textDim,marginTop:4}}>명단 등록 시 자동으로 학생회비 납부자/미납자 구분됩니다</div>
               </>
             )}
           </div>
@@ -3205,7 +3172,7 @@ function FormCreateScreen({nav,profile,createForm}){
       {/* 하단 고정 CTA */}
       <div style={{padding:'12px 16px 24px',background:C.cardBg}}>
         {err&&<div style={{color:C.red,fontSize:13,textAlign:'center',marginBottom:10,fontWeight:600}}>⚠ {err}</div>}
-        <Btn onClick={create} loading={loading} disabled={feeMode==='twoTier'&&selectedGroupIdxs.length===0}>신청폼 만들기</Btn>
+        <Btn onClick={create} loading={loading}>신청폼 만들기</Btn>
       </div>
 
       {/* 플로팅 미리보기 버튼 */}
@@ -3693,7 +3660,7 @@ function FormShareTab({form, showToast}){
     `📅 ${form.date}`,
     form.time?`🕐 ${form.time}`:null,
     form.place?`📍 ${form.place}`:null,
-    form.amount>0?(form.amountPaid?`💰 참가비: 미납자 ${fmtKRW(form.amount)} / 납부자 ${fmtKRW(form.amountPaid)}`:`💰 참가비 ${fmtKRW(form.amount)}`):`💰 참가비 없음`,
+    form.amount>0?(form.amountPaid?`💰 참가비\n학생회비 미납자: ${fmtKRW(form.amount)}\n학생회비 납부자: ${fmtKRW(form.amountPaid)}`:`💰 참가비 ${fmtKRW(form.amount)}`):`💰 참가비 없음`,
     form.maxPeople?`👥 선착순 ${form.maxPeople}명`:null,
     '',
     '아래 링크에서 신청해주세요!',
