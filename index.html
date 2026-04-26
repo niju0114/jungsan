@@ -1145,9 +1145,8 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
 
       <div style={{padding:'16px 16px 32px'}}>
         {/* 메뉴 그리드 */}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:20}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:8,marginBottom:20}}>
           {[
-            {icon:'receipt_long',label:'정산 내역',action:()=>nav.setView('history')},
             {icon:'manage_accounts',label:'명단·계좌',action:()=>nav.setView('setup')},
             {icon:'help',label:'도움말',action:onGuide},
           ].map(({icon,label,action})=>(
