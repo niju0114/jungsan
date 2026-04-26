@@ -3348,6 +3348,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
                          searchQ, setSearchQ, groupFilter, setGroupFilter,
                          onSetSubPaid, onCardDunning}){
   const [sortByTime,setSortByTime]=useState(true);
+  const [guideOpen,setGuideOpen]=useState(false);
 
   if(subs.length===0) return(
     <div style={{textAlign:'center',padding:'40px 0'}}>
@@ -3357,15 +3358,12 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
     </div>
   );
 
-  const sliderValue=(s)=>{
-    if(s.paymentStatus==='unpaid_confirmed') return false;
-    return true;
-  };
+  const sliderValue=(s)=>s.paid||s.paymentStatus==='matched'||s.paymentStatus==='requested';
 
   const firstField=form.fields.find(f=>f.id!=='name');
 
   const sortedSubs=sortByTime
-    ?[...filteredSubs].sort((a,b)=>new Date(b.requestedAt||b.createdAt)-new Date(a.requestedAt||a.createdAt))
+    ?[...filteredSubs].sort((a,b)=>new Date(b.matchedAt||b.requestedAt||b.createdAt)-new Date(a.matchedAt||a.requestedAt||a.createdAt))
     :filteredSubs;
 
   const renderCard=(s)=>(
@@ -3396,7 +3394,19 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
 
   return(
     <div>
-      <div style={{fontSize:11,color:C.textDim,marginBottom:10,lineHeight:1.6}}>💡 ○ 표시된 사람 중 미입금자만 X로 바꿔주세요</div>
+      <button onClick={()=>setGuideOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:11,color:C.textDim,marginBottom:guideOpen?6:10,padding:0,display:'flex',alignItems:'center',gap:4}}>
+        ❓ 이렇게 쓰세요 {guideOpen?'▲':'▼'}
+      </button>
+      {guideOpen&&(
+        <div style={{background:C.inputBg,padding:'12px 14px',borderRadius:12,marginBottom:10,fontSize:12,color:C.textMid,lineHeight:1.8}}>
+          <div style={{fontWeight:700,color:C.text,marginBottom:2}}>1️⃣ 수동 대조</div>
+          <div>○ 표시된 사람 중 미입금자를 통장에서 직접 확인하고 X로 바꾸세요</div>
+          <div style={{textAlign:'center',color:C.textDim,margin:'8px 0'}}>또는</div>
+          <div style={{fontWeight:700,color:C.text,marginBottom:2}}>2️⃣ 자동 대조</div>
+          <div>[입금 자동 대조] 탭에서 거래내역 Excel 업로드</div>
+          <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${C.border}`}}>✅ 미입금자가 확인되면 일괄 독촉 또는 개별 독촉 가능</div>
+        </div>
+      )}
       {subs.length>=5&&(
         <>
           <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름 또는 연락처 검색"
