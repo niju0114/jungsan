@@ -895,7 +895,7 @@ function App() {
 function LandingScreen({nav}){
   return(
     <div className="fade-up screen" style={{background:'#fff',display:'flex',flexDirection:'column'}}>
-      <div style={{background:`linear-gradient(145deg,#6366F1 0%,${C.purple} 100%)`,padding:'72px 28px 56px',textAlign:'center',position:'relative',overflow:'hidden'}}>
+      <div style={{background:'linear-gradient(145deg,#6366F1 0%,#EC4899 100%)',padding:'72px 28px 56px',textAlign:'center',position:'relative',overflow:'hidden'}}>
         <div style={{position:'absolute',inset:0,opacity:0.05,backgroundImage:'radial-gradient(circle,#fff 1px,transparent 1px)',backgroundSize:'24px 24px'}}/>
         <div style={{position:'relative'}}>
           <div style={{fontSize:56,marginBottom:16}}>🍻</div>
@@ -916,7 +916,7 @@ function LandingScreen({nav}){
           ))}
         </div>
         <div style={{paddingTop:32,paddingBottom:'calc(16px + env(safe-area-inset-bottom))'}}>
-          <Btn onClick={()=>nav.setView('auth')}>시작하기</Btn>
+          <Btn onClick={()=>nav.setView('auth')} style={{background:'linear-gradient(135deg,#6366F1 0%,#EC4899 100%)'}}>시작하기</Btn>
         </div>
       </div>
     </div>
