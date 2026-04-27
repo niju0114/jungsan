@@ -341,15 +341,6 @@ const translateAuthError = err => {
   return '문제가 생겼어요. 잠시 후 다시 시도해주세요.';
 };
 
-// 입금 완료(시각 최신순) → 미입금(원래 순서) 정렬
-const sortByPaid = (keys, payments) => [
-  ...keys.filter(k=>payments?.[k]?.paid).sort((a,b)=>{
-    const ta=payments[a]?.time, tb=payments[b]?.time;
-    if(!ta&&!tb) return 0; if(!ta) return 1; if(!tb) return -1;
-    return new Date(tb)-new Date(ta);
-  }),
-  ...keys.filter(k=>!payments?.[k]?.paid),
-];
 // 최근 활동 시간순 (paid.time / requestedAt 중 max, 내림차순)
 const sortByRequested = (keys, payments, nameOf=k=>k) => {
   const paid=keys.filter(k=>payments?.[k]?.paid).sort((a,b)=>new Date(payments[b]?.time||0)-new Date(payments[a]?.time||0));
@@ -529,6 +520,7 @@ const ICONS={
   'refresh-cw':'<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
   pencil:'<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
   zap:'<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+  eye:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
 };
 const Icon=({n,size=18,color='currentColor',style={}})=>(
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:'inline-block',verticalAlign:'middle',flexShrink:0,...style}} dangerouslySetInnerHTML={{__html:ICONS[n]}}/>
@@ -617,7 +609,7 @@ const FlowStepper = ({steps, current, done=[], onStepClick}) => (
     <div style={{display:'flex',alignItems:'flex-start',gap:0}}>
       {steps.map((label,i)=>{
         const isActive=current===i;
-        const isDone=done[i]||current>i;
+        const isDone=done[i];
         return(
           <React.Fragment key={i}>
             <button onClick={onStepClick?()=>onStepClick(i):undefined} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,flex:1,background:'none',border:'none',cursor:onStepClick?'pointer':'default',paddingBottom:12}}>
@@ -1171,7 +1163,7 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
     await api.updateProfile(user.id,{feedback:feedbackText.trim(),updated_at:new Date().toISOString()});
     setFeedbackLoading(false);
     setFeedbackText('');setFeedbackOpen(false);
-    showToast('건의사항이 전달됐어요 🙏');
+    showToast('건의사항이 전달됐어요');
   };
 
   return(
@@ -1937,7 +1929,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
           <div style={{fontSize:18,fontWeight:800,color:C.text,letterSpacing:-0.5}}>{event.name}</div>
           <div style={{fontSize:12,color:C.textDim,marginTop:2,display:'flex',alignItems:'center',gap:8}}>
             {steps[slide]}
-            {viewCount>0&&<span style={{color:C.accent}}>👀 {viewCount}</span>}
+            {viewCount>0&&<span style={{color:C.accent,display:'inline-flex',alignItems:'center',gap:3}}><Icon n="eye" size={12} color={C.accent}/>{viewCount}</span>}
           </div>
         </div>
         <button onClick={archiveEvent} style={{background:C.inputBg,border:'none',borderRadius:12,color:C.textMid,cursor:'pointer',padding:'8px 14px',fontSize:13,fontWeight:700}}>종료</button>
@@ -2704,7 +2696,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
         <div style={{display:'flex',alignItems:'center',gap:10}}>
           {(groups||[]).length>1&&(
             <div style={{display:'flex',alignItems:'center',gap:4}}>
-              {showGroups&&<span style={{fontSize:11,color:C.textDim}}>그룹 묶기</span>}
+              <span style={{fontSize:11,color:C.textDim}}>그룹 묶기</span>
               <button onClick={()=>setShowGroups(v=>!v)} style={{
                 width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
                 background:showGroups?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
@@ -3271,14 +3263,14 @@ function OnboardingModal({onClose}){
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:28}}>
         <div style={{background:C.accentBg,borderRadius:14,padding:'16px 18px',display:'flex',gap:14,alignItems:'flex-start'}}>
-          <div style={{fontSize:22,flexShrink:0,marginTop:2}}>1️⃣</div>
+          <div style={{width:28,height:28,borderRadius:14,background:C.accent,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,flexShrink:0,marginTop:2}}>1</div>
           <div>
             <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:4}}>명단·계좌 입력</div>
             <div style={{fontSize:13,color:C.textMid,lineHeight:1.6}}>누가 참여하는지, 어디로 받는지</div>
           </div>
         </div>
         <div style={{background:C.orangeBg,borderRadius:14,padding:'16px 18px',display:'flex',gap:14,alignItems:'flex-start'}}>
-          <div style={{fontSize:22,flexShrink:0,marginTop:2}}>2️⃣</div>
+          <div style={{width:28,height:28,borderRadius:14,background:C.orange,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,flexShrink:0,marginTop:2}}>2</div>
           <div>
             <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:4}}>정산 방법 선택</div>
             <div style={{fontSize:13,color:C.textMid,lineHeight:1.6}}>
@@ -3564,7 +3556,7 @@ function FormCreateScreen({nav,profile,createForm}){
         background:`linear-gradient(135deg,${C.accent},${C.accentDark})`,
         color:'#fff',fontSize:14,fontWeight:700,
         boxShadow:`0 4px 16px ${C.accent}55`,zIndex:50,
-      }}>👀 미리보기</button>
+      }}><Icon n="eye" size={14} color="#fff" style={{marginRight:4}}/>미리보기</button>
 
       {/* 프리뷰 오버레이 */}
       {showPreview&&(
@@ -3574,7 +3566,7 @@ function FormCreateScreen({nav,profile,createForm}){
             onClick={e=>e.stopPropagation()}>
             <div style={{display:'flex',alignItems:'center',gap:10,padding:'14px 16px',background:C.cardBg,borderRadius:'20px 20px 0 0',position:'sticky',top:0,zIndex:10,borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
               <button onClick={()=>setShowPreview(false)} style={{background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:10,color:C.textMid,cursor:'pointer',width:34,height:34,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>‹</button>
-              <div style={{flex:1,fontSize:14,fontWeight:800,color:C.text,letterSpacing:-0.3}}>👀 참여자에게는 이렇게 보여요</div>
+              <div style={{flex:1,fontSize:14,fontWeight:800,color:C.text,letterSpacing:-0.3,display:'flex',alignItems:'center',gap:6}}><Icon n="eye" size={14} color={C.text}/>참여자에게는 이렇게 보여요</div>
             </div>
             <div style={{flex:1,overflowY:'auto'}}>
               <FormSubmitScreen
@@ -3840,7 +3832,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
             {(groups||[]).length>1?(
               <div style={{display:'flex',alignItems:'center',gap:4}}>
-                {showGroups&&<span style={{fontSize:11,color:C.textDim}}>그룹 묶기</span>}
+                <span style={{fontSize:11,color:C.textDim}}>그룹 묶기</span>
                 <button onClick={()=>setShowGroups(v=>!v)} style={{
                   width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
                   background:showGroups?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
