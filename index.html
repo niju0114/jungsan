@@ -1390,6 +1390,8 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
   const [addingGroup,setAddingGroup]=useState(false);
   const [newGName,setNewGName]=useState('');
   const [pfmOpen,setPfmOpen]=useState(false);
+  const [searchQ,setSearchQ]=useState('');
+  const [sortBy,setSortBy]=useState('default');
 
   const updateRaw=(idx,text)=>{
     const members=parseMembers(text);
@@ -1423,6 +1425,19 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
   };
   const cur=activeG===-1?null:(groups[activeG]||groups[0]);
   const displayMembers=activeG===-1?groups.flatMap(g=>g.members||[]):(cur?.members||[]);
+  const filteredMembers=searchQ?displayMembers.filter(m=>m.name.includes(searchQ)||(m.sid||'').includes(searchQ)):displayMembers;
+  const sortedMembers=sortBy==='default'?filteredMembers:[...filteredMembers].sort((a,b)=>{
+    if(sortBy==='name') return a.name.localeCompare(b.name,'ko');
+    if(sortBy==='sid') return (a.sid||'').localeCompare(b.sid||'');
+    if(sortBy==='paid'){
+      const ka=a.name+(a.sid?'_'+a.sid:''); const kb=b.name+(b.sid?'_'+b.sid:'');
+      const aP=groups.some(g=>(g.paidFeeMembers||[]).includes(ka));
+      const bP=groups.some(g=>(g.paidFeeMembers||[]).includes(kb));
+      return (bP?1:0)-(aP?1:0);
+    }
+    return 0;
+  });
+  useEffect(()=>{setSearchQ('');setSortBy('default');},[activeG]);
 
   return(
     <div className="fade-up screen" style={{background:C.pageBg}}>
@@ -1487,20 +1502,33 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
                   </div>
                   {displayMembers.length>0&&(
                     <div style={{marginBottom:12}}>
-                      <div style={{fontSize:12,color:C.green,fontWeight:700,marginBottom:8}}>✓ {displayMembers.length}명 인식됐어요</div>
+                      <div style={{display:'flex',gap:6,marginBottom:8}}>
+                        <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름·학번 검색"
+                          style={{flex:1,padding:'7px 12px',borderRadius:10,border:`1.5px solid ${searchQ?C.accent:C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none'}}/>
+                        <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
+                          style={{padding:'7px 10px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.textMid,outline:'none',cursor:'pointer'}}>
+                          <option value="default">기본순</option>
+                          <option value="name">가나다</option>
+                          <option value="sid">학번순</option>
+                          <option value="paid">납부순</option>
+                        </select>
+                      </div>
+                      <div style={{fontSize:12,color:C.green,fontWeight:700,marginBottom:8}}>
+                        ✓ {searchQ?`${sortedMembers.length}/${displayMembers.length}명 검색됨`:`${displayMembers.length}명 인식됐어요`}
+                      </div>
                       <div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}>
                         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 28px',background:C.inputBg,padding:'6px 12px',borderBottom:`1px solid ${C.border}`}}>
                           <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>이름</span>
                           <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>학번</span>
                           <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>납부</span>
                         </div>
-                        {displayMembers.map((m,i)=>{
+                        {sortedMembers.length>0?sortedMembers.map((m,i)=>{
                           const k=m.name+(m.sid?'_'+m.sid:'');
                           const isPaid=groups.some(g=>(g.paidFeeMembers||[]).includes(k));
                           return(
                             <div key={m.name+(m.sid||'')+i} style={{
                               display:'grid',gridTemplateColumns:'1fr 1fr 28px',padding:'7px 12px',
-                              borderBottom:i<displayMembers.length-1?`1px solid ${C.border}`:'none',
+                              borderBottom:i<sortedMembers.length-1?`1px solid ${C.border}`:'none',
                               background:C.cardBg,alignItems:'center',
                             }}>
                               <span style={{fontSize:13,fontWeight:600,color:C.text}}>{m.name}</span>
@@ -1515,7 +1543,9 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
                               </div>
                             </div>
                           );
-                        })}
+                        }):(
+                          <div style={{padding:'16px',textAlign:'center',color:C.textDim,fontSize:13}}>검색 결과가 없어요</div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1535,20 +1565,33 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
               )}
               {activeG===-1&&displayMembers.length>0&&(
                 <div style={{marginTop:12}}>
-                  <div style={{fontSize:12,color:C.green,fontWeight:700,marginBottom:8}}>✓ {displayMembers.length}명 인식됐어요</div>
+                  <div style={{display:'flex',gap:6,marginBottom:8}}>
+                    <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름·학번 검색"
+                      style={{flex:1,padding:'7px 12px',borderRadius:10,border:`1.5px solid ${searchQ?C.accent:C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none'}}/>
+                    <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
+                      style={{padding:'7px 10px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.textMid,outline:'none',cursor:'pointer'}}>
+                      <option value="default">기본순</option>
+                      <option value="name">가나다</option>
+                      <option value="sid">학번순</option>
+                      <option value="paid">납부순</option>
+                    </select>
+                  </div>
+                  <div style={{fontSize:12,color:C.green,fontWeight:700,marginBottom:8}}>
+                    ✓ {searchQ?`${sortedMembers.length}/${displayMembers.length}명 검색됨`:`${displayMembers.length}명 인식됐어요`}
+                  </div>
                   <div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 28px',background:C.inputBg,padding:'6px 12px',borderBottom:`1px solid ${C.border}`}}>
                       <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>이름</span>
                       <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>학번</span>
                       <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>납부</span>
                     </div>
-                    {displayMembers.map((m,i)=>{
+                    {sortedMembers.length>0?sortedMembers.map((m,i)=>{
                       const k=m.name+(m.sid?'_'+m.sid:'');
                       const isPaid=groups.some(g=>(g.paidFeeMembers||[]).includes(k));
                       return(
                         <div key={m.name+(m.sid||'')+i} style={{
                           display:'grid',gridTemplateColumns:'1fr 1fr 28px',padding:'7px 12px',
-                          borderBottom:i<displayMembers.length-1?`1px solid ${C.border}`:'none',
+                          borderBottom:i<sortedMembers.length-1?`1px solid ${C.border}`:'none',
                           background:C.cardBg,alignItems:'center',
                         }}>
                           <span style={{fontSize:13,fontWeight:600,color:C.text}}>{m.name}</span>
@@ -1563,7 +1606,9 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
                           </div>
                         </div>
                       );
-                    })}
+                    }):(
+                      <div style={{padding:'16px',textAlign:'center',color:C.textDim,fontSize:13}}>검색 결과가 없어요</div>
+                    )}
                   </div>
                 </div>
               )}
@@ -2520,10 +2565,9 @@ function StatusSection({event,updateEvent,groups,showToast}){
       else showToast('공유 완료');
     };
     return(
-      <div style={{background:C.cardBg,borderRadius:12,marginBottom:6,boxShadow:paid?`0 0 0 2px ${C.green}40`:reqested?`0 0 0 2px ${C.yellow}40`:C.shadow,overflow:'hidden'}}>
-        <div onClick={()=>toggle(k)} className="press" style={{padding:'11px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <div style={{width:32,height:32,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:paid?C.green:reqested?C.yellowBg:C.redBg,color:paid?'#fff':reqested?C.yellow:C.red,fontWeight:900,fontSize:14}}>{paid?'O':reqested?'△':'X'}</div>
+      <div style={{background:C.cardBg,borderRadius:12,marginBottom:6,boxShadow:paid?`0 0 0 2px ${C.green}40`:C.shadow,overflow:'hidden'}}>
+        <div style={{padding:'11px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0}}>
             <div>
               <div style={{display:'flex',alignItems:'center',gap:6}}>
                 <span style={{fontWeight:600,color:C.text,fontSize:13}}>{displayName}</span>
@@ -2533,7 +2577,10 @@ function StatusSection({event,updateEvent,groups,showToast}){
               {!paid&&p?.requestedAt&&<div style={{fontSize:11,color:C.textDim}}>{fmtRelTime(p.requestedAt)} · 복사함</div>}
             </div>
           </div>
-          <div style={{color:C.accent,fontWeight:900,fontSize:13}}>{fmtKRW(displayAmount)}</div>
+          <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+            <div style={{color:C.accent,fontWeight:900,fontSize:13}}>{fmtKRW(displayAmount)}</div>
+            <PaidSlider value={!!paid} onChange={()=>toggle(k)}/>
+          </div>
         </div>
         {canDunning&&(
           <div style={{borderTop:`1px solid ${C.border}`,padding:'6px 14px',display:'flex',justifyContent:'flex-end'}}>
@@ -3647,14 +3694,10 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
 
 const PaidSlider=({value,onChange})=>(
   <div onClick={e=>{e.stopPropagation();onChange(!value);}}
-    style={{width:52,height:28,borderRadius:14,cursor:'pointer',flexShrink:0,
-      background:value?C.green:'#E5E7EB',position:'relative',transition:'background 0.2s'}}>
-    <div style={{position:'absolute',top:3,left:value?27:3,width:22,height:22,borderRadius:11,
-      background:'#fff',boxShadow:'0 1px 3px rgba(0,0,0,0.25)',transition:'left 0.18s',
-      display:'flex',alignItems:'center',justifyContent:'center',
-      fontSize:11,fontWeight:800,color:value?C.green:'#9CA3AF'}}>
-      {value?'○':'×'}
-    </div>
+    style={{width:50,height:30,borderRadius:15,cursor:'pointer',flexShrink:0,
+      background:value?C.accent:'#D1D5DB',position:'relative',transition:'background 0.2s'}}>
+    <div style={{position:'absolute',top:2,left:value?22:2,width:26,height:26,borderRadius:13,
+      background:'#fff',boxShadow:'0 1px 4px rgba(0,0,0,0.22)',transition:'left 0.18s'}}/>
   </div>
 );
 
