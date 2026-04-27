@@ -351,9 +351,10 @@ const sortByPaid = (keys, payments) => [
   ...keys.filter(k=>!payments?.[k]?.paid),
 ];
 // 최근 활동 시간순 (paid.time / requestedAt 중 max, 내림차순)
-const sortByRequested = (keys, payments) => {
-  const lastAct=k=>{const p=payments?.[k];const t1=p?.time?new Date(p.time):null;const t2=p?.requestedAt?new Date(p.requestedAt):null;if(!t1&&!t2)return null;if(!t1)return t2;if(!t2)return t1;return t1>t2?t1:t2;};
-  return[...keys.filter(k=>lastAct(k)!==null).sort((a,b)=>lastAct(b)-lastAct(a)),...keys.filter(k=>lastAct(k)===null)];
+const sortByRequested = (keys, payments, nameOf=k=>k) => {
+  const paid=keys.filter(k=>payments?.[k]?.paid).sort((a,b)=>new Date(payments[b]?.time||0)-new Date(payments[a]?.time||0));
+  const unpaid=keys.filter(k=>!payments?.[k]?.paid).sort((a,b)=>nameOf(a).localeCompare(nameOf(b),'ko'));
+  return[...paid,...unpaid];
 };
 
 // 임시 인원 key (roundId + em.id 조합, legacy는 index fallback)
@@ -620,12 +621,12 @@ const FlowStepper = ({steps, current, done=[], onStepClick}) => (
         return(
           <React.Fragment key={i}>
             <button onClick={onStepClick?()=>onStepClick(i):undefined} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,flex:1,background:'none',border:'none',cursor:onStepClick?'pointer':'default',paddingBottom:12}}>
-              <div style={{width:26,height:26,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:isDone?C.accent:isActive?C.accent:C.border,color:'#fff',fontSize:11,fontWeight:900,transition:'all 0.3s'}}>
+              <div style={{width:26,height:26,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:isDone?C.green:isActive?C.accent:C.border,color:'#fff',fontSize:11,fontWeight:900,transition:'all 0.3s'}}>
                 {isDone?<Icon n="check" size={11} color="#fff"/>:i+1}
               </div>
-              <div style={{fontSize:10,fontWeight:isActive?700:400,color:isDone?C.accent:isActive?C.accent:C.textDim,transition:'all 0.3s',whiteSpace:'nowrap'}}>{label}</div>
+              <div style={{fontSize:10,fontWeight:isActive?700:400,color:isDone?C.green:isActive?C.accent:C.textDim,transition:'all 0.3s',whiteSpace:'nowrap'}}>{label}</div>
             </button>
-            {i<steps.length-1&&<div style={{height:2,flex:2,background:isDone?C.accent:C.border,marginTop:12,transition:'all 0.3s'}}/>}
+            {i<steps.length-1&&<div style={{height:2,flex:2,background:isDone?C.green:C.border,marginTop:12,transition:'all 0.3s'}}/>}
           </React.Fragment>
         );
       })}
@@ -1151,10 +1152,6 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
   const [feedbackText,setFeedbackText]=useState('');
   const [feedbackLoading,setFeedbackLoading]=useState(false);
   const [modeSelect,setModeSelect]=useState(false);
-  const [sortLatest,setSortLatest]=useState(()=>{
-    try { const v=localStorage.getItem('jungsan_sort_latest'); return v===null?true:v==='1'; } catch { return true; }
-  });
-  const toggleSortLatest=()=>setSortLatest(v=>{const n=!v;try{localStorage.setItem('jungsan_sort_latest',n?'1':'0');}catch{}return n;});
 
   // FAQ에서 건의 버튼 눌렀을 때
   useEffect(()=>{
@@ -1165,9 +1162,7 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
 
   // 진행 중인 정산만 (완료 안 된 것)
   const activeEventsRaw=events.filter(ev=>!isEventDone(ev));
-  const activeEvents=sortLatest
-    ? [...activeEventsRaw].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))
-    : [...activeEventsRaw].sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
+  const activeEvents=[...activeEventsRaw].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
   const activeForms=(forms||[]).filter(f=>f.status==='open');
 
   const submitFeedback=async()=>{
@@ -1256,14 +1251,8 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
           </div>
         ):(
           <>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <div style={{marginBottom:12}}>
               <div style={{fontSize:11,color:C.textDim,fontWeight:700,letterSpacing:1.2,textTransform:'uppercase'}}>진행 중</div>
-              {activeEvents.length>1&&(
-                <button onClick={toggleSortLatest} style={{background:sortLatest?C.accentBg:C.inputBg,border:'none',borderRadius:999,padding:'5px 12px',fontSize:11,fontWeight:700,color:sortLatest?C.accent:C.textMid,cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>
-                  <span className="ms" style={{fontSize:14}}>{sortLatest?'arrow_downward':'arrow_upward'}</span>
-                  {sortLatest?'최신순':'만든 순'}
-                </button>
-              )}
             </div>
             {activeEvents.map(ev=>{
               const presentMembers=ev.members.filter(k=>ev.attendance[k]!==false);
@@ -2545,22 +2534,22 @@ function StatusSection({event,updateEvent,groups,showToast}){
     }});
   };
 
-  const useGroupView=(groups||[]).length>1;
+  const [showGroups,setShowGroups]=useState(false);
   const groupSections=React.useMemo(()=>{
-    if(!useGroupView) return null;
+    if(!showGroups) return null;
     const pMembers=event.members.filter(k=>event.attendance[k]!==false).filter(k=>(amounts[k]||0)>0);
     const assigned=new Set();
-    const sortSection=(keys)=>sortByTime
-      ? sortByRequested(keys,event.payments)
+    const sortSection=(keys,nameOf=k=>k)=>sortByTime
+      ? sortByRequested(keys,event.payments,nameOf)
       : keys;
     const sections=(groups||[]).map(g=>{
       const gKeys=new Set((g.members||[]).map(m=>m.name+(m.sid?`_${m.sid}`:'')));
       const keys=pMembers.filter(k=>gKeys.has(k));
       keys.forEach(k=>assigned.add(k));
-      return {name:g.name,keys:sortSection(keys)};
+      return {name:g.name,keys:sortSection(keys,k=>mm[k]||k)};
     }).filter(s=>s.keys.length>0);
     const unassigned=pMembers.filter(k=>!assigned.has(k));
-    if(unassigned.length>0) sections.push({name:'미분류',keys:sortSection(unassigned)});
+    if(unassigned.length>0) sections.push({name:'미분류',keys:sortSection(unassigned,k=>mm[k]||k)});
     // 임시 인원 섹션 추가 (useMemo 내부에서 직접 계산)
     const localExtraEntries=[];
     (event.rounds||[]).forEach(r=>{
@@ -2569,21 +2558,21 @@ function StatusSection({event,updateEvent,groups,showToast}){
       if(!totalCount) return;
       (r.extraMembers||[]).forEach((em,ei)=>{
         const k=extraKey(r.id,em,ei);
-        if(!localExtraEntries.find(e=>e.key===k)) localExtraEntries.push({key:k});
+        if(!localExtraEntries.find(e=>e.key===k)) localExtraEntries.push({key:k,name:em.name});
       });
     });
     if(localExtraEntries.length>0){
-      const extraKeys=sortSection(localExtraEntries.map(e=>e.key));
+      const extraKeys=sortSection(localExtraEntries.map(e=>e.key),k=>localExtraEntries.find(e=>e.key===k)?.name||k);
       sections.push({name:'임시 인원',keys:extraKeys,isExtra:true});
     }
     return sections;
-  },[useGroupView,groups,event.members,event.attendance,event.payments,event.rounds,sortByTime]);
+  },[showGroups,groups,event.members,event.attendance,event.payments,event.rounds,sortByTime]);
 
-  const sortList=(keys)=>sortByTime
-    ? sortByRequested(keys,event.payments)
+  const sortList=(keys,nameOf=k=>k)=>sortByTime
+    ? sortByRequested(keys,event.payments,nameOf)
     : keys;
-  const sortedMain=useGroupView?null:sortList(presentMembers);
-  const sortedExtra=useGroupView?null:sortList(allExtraEntries.map(e=>e.key));
+  const sortedMain=sortList(presentMembers,k=>mm[k]||k);
+  const sortedExtra=sortList(allExtraEntries.map(e=>e.key),k=>allExtraEntries.find(e=>e.key===k)?.name||k);
 
   const MemberCard=({k,isExtra=false})=>{
     const p=event.payments?.[k]; const paid=p?.paid;
@@ -2712,18 +2701,32 @@ function StatusSection({event,updateEvent,groups,showToast}){
           <span style={{color:C.textDim,margin:'0 5px'}}>·</span>
           <span style={{color:C.green,display:'inline-flex',alignItems:'center',gap:3}}><span style={{width:8,height:8,borderRadius:'50%',background:C.green,display:'inline-block',flexShrink:0}}/>입금확인 {pc}</span>
         </div>
-        <div style={{display:'flex',alignItems:'center',gap:6}}>
-          {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>시간순</span>}
-          <button onClick={()=>setSortByTime(v=>!v)} style={{
-            width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
-            background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
-          }}>
-            <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
-              left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
-          </button>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          {(groups||[]).length>1&&(
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              {showGroups&&<span style={{fontSize:11,color:C.textDim}}>그룹 묶기</span>}
+              <button onClick={()=>setShowGroups(v=>!v)} style={{
+                width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
+                background:showGroups?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+              }}>
+                <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
+                  left:showGroups?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
+              </button>
+            </div>
+          )}
+          <div style={{display:'flex',alignItems:'center',gap:4}}>
+            {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>시간순</span>}
+            <button onClick={()=>setSortByTime(v=>!v)} style={{
+              width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
+              background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+            }}>
+              <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
+                left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
+            </button>
+          </div>
         </div>
       </div>
-      {useGroupView?(
+      {showGroups&&groupSections?(
         groupSections.map(section=>(
           <div key={section.name} style={{marginBottom:4}}>
             <div style={{fontSize:11,fontWeight:700,color:C.textDim,padding:'8px 4px 4px',letterSpacing:0.5}}>
@@ -3731,7 +3734,7 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
 const PaidSlider=({value,onChange})=>(
   <div onClick={e=>{e.stopPropagation();onChange(!value);}}
     style={{width:50,height:30,borderRadius:15,cursor:'pointer',flexShrink:0,
-      background:value?C.accent:'#D1D5DB',position:'relative',transition:'background 0.2s'}}>
+      background:value?C.green:'#D1D5DB',position:'relative',transition:'background 0.2s'}}>
     <div style={{position:'absolute',top:2,left:value?22:2,width:26,height:26,borderRadius:13,
       background:'#fff',boxShadow:'0 1px 4px rgba(0,0,0,0.22)',transition:'left 0.18s'}}/>
   </div>
@@ -3745,7 +3748,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
                          searchQ, setSearchQ, groupFilter, setGroupFilter,
                          onSetSubPaid, onCardDunning}){
   const [sortByTime,setSortByTime]=useState(true);
-  const [guideOpen,setGuideOpen]=useState(false);
+  const [showGroups,setShowGroups]=useState(false);
   const [tooltipIdx,setTooltipIdx]=useState(null);
 
   if(subs.length===0) return(
@@ -3758,17 +3761,25 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
 
   const sliderValue=(s)=>s.paid||s.paymentStatus==='matched'||s.paymentStatus==='requested';
 
-  const firstField=form.fields.find(f=>f.id!=='name');
-
   const sortedSubs=sortByTime
-    ?[...filteredSubs].sort((a,b)=>new Date(b.matchedAt||b.requestedAt||b.createdAt)-new Date(a.matchedAt||a.requestedAt||a.createdAt))
+    ?[...[...filteredSubs].filter(s=>s.paid||s.paymentStatus==='matched').sort((a,b)=>new Date(b.matchedAt||0)-new Date(a.matchedAt||0)),
+       ...[...filteredSubs].filter(s=>!s.paid&&s.paymentStatus!=='matched').sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'))]
     :filteredSubs;
+  const groupedSections=showGroups&&(groups||[]).length>1?(()=>{
+    const byGroup={};
+    sortedSubs.forEach(s=>{const g=s._group||'__none__';if(!byGroup[g])byGroup[g]=[];byGroup[g].push(s);});
+    const sections=[];
+    (groups||[]).forEach(g=>{if(byGroup[g.name]?.length>0)sections.push({name:g.name,items:byGroup[g.name]});});
+    if(byGroup['__none__']?.length>0)sections.push({name:'미등록',items:byGroup['__none__']});
+    return sections;
+  })():null;
 
-  const renderCard=(s)=>(
-    <div key={s._idx} style={{background:'#fff',borderRadius:16,padding:'12px 14px',marginBottom:8}}>
-      <div style={{display:'flex',alignItems:'center',gap:8}}>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4,minWidth:0}}>
+  const renderCard=(s)=>{
+    const amt=getUserAmount(form,s.name,s.data?.studentId);
+    return(
+      <div key={s._idx} style={{background:'#fff',borderRadius:16,padding:'10px 14px',marginBottom:8,overflow:'hidden'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div style={{display:'flex',alignItems:'center',gap:6,flex:1,minWidth:0}}>
             {s._group&&<span style={{padding:'2px 7px',borderRadius:8,fontSize:10,fontWeight:700,background:C.accentBg,color:C.accent,flexShrink:0}}>{s._group}</span>}
             {!s._group&&groups.length>0&&(
               <span
@@ -3786,37 +3797,22 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
             )}
             <span style={{fontWeight:800,color:C.text,fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</span>
           </div>
-          {firstField&&(
-            <div style={{fontSize:11,color:C.textMid}}>
-              <span style={{color:C.textDim}}>{firstField.label}:</span> {Array.isArray(s.data?.[firstField.id])?s.data[firstField.id].join(', '):s.data?.[firstField.id]||''}
-            </div>
-          )}
-          {onCardDunning&&sliderValue(s)===false&&(
-            <div style={{marginTop:4}}>
-              <button onClick={e=>{e.stopPropagation();onCardDunning(s);}} style={{fontSize:11,color:C.purple,background:'transparent',border:`1px solid ${C.purple}40`,borderRadius:6,padding:'2px 8px',cursor:'pointer',fontWeight:700}}>콕 찌르기</button>
-            </div>
-          )}
+          <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+            {amt>0&&<span style={{fontSize:13,fontWeight:700,color:C.textMid}}>{fmtKRW(amt)}</span>}
+            <PaidSlider value={sliderValue(s)} onChange={v=>onSetSubPaid(s._idx,v)}/>
+          </div>
         </div>
-        <PaidSlider value={sliderValue(s)} onChange={v=>onSetSubPaid(s._idx,v)}/>
+        {onCardDunning&&sliderValue(s)===false&&(
+          <div style={{marginTop:6}}>
+            <button onClick={e=>{e.stopPropagation();onCardDunning(s);}} style={{fontSize:11,color:C.purple,background:'transparent',border:`1px solid ${C.purple}40`,borderRadius:6,padding:'2px 8px',cursor:'pointer',fontWeight:700}}>콕 찌르기</button>
+          </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return(
     <div>
-      <button onClick={()=>setGuideOpen(v=>!v)} style={{width:'100%',background:C.inputBg,border:'none',cursor:'pointer',fontSize:11,color:C.textDim,marginBottom:10,padding:'8px 12px',borderRadius:10,display:'flex',alignItems:'center',gap:4}}>
-        <Icon n="help-circle" size={11} color={C.textDim}/>이렇게 쓰세요 <Icon n={guideOpen?'chevron-up':'chevron-down'} size={11} color={C.textDim}/>
-      </button>
-      {guideOpen&&(
-        <div style={{background:C.inputBg,padding:'12px 14px',borderRadius:12,marginBottom:10,fontSize:12,color:C.textMid,lineHeight:1.8,marginTop:-6}}>
-          <div style={{fontWeight:700,color:C.text,marginBottom:2}}>1️⃣ 수동 대조</div>
-          <div>○ 표시된 사람 중 미입금자를 통장에서 직접 확인하고 X로 바꾸세요</div>
-          <div style={{textAlign:'center',color:C.textDim,margin:'8px 0'}}>또는</div>
-          <div style={{fontWeight:700,color:C.text,marginBottom:2}}>2️⃣ 자동 대조</div>
-          <div>[입금 자동 대조] 탭에서 거래내역 Excel 업로드</div>
-          <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${C.border}`,display:'flex',alignItems:'center',gap:4}}><Icon n="circle-check" size={12} color={C.green}/>미입금자가 확인되면 콕 찌르기 가능</div>
-        </div>
-      )}
       {subs.length>=5&&(
         <>
           <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름 또는 연락처 검색"
@@ -3841,19 +3837,40 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
               )}
             </div>
           )}
-          <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:6,marginBottom:8}}>
-            {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>시간순</span>}
-            <button onClick={()=>setSortByTime(v=>!v)} style={{
-              width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
-              background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
-            }}>
-              <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
-                left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
-            </button>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+            {(groups||[]).length>1?(
+              <div style={{display:'flex',alignItems:'center',gap:4}}>
+                {showGroups&&<span style={{fontSize:11,color:C.textDim}}>그룹 묶기</span>}
+                <button onClick={()=>setShowGroups(v=>!v)} style={{
+                  width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
+                  background:showGroups?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+                }}>
+                  <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
+                    left:showGroups?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
+                </button>
+              </div>
+            ):<div/>}
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>시간순</span>}
+              <button onClick={()=>setSortByTime(v=>!v)} style={{
+                width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
+                background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+              }}>
+                <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
+                  left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
+              </button>
+            </div>
           </div>
         </>
       )}
-      {sortedSubs.map(s=>renderCard(s))}
+      {groupedSections?groupedSections.map(sec=>(
+        <div key={sec.name} style={{marginBottom:4}}>
+          <div style={{fontSize:11,fontWeight:700,color:C.textDim,padding:'8px 4px 4px',letterSpacing:0.5}}>
+            {sec.name} ({sec.items.filter(s=>sliderValue(s)).length}/{sec.items.length})
+          </div>
+          {sec.items.map(s=>renderCard(s))}
+        </div>
+      )):sortedSubs.map(s=>renderCard(s))}
     </div>
   );
 }
