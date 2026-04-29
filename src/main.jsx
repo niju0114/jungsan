@@ -1861,7 +1861,6 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
     return 0;
   };
   const [slide,setSlide]=useState(()=>getInitSlide(initEvent));
-  const [shareDone,setShareDone]=useState(false);
 
   useEffect(()=>setEvent(initEvent),[initEvent]);
   useRealtimeEvent(event.code,ev=>setEvent(ev));
@@ -1873,7 +1872,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
   const hasRounds=event.rounds.length>0;
 
   const steps=['금액 입력','공유하기','정산현황'];
-  const stepDone=[hasRounds,shareDone,false];
+  const stepDone=steps.map((_,i)=>i<slide);
 
   const archiveEvent=async()=>{
     if(!window.confirm('정산을 종료하고 내역으로 이동할까요?')) return;
@@ -1910,7 +1909,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
           )}
           {slide===1&&(
             <div className="fade-up">
-              <ShareSection event={event} showToast={showToast} onShare={()=>setShareDone(true)}/>
+              <ShareSection event={event} showToast={showToast}/>
             </div>
           )}
           {slide===2&&(
@@ -2320,7 +2319,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups}){
 }
 
 // ── ShareSection ───────────────────────────────────────────
-function ShareSection({event,showToast,onShare}){
+function ShareSection({event,showToast}){
   const amounts=calcAmounts(event);
   const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
   const unpaid=presentMembers.filter(k=>getPayStatus(event.payments?.[k])!=='paid');
@@ -2367,7 +2366,7 @@ function ShareSection({event,showToast,onShare}){
         <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',fontSize:12,color:C.textMid,lineHeight:1.85,marginBottom:8,whiteSpace:'pre-wrap',border:`1.5px solid ${C.border}`}}>{autoMsg}{'\n'}{directLink}</div>
       )}
       <div style={{display:'flex',gap:8,marginBottom:8}}>
-        <Btn onClick={async()=>{const msg=getMsg();const shared=await shareText(msg);if(!shared){await copy(msg,'메시지');}else showToast('공유 완료');onShare?.();}} small style={{flex:2}}><Icon n="message-circle" size={14} color="#fff" style={{marginRight:4}}/>카톡 공유</Btn>
+        <Btn onClick={async()=>{const msg=getMsg();const shared=await shareText(msg);if(!shared){await copy(msg,'메시지');}else showToast('공유 완료');}} small style={{flex:2}}><Icon n="message-circle" size={14} color="#fff" style={{marginRight:4}}/>카톡 공유</Btn>
         <Btn onClick={()=>copy(directLink,'링크')} variant="secondary" small style={{flex:1}}><Icon n="link" size={14} color={C.textMid} style={{marginRight:4}}/>링크</Btn>
       </div>
       <Btn onClick={()=>copy(getMsg(),'메시지')} variant="ghost" small style={{marginBottom:16}}><Icon n="clipboard-list" size={14} color={C.textDim} style={{marginRight:4}}/>메시지 복사</Btn>
