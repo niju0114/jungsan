@@ -722,7 +722,7 @@ function App() {
           setView('participantEvent');
         }
         setReady(true);
-      });
+      }).catch(()=>setReady(true));
       return()=>subscription.unsubscribe();
     }
 
@@ -2759,8 +2759,8 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
     const pk=participantKey;
     if(!pk) return {key:'',isDup:false};
     if((initEvent.members||[]).includes(pk)) return {key:pk,isDup:false};
-    const attending=(initEvent.members||[]).filter(k=>initEvent.attendance[k]!==false);
-    const matches=attending.filter(k=>getBaseName(k)===pk);
+    const allM=initEvent.members||[];
+    const matches=allM.filter(k=>getBaseName(k)===pk);
     if(matches.length===1) return {key:matches[0],isDup:false};
     if(matches.length>1) return {key:'',isDup:true};
     return {key:'',isDup:false};
@@ -2771,13 +2771,15 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   const [selectedKey,setSelectedKey]=useState(resolved.key);
   const [dupWarning,setDupWarning]=useState(resolved.isDup);
   const [searchQ,setSearchQ]=useState(resolved.isDup?participantKey:'');
-  const [splashDone,setSplashDone]=useState(()=>!!localStorage.getItem('splash_event_'+initEvent.code));
+  const lsGet=k=>{try{return localStorage.getItem(k);}catch{return null;}};
+  const lsSet=(k,v)=>{try{localStorage.setItem(k,v);}catch{}};
+  const [splashDone,setSplashDone]=useState(()=>!!lsGet('splash_event_'+initEvent.code));
 
   useEffect(()=>setEvent(initEvent),[initEvent]);
   useRealtimeEvent(event.code,ev=>setEvent(ev));
   useEffect(()=>{api.trackView(event.code,null,participantKey||'anonymous');},[]);
 
-  if(!splashDone) return <ParticipantSplashScreen onDone={()=>{localStorage.setItem('splash_event_'+initEvent.code,'1');setSplashDone(true);}}/>;
+  if(!splashDone) return <ParticipantSplashScreen onDone={()=>{lsSet('splash_event_'+initEvent.code,'1');setSplashDone(true);}}/>;
 
 
   const mm=event.memberMap||{};
@@ -2796,10 +2798,10 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   };
 
   if(!selectedKey){
-    const attendingMembers=event.members.filter(k=>event.attendance[k]!==false);
-    // 동명이인 감지: 이름 → [키] 맵
+    const allMembers=event.members||[];
+    // 동명이인 감지: 이름 → [키] 맵 (전체 멤버 기준)
     const nameToKeys={};
-    attendingMembers.forEach(k=>{
+    allMembers.forEach(k=>{
       const name=getBaseName(k);
       if(!nameToKeys[name]) nameToKeys[name]=[];
       nameToKeys[name].push(k);
@@ -2815,7 +2817,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
       return `${name} (학번 없음)`;
     };
 
-    const filtered=attendingMembers.filter(k=>{
+    const filtered=allMembers.filter(k=>{
       if(!searchQ) return false; // 입력 없으면 전체 숨김
       return getChipLabel(k).includes(searchQ)||getBaseName(k).includes(searchQ);
     });
@@ -2848,22 +2850,23 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
 
           <div style={{display:'flex',flexDirection:'column',gap:6}}>
             {filtered.map(k=>{
-              const paid=getPayStatus(event.payments?.[k])==='paid';
+              const ps=getPayStatus(event.payments?.[k]);
+              const isAbsent=event.attendance[k]===false;
               return(
                 <button key={k} onClick={async()=>{
-                  if(event.attendance[k]===undefined||event.attendance[k]===null){
+                  if(!isAbsent&&(event.attendance[k]===undefined||event.attendance[k]===null)){
                     await api.markEventAttendance(event.code,k,true);
                     setEvent(ev=>({...ev,attendance:{...ev.attendance,[k]:true}}));
                   }
                   setSelectedKey(k);
                 }} className="press" style={{
-                  padding:'14px 16px',background:C.cardBg,border:`1.5px solid ${paid?C.green+'50':C.border}`,
-                  borderRadius:14,color:C.text,fontSize:14,fontWeight:600,cursor:'pointer',
+                  padding:'14px 16px',background:C.cardBg,border:`1.5px solid ${isAbsent?C.border:ps==='paid'?C.green+'50':C.border}`,
+                  borderRadius:14,color:isAbsent?C.textDim:C.text,fontSize:14,fontWeight:600,cursor:'pointer',
                   textAlign:'left',fontFamily:'inherit',display:'flex',justifyContent:'space-between',alignItems:'center',
-                  boxShadow:C.shadow,
+                  boxShadow:C.shadow,opacity:isAbsent?0.6:1,
                 }}>
                   <span>{getChipLabel(k)}</span>
-                  {paid&&<span style={{color:C.textMid,fontSize:12,fontWeight:800,background:C.inputBg,padding:'3px 8px',borderRadius:8}}>⏳ 확인 대기</span>}
+                  {isAbsent&&<span style={{color:C.textDim,fontSize:12,fontWeight:700,background:C.inputBg,padding:'3px 8px',borderRadius:8}}>결석</span>}
                 </button>
               );
             })}
