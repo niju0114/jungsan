@@ -6,5 +6,3 @@ gen-og.mjs
 check-og.mjs
 node_modules/
 dist/
-package.json
-package-lock.json
