@@ -5,5 +5,6 @@ parse_check.js
 gen-og.mjs
 check-og.mjs
 node_modules/
+dist/
 package.json
 package-lock.json
