@@ -2056,6 +2056,8 @@ function FeeConfigSection({event,updateEvent}){
   const [subsidyInput,setSubsidyInput]=useState(String(fc?.subsidyPerPaid||''));
   const [paidInput,setPaidInput]=useState(String(fc?.paidFeeAmount||''));
   const [unpaidInput,setUnpaidInput]=useState(String(fc?.unpaidFeeAmount||''));
+  const [saved,setSaved]=useState(false);
+  const saveTimerRef=useRef(null);
 
   useEffect(()=>{
     if(fc){
@@ -2083,6 +2085,9 @@ function FeeConfigSection({event,updateEvent}){
       const newFc={mode:'manual',totalCost:null,subsidyPerPaid:null,paidFeeAmount:Number(paidInput)||0,unpaidFeeAmount:Number(unpaidInput)||0};
       updateEvent({...event,feeConfig:newFc});
     }
+    if(saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setSaved(true);
+    saveTimerRef.current=setTimeout(()=>setSaved(false),1500);
   };
 
   const switchMode=(newMode)=>{
@@ -2138,14 +2143,14 @@ function FeeConfigSection({event,updateEvent}){
                   <span style={{fontSize:15,fontWeight:900,color:C.red}}>{fmtKRW(pvUnpaid)}</span>
                 </div>
               </div>
-              <Btn onClick={()=>saveFeeConfig('auto')} small>적용</Btn>
+              <Btn onClick={()=>saveFeeConfig('auto')} small variant={saved?'green':'primary'}>{saved?<><Icon n="check" size={12} color="#fff" style={{marginRight:4}}/>저장됐어요</>:'적용'}</Btn>
             </div>
           )}
           {fc.mode==='manual'&&(
             <div className="fade-up">
               <Field label="납부자 공지 금액 (원)" value={paidInput} onChange={v=>setPaidInput(v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="8000"/>
               <Field label="미납자 공지 금액 (원)" value={unpaidInput} onChange={v=>setUnpaidInput(v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="13000"/>
-              <Btn onClick={()=>saveFeeConfig('manual')} small>적용</Btn>
+              <Btn onClick={()=>saveFeeConfig('manual')} small variant={saved?'green':'primary'}>{saved?<><Icon n="check" size={12} color="#fff" style={{marginRight:4}}/>저장됐어요</>:'적용'}</Btn>
             </div>
           )}
         </>
