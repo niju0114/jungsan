@@ -9,8 +9,10 @@
     "react-dom": "^18"
   },
   "devDependencies": {
+    "@vitejs/plugin-legacy": "^5.4.3",
     "@vitejs/plugin-react": "^4",
     "sharp": "^0.34.5",
+    "terser": "^5.46.2",
     "vite": "^5"
   }
 }

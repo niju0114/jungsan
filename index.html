@@ -19,21 +19,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍻</text></svg>">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=block">
-  <!-- DIAGNOSTIC: REMOVE AFTER KAKAO P0 RESOLVED -->
-  <script>
-    window.onerror = function(msg, src, line, col, err) {
-      document.body.style.cssText = 'margin:0;padding:20px;background:#fff';
-      document.body.innerHTML = '<pre style="font-size:11px;font-family:monospace;white-space:pre-wrap;word-break:break-all;line-height:1.6;color:#111">🚨 JS ERROR\n\n' + msg + '\n\n' + src + ':' + line + ':' + col + '\n\n' + ((err && err.stack) || '(no stack)') + '\n\nUA: ' + navigator.userAgent + '</pre>';
-      return true;
-    };
-    window.addEventListener('unhandledrejection', function(e) {
-      var r = e.reason;
-      document.body.style.cssText = 'margin:0;padding:20px;background:#fff';
-      document.body.innerHTML = '<pre style="font-size:11px;font-family:monospace;white-space:pre-wrap;word-break:break-all;line-height:1.6;color:#111">🚨 UNHANDLED REJECTION\n\n' + ((r && r.message) || String(r)) + '\n\n' + ((r && r.stack) || '(no stack)') + '\n\nUA: ' + navigator.userAgent + '</pre>';
-    });
-  </script>
-  <!-- END DIAGNOSTIC -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <style>.ms{font-family:'Material Symbols Rounded';font-size:22px;line-height:1;font-style:normal;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;-webkit-font-feature-settings:'liga';font-feature-settings:'liga';-webkit-font-smoothing:antialiased;color:inherit;vertical-align:middle;}.ms-sm{font-size:18px;}.ms-lg{font-size:26px;}</style>
   <style>
