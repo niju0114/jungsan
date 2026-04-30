@@ -3556,7 +3556,7 @@ function FormCreateScreen({nav,profile,createForm}){
   // 빠른 추가용 프리셋
   const presets=[
     {id:'phone',label:'연락처',type:'text'},
-    {id:'ssn',label:'주민번호',type:'text',hint:'여행자보험 가입 시 필요'},
+    {id:'ssn',label:'주민번호',type:'text'},
     {id:'generation',label:'기수',type:'text'},
     {id:'f_extra',label:'자유 입력',type:'textarea'},
   ];
