@@ -2607,7 +2607,7 @@ function ExcelUploadModal({uploading,fileRef,onClose}){
     <Modal isOpen={true} onClose={onClose} title={<><Icon n="bar-chart" size={15} color={C.text} style={{marginRight:4}}/>자동 대조</>}>
       <div style={{textAlign:'center',marginBottom:16}}>
         <div style={{width:64,height:64,borderRadius:32,background:C.accent+'20',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 10px'}}><Icon n="bar-chart" size={32} color={C.accent}/></div>
-        <div style={{color:C.textMid,fontSize:13,lineHeight:1.7}}>은행 거래내역을 업로드하면 자동 대조해요</div>
+        <div style={{color:C.textMid,fontSize:13,lineHeight:1.7}}>은행 거래내역(엑셀파일) 업로드 후 자동 대조해요</div>
       </div>
       <div style={{marginBottom:14,padding:'9px 14px',background:C.accentBg,borderRadius:10,fontSize:12,color:C.textMid,display:'flex',alignItems:'center',gap:6}}>
         <Icon n="lock" size={13} color={C.accent}/><span>거래내역은 브라우저에서만 처리되며 서버에 저장되지 않아요.</span>
@@ -2676,23 +2676,14 @@ function StatusSection({event,updateEvent,groups,showToast}){
   const unpaidList=presentMembers.filter(k=>getPayStatus(event.payments?.[k])!=='paid');
   const directLink=getLink(`code=${event.code}`);
 
-  const toggle=k=>{
+  const setStatus=(k,newStatus)=>{
     const p=event.payments?.[k]||{};
-    const status=getPayStatus(p);
-    const confirmed=p.hasBeenConfirmed||false;
     const now=new Date().toISOString();
     let next;
-    if(status==='requested'&&!confirmed){
-      next={payStatus:'paid',hasBeenConfirmed:true,requestedAt:p.requestedAt||null,time:now,by:'admin'};
-    }else if(status==='requested'&&confirmed){
-      next={payStatus:'rejected',hasBeenConfirmed:true,requestedAt:p.requestedAt||null,time:now,by:'admin'};
-    }else if(status==='paid'){
-      next={payStatus:'requested',hasBeenConfirmed:true,requestedAt:p.requestedAt||null,time:null,by:null};
-    }else if(status==='rejected'){
-      next={payStatus:'paid',hasBeenConfirmed:true,requestedAt:p.requestedAt||null,time:now,by:'admin'};
-    }else{
-      next={payStatus:'paid',hasBeenConfirmed:true,requestedAt:null,time:now,by:'admin'};
-    }
+    if(newStatus==='paid') next={payStatus:'paid',hasBeenConfirmed:true,requestedAt:p.requestedAt||null,time:now,by:'admin'};
+    else if(newStatus==='requested') next={payStatus:'requested',hasBeenConfirmed:false,requestedAt:p.requestedAt||now,time:null,by:null};
+    else if(newStatus==='rejected') next={payStatus:'rejected',hasBeenConfirmed:true,requestedAt:p.requestedAt||null,time:null,by:null};
+    else next={payStatus:'none',hasBeenConfirmed:false,requestedAt:null,time:null,by:null};
     updateEvent({...event,payments:{...event.payments,[k]:next}});
   };
 
@@ -2757,34 +2748,37 @@ function StatusSection({event,updateEvent,groups,showToast}){
       if(!shared){await copyText(msg);showToast('콕 찌르기 복사됐어요');}
       else showToast('공유 완료');
     };
-    const dotColor=effectivePaid?'#5DCAA5':matchInfo?'#EF9F27':requested?'#EF9F27':'#E24B4A';
-    const cardShadow=effectivePaid?`0 0 0 2px ${C.green}40`:matchInfo?`0 0 0 2px ${C.yellow}40`:rejected?`0 0 0 2px ${C.red}40`:C.shadow;
     const effectiveStatus=effectivePaid?'paid':(matchInfo?'requested':status);
+    const menuOpen=openMenuKey===k;
     return(
-      <div style={{background:C.cardBg,borderRadius:12,marginBottom:6,boxShadow:cardShadow,overflow:'hidden',pointerEvents:animating?'none':'auto'}}>
+      <div style={{background:C.cardBg,borderRadius:12,marginBottom:6,boxShadow:C.shadow,overflow:'hidden',opacity:rejected&&!effectivePaid?0.5:1,pointerEvents:animating?'none':'auto'}}
+        onClick={()=>menuOpen&&setOpenMenuKey(null)}>
         <div style={{padding:'11px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div style={{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0}}>
-            <div>
-              <div style={{display:'flex',alignItems:'center',gap:6}}>
-                <span style={{fontWeight:600,color:rejected&&!effectivePaid?C.textDim:C.text,fontSize:13}}>{displayName}</span>
-                {isExtra&&<span style={{fontSize:10,fontWeight:800,color:C.orange,background:C.orange+'20',borderRadius:6,padding:'1px 5px'}}>임시</span>}
-              </div>
-              {effectivePaid&&p?.time&&<div style={{fontSize:11,color:C.textDim}}>{fmtTime(p.time)}{p.by==='admin'?' · 관리자':p.by==='archive'?' · 종료처리':''}</div>}
-              {requested&&!effectivePaid&&p?.requestedAt&&<div style={{fontSize:11,color:C.textDim}}>{fmtRelTime(p.requestedAt)} · 입금 확인 필요</div>}
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              <span style={{fontWeight:600,color:C.text,fontSize:13}}>{displayName}</span>
+              {isExtra&&<span style={{fontSize:10,fontWeight:800,color:C.orange,background:C.orange+'20',borderRadius:6,padding:'1px 5px'}}>임시</span>}
             </div>
+            {effectivePaid&&p?.time&&<div style={{fontSize:11,color:C.textDim}}>{fmtTime(p.time)}{p.by==='admin'?' · 관리자':p.by==='archive'?' · 종료처리':''}</div>}
+            {requested&&!effectivePaid&&p?.requestedAt&&<div style={{fontSize:11,color:C.textDim}}>{fmtRelTime(p.requestedAt)} · 입금 확인 필요</div>}
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
             <div style={{color:C.accent,fontWeight:900,fontSize:13}}>{fmtKRW(displayAmount)}</div>
-            <div style={{display:'flex',alignItems:'center',gap:4}}>
-              {rejected&&!effectivePaid
-                ?<span style={{fontSize:12,fontWeight:900,color:'#999'}}>✕</span>
-                :<div style={{width:9,height:9,borderRadius:'50%',background:dotColor}}/>
-              }
-              <span style={{fontSize:12,color:C.textDim,fontWeight:500}}>{effectivePaid?'완료':matchInfo?'확인 필요':requested?'확인 필요':rejected?'제외':'미입금'}</span>
-            </div>
-            <PayStatusSlider payStatus={effectiveStatus} onChange={()=>toggle(k)}/>
+            <PaySegCtrl status={effectiveStatus} onChange={newSt=>setStatus(k,newSt)} disabled={rejected&&!effectivePaid}/>
+            <button onClick={e=>{e.stopPropagation();setOpenMenuKey(v=>v===k?null:k);}}
+              style={{background:'none',border:'none',cursor:'pointer',padding:'2px 4px',color:C.textDim,fontSize:18,lineHeight:1}}>⋯</button>
           </div>
         </div>
+        {menuOpen&&(
+          <div style={{borderTop:`1px solid ${C.border}`,padding:'6px 14px'}}>
+            {rejected&&!effectivePaid
+              ?<button onClick={e=>{e.stopPropagation();setStatus(k,'none');setOpenMenuKey(null);}}
+                  style={{fontSize:12,color:C.accent,background:'none',border:'none',cursor:'pointer',fontWeight:700,padding:'4px 0'}}>정산 재포함</button>
+              :<button onClick={e=>{e.stopPropagation();setStatus(k,'rejected');setOpenMenuKey(null);}}
+                  style={{fontSize:12,color:C.red,background:'none',border:'none',cursor:'pointer',fontWeight:700,padding:'4px 0'}}>정산 대상에서 제외</button>
+            }
+          </div>
+        )}
         {matchInfo?.type==='partial'&&!effectivePaid&&(
           <div style={{padding:'0 14px 10px'}}>
             <div style={{height:3,borderRadius:2,background:C.border,overflow:'hidden',marginBottom:3}}>
@@ -2817,6 +2811,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
   });
   const [confirmBulk,setConfirmBulk]=useState(false);
   const [dunningOpen,setDunningOpen]=useState(false);
+  const [openMenuKey,setOpenMenuKey]=useState(null);
   const [matchSummary,setMatchSummary]=useState(null); // {byKey, refund, stats}
   const [animatingPaidKeys,setAnimatingPaidKeys]=useState(new Set());
   const [animating,setAnimating]=useState(false);
@@ -2892,9 +2887,6 @@ function StatusSection({event,updateEvent,groups,showToast}){
 
   return(
     <div>
-      <div style={{fontSize:14,color:C.textMid,lineHeight:1.6,marginBottom:14}}>
-        신청 받으셨어요. 저녁이나 다음 날에 통장과 여유롭게 대조하세요.<br/>귀찮으시다면 거래내역서 업로드로 한 번에 자동 매칭도 가능해요.
-      </div>
       <input ref={excelFileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleExcel} style={{display:'none'}}/>
       {event.account?.bank&&(
         <div style={{display:'flex',gap:8,marginBottom:12}}>
@@ -3528,7 +3520,7 @@ function OnboardingModal({onClose}){
           <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:24}}>
             {[
               {icon:'clipboard-list',color:C.orange,bg:C.orangeBg,title:'신청폼 만들기',desc:'MT·행사 신청 받고 입금 상태 한눈에'},
-              {icon:'calculator',color:C.accent,bg:C.accentBg,title:'소규모 정산',desc:'뒷풀이·회식 1/N 자동 계산 + O/X 보드'},
+              {icon:'calculator',color:C.accent,bg:C.accentBg,title:'정산',desc:'뒷풀이·회식 1/N 자동 계산 + O/X 보드'},
               {icon:'bar-chart',color:C.green,bg:C.greenBg,title:'거래내역 자동 대조',desc:'은행 엑셀 한 번 넣으면 입금자 자동 매칭'},
             ].map(({icon,color,bg,title,desc})=>(
               <div key={title} style={{background:bg,borderRadius:14,padding:'13px 16px',display:'flex',gap:12,alignItems:'center'}}>
@@ -3738,7 +3730,7 @@ function FormOnboardingModal({onClose}){
               <Icon n="party-popper" size={30} color="#10B981"/>
             </div>
             <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>행사 끝나고 뒷풀이도 같이</div>
-            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>신청자 명단을 소규모 정산으로 바로 연결.<br/>추가 정산도 여기서 이어서 할 수 있어요.</div>
+            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>신청자 명단을 정산으로 바로 연결.<br/>추가 정산도 여기서 이어서 할 수 있어요.</div>
           </div>
           <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
             <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:18,height:18,accentColor:C.accent,cursor:'pointer'}}/>
@@ -4116,12 +4108,17 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
     else unregisteredCount++;
   });
 
-  const setSubPaid=async(idx,isPaid)=>{
+  const setSubStatus=async(idx,status)=>{
     const newSubs=[...subs];
     const s=newSubs[idx];
-    newSubs[idx]=isPaid
-      ?{...s,paid:true,paymentStatus:'matched',matchedBy:'manual',matchedAt:new Date().toISOString()}
-      :{...s,paid:false,paymentStatus:'unpaid_confirmed',matchedBy:null,matchedAt:null};
+    const now=new Date().toISOString();
+    if(status==='paid'){
+      newSubs[idx]={...s,paid:true,paymentStatus:'matched',matchedBy:'manual',matchedAt:now};
+    } else if(status==='requested'){
+      newSubs[idx]={...s,paid:false,paymentStatus:'requested',matchedBy:null,matchedAt:null,requestedAt:s.requestedAt||now};
+    } else {
+      newSubs[idx]={...s,paid:false,paymentStatus:'unpaid_confirmed',matchedBy:null,matchedAt:null};
+    }
     await updateForm({...form,submissions:newSubs});
   };
 
@@ -4192,7 +4189,7 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
   return {
     subs, filteredSubs, groupCounts, unregisteredCount, matchResults, uploading,
     searchQ, setSearchQ, groupFilter, setGroupFilter,
-    handlers:{setSubPaid, manualConfirm, handleExcel, applyMatched, copyNudge, handleDunning,
+    handlers:{setSubStatus, manualConfirm, handleExcel, applyMatched, copyNudge, handleDunning,
       setMatchResults,
       closeForm:async()=>{await updateForm({...form,status:'closed'}); showToast('신청이 마감됐어요');},
       copyLink:()=>{copyText(getLink(`form=${form.code}`)); showToast('링크가 복사됐어요!');},
@@ -4200,29 +4197,25 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
   };
 }
 
-const PaidSlider=({value,onChange})=>(
-  <div onClick={e=>{e.stopPropagation();onChange(!value);}}
-    style={{width:50,height:30,borderRadius:15,cursor:'pointer',flexShrink:0,
-      background:value?'#5DCAA5':'#D1D5DB',position:'relative',transition:'background 0.2s'}}>
-    <div style={{position:'absolute',top:2,left:value?22:2,width:26,height:26,borderRadius:13,
-      background:'#fff',boxShadow:'0 1px 4px rgba(0,0,0,0.22)',transition:'left 0.18s'}}/>
-  </div>
-);
-
-// P2: 소규모 이벤트 3-state 슬라이더 (신호등: 미입금=회색/확인필요=노랑/완료=초록/제외=회색+✕)
-const PayStatusSlider=({payStatus,onChange})=>{
-  const on=payStatus==='paid';
-  const rejected=payStatus==='rejected';
-  const bg=payStatus==='paid'?'#5DCAA5':payStatus==='requested'?'#EF9F27':'#D1D5DB';
+const PaySegCtrl=({status,onChange,disabled=false})=>{
+  const opts=[
+    {v:'none',label:'미입금',bg:'#E24B4A'},
+    {v:'requested',label:'확인 필요',bg:'#EF9F27'},
+    {v:'paid',label:'완료',bg:'#5DCAA5'},
+  ];
   return(
-    <div onClick={e=>{e.stopPropagation();onChange();}}
-      style={{width:50,height:30,borderRadius:15,cursor:'pointer',flexShrink:0,
-        background:bg,position:'relative',transition:'background 0.2s'}}>
-      <div style={{position:'absolute',top:2,left:on?22:2,width:26,height:26,borderRadius:13,
-        background:'#fff',boxShadow:'0 1px 4px rgba(0,0,0,0.22)',transition:'left 0.18s',
-        display:'flex',alignItems:'center',justifyContent:'center'}}>
-        {rejected&&<span style={{fontSize:12,fontWeight:900,color:'#999',lineHeight:1}}>✕</span>}
-      </div>
+    <div onClick={e=>e.stopPropagation()}
+      style={{display:'flex',border:`1px solid ${C.border}`,borderRadius:8,overflow:'hidden',flexShrink:0,opacity:disabled?0.4:1,pointerEvents:disabled?'none':'auto'}}>
+      {opts.map((o,i)=>(
+        <button key={o.v} onClick={()=>onChange(o.v)}
+          style={{padding:'4px 7px',fontSize:11,fontWeight:700,border:'none',
+            borderRight:i<2?`1px solid ${C.border}`:'none',
+            cursor:status===o.v?'default':'pointer',
+            background:status===o.v?o.bg:'transparent',
+            color:status===o.v?'#fff':C.textDim,
+            transition:'background 0.15s,color 0.15s'}}
+        >{o.label}</button>
+      ))}
     </div>
   );
 };
@@ -4233,10 +4226,11 @@ const PayStatusSlider=({payStatus,onChange})=>{
 
 function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCount, groups,
                          searchQ, setSearchQ, groupFilter, setGroupFilter,
-                         onSetSubPaid, onCardDunning}){
+                         onSetSubStatus, onCardDunning}){
   const [sortByTime,setSortByTime]=useState(true);
   const [showGroups,setShowGroups]=useState(false);
   const [tooltipIdx,setTooltipIdx]=useState(null);
+  const [menuIdx,setMenuIdx]=useState(null);
 
   if(subs.length===0) return(
     <div style={{textAlign:'center',padding:'40px 0'}}>
@@ -4246,7 +4240,11 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
     </div>
   );
 
-  const sliderValue=(s)=>s.paid||s.paymentStatus==='matched'||s.paymentStatus==='requested';
+  const getSubStatus=(s)=>{
+    if(s.paid||s.paymentStatus==='matched') return 'paid';
+    if(s.paymentStatus==='requested') return 'requested';
+    return 'none';
+  };
 
   const sortedSubs=sortByTime
     ?[...[...filteredSubs].filter(s=>s.paid||s.paymentStatus==='matched').sort((a,b)=>new Date(b.matchedAt||0)-new Date(a.matchedAt||0)),
@@ -4261,41 +4259,53 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
     return sections;
   })():null;
 
+  const hasFee=(form.amount||0)>0;
+
   const renderCard=(s)=>{
     const amt=getUserAmount(form,s.name,s.data?.studentId);
+    const subStatus=getSubStatus(s);
+    const isMenuOpen=menuIdx===s._idx;
     return(
-      <div key={s._idx} style={{background:'#fff',borderRadius:16,padding:'10px 14px',marginBottom:8,overflow:'hidden'}}>
-        <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <div style={{display:'flex',alignItems:'center',gap:6,flex:1,minWidth:0}}>
-            {s._group&&<span style={{padding:'2px 7px',borderRadius:8,fontSize:10,fontWeight:700,background:C.accentBg,color:C.accent,flexShrink:0}}>{s._group}</span>}
-            {!s._group&&groups.length>0&&(
-              <span
-                title="학생회비 명단에 없는 사용자"
-                onClick={e=>{e.stopPropagation();setTooltipIdx(i=>i===s._idx?null:s._idx);}}
-                style={{flexShrink:0,cursor:'default',position:'relative',display:'inline-flex',alignItems:'center'}}
-              >
-                <Icon n="triangle-alert" size={13} color={C.orange}/>
-                {tooltipIdx===s._idx&&(
-                  <span style={{position:'absolute',left:0,top:20,background:'#333',color:'#fff',fontSize:10,padding:'3px 8px',borderRadius:6,whiteSpace:'nowrap',zIndex:10,fontWeight:600}}>
-                    학생회비 명단에 없는 사용자
-                  </span>
-                )}
-              </span>
-            )}
-            <span style={{fontWeight:800,color:C.text,fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</span>
+      <div key={s._idx} style={{background:C.cardBg,borderRadius:12,marginBottom:6,boxShadow:C.shadow,overflow:'hidden'}}
+        onClick={()=>isMenuOpen&&setMenuIdx(null)}>
+        <div style={{padding:'11px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+              {s._group&&<span style={{padding:'2px 7px',borderRadius:8,fontSize:10,fontWeight:700,background:C.accentBg,color:C.accent,flexShrink:0}}>{s._group}</span>}
+              {!s._group&&groups.length>0&&(
+                <span onClick={e=>{e.stopPropagation();setTooltipIdx(i=>i===s._idx?null:s._idx);}}
+                  style={{flexShrink:0,cursor:'default',position:'relative',display:'inline-flex',alignItems:'center'}}>
+                  <Icon n="triangle-alert" size={13} color={C.orange}/>
+                  {tooltipIdx===s._idx&&(
+                    <span style={{position:'absolute',left:0,top:20,background:'#333',color:'#fff',fontSize:10,padding:'3px 8px',borderRadius:6,whiteSpace:'nowrap',zIndex:10,fontWeight:600}}>학생회비 명단에 없는 사용자</span>
+                  )}
+                </span>
+              )}
+              <span style={{fontWeight:600,color:C.text,fontSize:13,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</span>
+            </div>
+            {s.data?.phone&&<div style={{fontSize:11,color:C.textDim,marginTop:1}}>{s.data.phone}</div>}
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
-            {amt>0&&<span style={{fontSize:13,fontWeight:700,color:C.textMid}}>{fmtKRW(amt)}</span>}
-            <div style={{display:'flex',alignItems:'center',gap:4}}>
-              <div style={{width:9,height:9,borderRadius:'50%',background:sliderValue(s)?'#5DCAA5':'#E24B4A'}}/>
-              <span style={{fontSize:12,color:C.textDim,fontWeight:500}}>{sliderValue(s)?'완료':'미입금'}</span>
-            </div>
-            <PaidSlider value={sliderValue(s)} onChange={v=>onSetSubPaid(s._idx,v)}/>
+            {hasFee&&amt>0&&<span style={{fontSize:13,fontWeight:700,color:C.textMid}}>{fmtKRW(amt)}</span>}
+            {hasFee
+              ?<PaySegCtrl status={subStatus} onChange={newSt=>onSetSubStatus(s._idx,newSt)}/>
+              :<span style={{fontSize:11,color:C.textDim}}>{fmtRelTime(s.createdAt)||''}</span>
+            }
+            {hasFee&&(
+              <button onClick={e=>{e.stopPropagation();setMenuIdx(v=>v===s._idx?null:s._idx);}}
+                style={{background:'none',border:'none',cursor:'pointer',padding:'2px 4px',color:C.textDim,fontSize:18,lineHeight:1}}>⋯</button>
+            )}
           </div>
         </div>
-        {onCardDunning&&sliderValue(s)===false&&(
-          <div style={{marginTop:6}}>
-            <button onClick={e=>{e.stopPropagation();onCardDunning(s);}} style={{fontSize:11,color:C.purple,background:'transparent',border:`1px solid ${C.purple}40`,borderRadius:6,padding:'2px 8px',cursor:'pointer',fontWeight:700}}>콕 찌르기</button>
+        {isMenuOpen&&hasFee&&(
+          <div style={{borderTop:`1px solid ${C.border}`,padding:'6px 14px'}}>
+            <button onClick={e=>{e.stopPropagation();onSetSubStatus(s._idx,'none');setMenuIdx(null);}}
+              style={{fontSize:12,color:C.red,background:'none',border:'none',cursor:'pointer',fontWeight:700,padding:'4px 0'}}>정산 대상에서 제외</button>
+          </div>
+        )}
+        {hasFee&&onCardDunning&&subStatus==='none'&&(
+          <div style={{borderTop:`1px solid ${C.border}`,padding:'6px 14px',display:'flex',justifyContent:'flex-end'}}>
+            <button onClick={e=>{e.stopPropagation();onCardDunning(s);}} style={{fontSize:12,color:C.orange,background:C.orange+'18',border:'none',borderRadius:8,padding:'5px 12px',cursor:'pointer',fontWeight:700,display:'flex',alignItems:'center',gap:4}}><Icon n="message-circle" size={12} color={C.orange}/>콕 찌르기</button>
           </div>
         )}
       </div>
@@ -4357,7 +4367,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
       {groupedSections?groupedSections.map(sec=>(
         <div key={sec.name} style={{marginBottom:4}}>
           <div style={{fontSize:11,fontWeight:700,color:C.textDim,padding:'8px 4px 4px',letterSpacing:0.5}}>
-            {sec.name} ({sec.items.filter(s=>sliderValue(s)).length}/{sec.items.length})
+            {sec.name} ({sec.items.filter(s=>getSubStatus(s)==='paid').length}/{sec.items.length})
           </div>
           {sec.items.map(s=>renderCard(s))}
         </div>
@@ -4496,7 +4506,7 @@ function VerifyTab({form, subs, groups, matchResults, uploading, bankGuideOpen, 
       <div style={{textAlign:'center',marginBottom:20}}>
         <div style={{width:72,height:72,borderRadius:36,background:C.accent+'20',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 12px'}}><Icon n="bar-chart" size={36} color={C.accent}/></div>
         <div style={{fontWeight:800,color:C.text,fontSize:18,marginBottom:4}}>거래내역 대조</div>
-        <div style={{color:C.textMid,fontSize:13,lineHeight:1.7}}>은행 거래내역을 업로드하면 자동 대조해요</div>
+        <div style={{color:C.textMid,fontSize:13,lineHeight:1.7}}>은행 거래내역(엑셀파일) 업로드 후 자동 대조해요</div>
       </div>
       <div style={{marginBottom:14,padding:'9px 14px',background:C.accentBg,borderRadius:10,fontSize:12,color:C.textMid,display:'flex',alignItems:'center',gap:6}}>
         <Icon n="lock" size={13} color={C.accent}/><span>거래내역은 브라우저에서만 처리되며 서버에 저장되지 않아요.</span>
@@ -4796,6 +4806,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
     XLSX.utils.book_append_sheet(wb,ws,'신청 명단');
     XLSX.writeFile(wb,`${form.name}_신청명단.xlsx`);
   };
+  const hasFee=(form.amount||0)>0;
   const unpaidXList=subs.filter(s=>!s.paid&&!['matched','requested','unpaid_confirmed'].includes(s.paymentStatus)).map(s=>({name:s.name,amount:getUserAmount(form,s.name,s.data?.studentId)}));
   const [slide,setSlide]=useState(()=>subs.length===0?0:1);
   const stepDone=[true,subs.length>0];
@@ -4891,19 +4902,15 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
             </>
           ):(
             <>
-              <div style={{fontSize:14,color:C.textMid,lineHeight:1.6,marginBottom:14}}>
-                신청 받으셨어요. 저녁이나 다음 날에 통장과 여유롭게 대조하세요.<br/>귀찮으시다면 거래내역서 업로드로 한 번에 자동 매칭도 가능해요.
-              </div>
-              <div style={{display:'flex',marginBottom:4,gap:6}}>
-                <button onClick={()=>setShowVerify(true)} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="download" size={12} color={C.textMid}/>입금 자동 대조</button>
-                {unpaidXList.length>0&&form.account?.bank&&<button onClick={()=>setDunningOpen(true)} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="megaphone" size={12} color={C.textMid}/>미입금자 {unpaidXList.length}명 콕 찌르기</button>}
+              <div style={{display:'flex',marginBottom:8,gap:6}}>
+                {hasFee&&<button onClick={()=>setShowVerify(true)} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="download" size={12} color={C.textMid}/>자동 대조</button>}
+                {hasFee&&unpaidXList.length>0&&form.account?.bank&&<button onClick={()=>setDunningOpen(true)} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="megaphone" size={12} color={C.textMid}/>미입금자 {unpaidXList.length}명 콕 찌르기</button>}
                 {subs.length>0&&<button onClick={downloadExcel} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="table" size={12} color={C.textMid}/>엑셀 추출</button>}
               </div>
-              <div style={{fontSize:11,color:C.textDim,textAlign:'center',marginBottom:10}}>한 번에 자동 매칭. 통장 보면서 손체크 안 해도 돼요.</div>
               <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
                 unregisteredCount={unregisteredCount} groups={groups}
                 searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
-                onSetSubPaid={handlers.setSubPaid}
+                onSetSubStatus={handlers.setSubStatus}
                 onCardDunning={form.account?.bank?handleCardDunning:null}/>
               {createEvent&&subs.length>0&&(
                 <div style={{marginTop:16,paddingTop:14,borderTop:'2px solid #D1D5DB',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
