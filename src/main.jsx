@@ -2639,6 +2639,10 @@ function StatusSection({event,updateEvent,groups,showToast}){
   const sortedMain=sortList(presentMembers,k=>mm[k]||k);
   const sortedExtra=sortList(allExtraEntries.map(e=>e.key),k=>allExtraEntries.find(e=>e.key===k)?.name||k);
 
+  const nameCount={};
+  presentMembers.forEach(k=>{const n=mm[k]||k;nameCount[n]=(nameCount[n]||0)+1;});
+  allExtraEntries.forEach(e=>{nameCount[e.name]=(nameCount[e.name]||0)+1;});
+
   const MemberCard=({k,isExtra=false})=>{
     const p=event.payments?.[k];
     const status=getPayStatus(p);
@@ -2662,17 +2666,18 @@ function StatusSection({event,updateEvent,groups,showToast}){
     };
     const effectiveStatus=effectivePaid?'paid':(matchInfo?'requested':status);
     const menuOpen=openMenuKey===k;
+    const keySuffix=!isExtra&&k.includes('_')?k.split('_').slice(1).join('_'):null;
+    const showId=nameCount[displayName]>=2&&keySuffix?keySuffix:null;
     return(
       <div style={{background:C.cardBg,borderRadius:12,marginBottom:6,boxShadow:C.shadow,overflow:'hidden',opacity:rejected&&!effectivePaid?0.5:1,pointerEvents:animating?'none':'auto'}}
         onClick={()=>menuOpen&&setOpenMenuKey(null)}>
         <div style={{padding:'11px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{display:'flex',alignItems:'center',gap:6}}>
+          <div style={{flex:1,minWidth:0,cursor:'pointer'}} onClick={e=>{e.stopPropagation();setOpenMenuKey(null);setDetailKey(k);}}>
+            <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
               <span style={{fontWeight:600,color:C.text,fontSize:13}}>{displayName}</span>
+              {showId&&<span style={{fontSize:11,color:C.textDim}}>({showId})</span>}
               {isExtra&&<span style={{fontSize:10,fontWeight:800,color:C.orange,background:C.orange+'20',borderRadius:6,padding:'1px 5px'}}>임시</span>}
             </div>
-            {effectivePaid&&p?.time&&<div style={{fontSize:11,color:C.textDim}}>{fmtTime(p.time)}{p.by==='admin'?' · 관리자':p.by==='archive'?' · 종료처리':''}</div>}
-            {requested&&!effectivePaid&&p?.requestedAt&&<div style={{fontSize:11,color:C.textDim}}>{fmtRelTime(p.requestedAt)} · 입금 확인 필요</div>}
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
             <div style={{color:C.accent,fontWeight:900,fontSize:13}}>{fmtKRW(displayAmount)}</div>
@@ -2724,6 +2729,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
   const [confirmBulk,setConfirmBulk]=useState(false);
   const [dunningOpen,setDunningOpen]=useState(false);
   const [openMenuKey,setOpenMenuKey]=useState(null);
+  const [detailKey,setDetailKey]=useState(null);
   const [matchSummary,setMatchSummary]=useState(null); // {byKey, refund, stats}
   const [animatingPaidKeys,setAnimatingPaidKeys]=useState(new Set());
   const [animating,setAnimating]=useState(false);
@@ -2908,6 +2914,25 @@ function StatusSection({event,updateEvent,groups,showToast}){
           unpaidList={unpaidXList} showToast={showToast} onClose={()=>setDunningOpen(false)}/>
       )}
       {showExcelModal&&<ExcelUploadModal uploading={uploading} fileRef={excelFileRef} onClose={()=>setShowExcelModal(false)}/>}
+      {detailKey&&(()=>{
+        const dp=event.payments?.[detailKey];
+        const dSt=getPayStatus(dp);
+        const dIsExtra=allExtraEntries.some(e=>e.key===detailKey);
+        const dName=dIsExtra?(allExtraEntries.find(e=>e.key===detailKey)?.name||detailKey):(mm[detailKey]||detailKey);
+        const dGroup=(groups||[]).find(g=>{const gKeys=new Set((g.members||[]).map(m=>m.name+(m.sid?`_${m.sid}`:'')));return gKeys.has(detailKey);})?.name||null;
+        const dPaidFee=event.feeConfig?(event.paidFeeKeys||[]).includes(detailKey):null;
+        const dPayTime=dSt==='paid'?dp?.time:dSt==='requested'?dp?.requestedAt:null;
+        const dPayBy=dSt==='paid'?dp?.by:dSt==='requested'?'requested':null;
+        return <MemberDetailModal
+          name={dName} onClose={()=>setDetailKey(null)}
+          studentId={!dIsExtra&&detailKey.includes('_')?detailKey.split('_').slice(1).join('_'):null}
+          group={dGroup}
+          unregistered={!dGroup&&!dIsExtra&&(groups||[]).length>0}
+          paidFee={dPaidFee}
+          payTime={dPayTime} payBy={dPayBy}
+          matchInfo={matchSummary?.byKey[detailKey]}
+        />;
+      })()}
     </div>
   );
 }
@@ -4095,14 +4120,46 @@ const PaySegCtrl=({status,onChange,disabled=false})=>{
 // 6. SUB COMPONENTS — UI만, 비즈니스 로직 없음
 // ═══════════════════════════════════════════════════════════
 
+function MemberDetailModal({name,onClose,studentId,group,unregistered,phone,paidFee,formFields,createdAt,payTime,payBy,matchInfo}){
+  const rows=[];
+  if(studentId) rows.push({label:'학번',value:studentId});
+  if(group) rows.push({label:'그룹',value:group});
+  else if(unregistered) rows.push({label:'그룹',value:'명단 미등록',color:C.orange});
+  if(phone) rows.push({label:'연락처',value:phone});
+  if(paidFee!=null) rows.push({label:'학생회비',value:paidFee?'납부':'미납',color:paidFee?C.green:C.red});
+  (formFields||[]).forEach(f=>{if(f.value)rows.push({label:f.label,value:String(f.value)});});
+  if(createdAt) rows.push({label:'신청 시간',value:fmtRelTime(createdAt)});
+  if(payTime){
+    const src=payBy==='admin'?' · 관리자':payBy==='archive'?' · 종료처리':payBy==='manual'?' · 수동 처리':payBy==='auto'?' · 자동 대조':payBy==='requested'?' · 확인 대기':'';
+    rows.push({label:'처리 시간',value:fmtTime(payTime)+src});
+  }
+  if(matchInfo?.type==='partial') rows.push({label:'입금 현황',value:`${fmtKRW(matchInfo.totalAmount)} / ${fmtKRW(matchInfo.expected)} (부족)`,color:C.yellow});
+  if(matchInfo?.type==='overpaid') rows.push({label:'입금 현황',value:`${fmtKRW(matchInfo.totalAmount)} / ${fmtKRW(matchInfo.expected)} (초과)`,color:C.yellow});
+  return(
+    <Modal isOpen={true} onClose={onClose} title={name}>
+      {rows.length>0?rows.map((r,i)=>(
+        <div key={i} style={{display:'flex',gap:10,padding:'9px 0',borderBottom:i<rows.length-1?`1px solid ${C.border}`:'none'}}>
+          <div style={{color:C.textDim,fontSize:13,width:72,flexShrink:0}}>{r.label}</div>
+          <div style={{color:r.color||C.text,fontSize:13,flex:1,wordBreak:'break-word'}}>{r.value}</div>
+        </div>
+      )):(
+        <div style={{textAlign:'center',color:C.textDim,fontSize:13,padding:'20px 0'}}>추가 정보가 없어요</div>
+      )}
+    </Modal>
+  );
+}
+
 function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCount, groups,
                          searchQ, setSearchQ, groupFilter, setGroupFilter,
                          onSetSubStatus, onCardDunning,
                          animatingPaidCrAts, formMatchSummary, formAnimating}){
   const [sortByTime,setSortByTime]=useState(true);
   const [showGroups,setShowGroups]=useState(false);
-  const [tooltipIdx,setTooltipIdx]=useState(null);
   const [menuIdx,setMenuIdx]=useState(null);
+  const [detailCrAt,setDetailCrAt]=useState(null);
+
+  const nameCount={};
+  subs.forEach(s=>{nameCount[s.name]=(nameCount[s.name]||0)+1;});
 
   if(subs.length===0) return(
     <div style={{textAlign:'center',padding:'40px 0'}}>
@@ -4144,21 +4201,12 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
       <div key={s._idx} style={{background:C.cardBg,borderRadius:12,marginBottom:6,boxShadow:C.shadow,overflow:'hidden',pointerEvents:formAnimating?'none':'auto'}}
         onClick={()=>isMenuOpen&&setMenuIdx(null)}>
         <div style={{padding:'11px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-              {s._group&&<span style={{padding:'2px 7px',borderRadius:8,fontSize:10,fontWeight:700,background:C.accentBg,color:C.accent,flexShrink:0}}>{s._group}</span>}
-              {!s._group&&groups.length>0&&(
-                <span onClick={e=>{e.stopPropagation();setTooltipIdx(i=>i===s._idx?null:s._idx);}}
-                  style={{flexShrink:0,cursor:'default',position:'relative',display:'inline-flex',alignItems:'center'}}>
-                  <Icon n="triangle-alert" size={13} color={C.orange}/>
-                  {tooltipIdx===s._idx&&(
-                    <span style={{position:'absolute',left:0,top:20,background:'#333',color:'#fff',fontSize:10,padding:'3px 8px',borderRadius:6,whiteSpace:'nowrap',zIndex:10,fontWeight:600}}>학생회비 명단에 없는 사용자</span>
-                  )}
-                </span>
-              )}
+          <div style={{flex:1,minWidth:0,cursor:'pointer'}} onClick={e=>{e.stopPropagation();setMenuIdx(null);setDetailCrAt(s.createdAt);}}>
+            <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
+              {!s._group&&groups.length>0&&<Icon n="triangle-alert" size={13} color={C.orange}/>}
               <span style={{fontWeight:600,color:C.text,fontSize:13,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</span>
+              {nameCount[s.name]>=2&&(s.data?.studentId||s.data?.학번)&&<span style={{fontSize:11,color:C.textDim}}>({s.data?.studentId||s.data?.학번})</span>}
             </div>
-            {s.data?.phone&&<div style={{fontSize:11,color:C.textDim,marginTop:1}}>{s.data.phone}</div>}
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
             {hasFee&&amt>0&&<span style={{fontSize:13,fontWeight:700,color:C.textMid}}>{fmtKRW(amt)}</span>}
@@ -4260,6 +4308,24 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
           {sec.items.map(s=>renderCard(s))}
         </div>
       )):sortedSubs.map(s=>renderCard(s))}
+    {detailCrAt&&(()=>{
+      const ds=filteredSubs.find(s=>s.createdAt===detailCrAt);
+      if(!ds) return null;
+      const dSubStatus=getSubStatus(ds);
+      const dPayTime=dSubStatus==='paid'?(ds.matchedAt||null):dSubStatus==='requested'?ds.requestedAt:null;
+      const fields=hasFee?(form.fields||[]).map(f=>({label:f.label,value:String(ds.data?.[f.id]||'')})).filter(f=>f.value):[];
+      return <MemberDetailModal
+        name={ds.name} onClose={()=>setDetailCrAt(null)}
+        studentId={ds.data?.studentId||ds.data?.학번||null}
+        group={ds._group||null}
+        unregistered={!ds._group&&groups.length>0}
+        phone={ds.phone||ds.data?.phone||null}
+        formFields={fields}
+        createdAt={ds.createdAt}
+        payTime={dPayTime} payBy={ds.matchedBy||null}
+        matchInfo={formMatchSummary?.byKey[ds.createdAt]}
+      />;
+    })()}
     </div>
   );
 }
@@ -4277,13 +4343,6 @@ function VerifyTab({form, uploading, bankGuideOpen, setBankGuideOpen, fileRef, o
       </div>
       <div style={{marginBottom:14,padding:'9px 14px',background:C.accentBg,borderRadius:10,fontSize:12,color:C.textMid,display:'flex',alignItems:'center',gap:6}}>
         <Icon n="lock" size={13} color={C.accent}/><span>거래내역은 브라우저에서만 처리되며 서버에 저장되지 않아요.</span>
-      </div>
-      <div style={{marginBottom:16,borderRadius:14,overflow:'hidden',border:`1.5px solid ${C.border}`,background:C.inputBg,display:'flex',alignItems:'center',justifyContent:'center',minHeight:120}}>
-        <img src="/assets/bank-statement-sample.png" alt="거래내역 예시" style={{maxWidth:'100%',display:'block'}} onError={e=>{e.currentTarget.style.display='none';e.currentTarget.nextSibling.style.display='flex';}}/>
-        <div style={{display:'none',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'20px',gap:6}}>
-          <Icon n="image" size={28} color={C.textDim}/>
-          <span style={{fontSize:12,color:C.textDim}}>거래내역 예시 이미지</span>
-        </div>
       </div>
       <div style={{textAlign:'center',marginBottom:20}}>
         <Btn onClick={()=>fileRef.current?.click()} loading={uploading}>파일 선택하기</Btn>
