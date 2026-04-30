@@ -1722,10 +1722,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
   const groups=profile.groups||[];
   const allFromGroups=groups.flatMap(g=>g.members||[]);
   const extraMembers=parseMembers(extraText).filter(m=>!allFromGroups.find(x=>x.name===m.name&&x.sid===m.sid));
-  // 관리자 본인 자동 포함
-  const adminName=profile.name||'';
-  const adminMember=adminName&&!allFromGroups.find(m=>m.name===adminName)?[{name:adminName,sid:''}]:[];
-  const allMembers=[...adminMember,...allFromGroups,...extraMembers];
+  const allMembers=[...allFromGroups,...extraMembers];
   const memberMap={};
   allMembers.forEach(m=>{memberMap[m.name+(m.sid?`_${m.sid}`:'')] = displayName(m);});
   const visibleMembers=activeG===-1?allMembers:(groups[activeG]?.members||[]);
