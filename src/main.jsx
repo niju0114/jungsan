@@ -2517,10 +2517,11 @@ function EventVerifySection({event,amounts,matchResults,onApply,onReset}){
   const mm=event.memberMap||{};
   const partial=matchResults.partial||[];
   const overpaid=matchResults.overpaid||[];
+  const needsCheck=[...partial,...overpaid];
   return(
     <div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:4,marginBottom:12}}>
-        {[[matchResults.matched.length,'매칭',C.green,C.greenBg],[partial.length,'부분입금',C.yellow,C.yellowBg],[overpaid.length,'초과입금',C.purple,C.accentBg],[matchResults.unpaid.length,'미입금',C.red,C.redBg],[matchResults.refund.length,'환불대상',C.textDim,C.inputBg]].map(([n,l,c,bg])=>(
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:4,marginBottom:12}}>
+        {[[matchResults.matched.length,'매칭',C.green,C.greenBg],[needsCheck.length,'확인 필요',C.yellow,C.yellowBg],[matchResults.unpaid.length,'미입금',C.red,C.redBg],[matchResults.refund.length,'환불 대상',C.textDim,C.inputBg]].map(([n,l,c,bg])=>(
           <div key={l} style={{background:bg,borderRadius:12,padding:'8px 2px',textAlign:'center'}}>
             <div style={{fontSize:16,fontWeight:900,color:c}}>{n}</div>
             <div style={{fontSize:9,color:c,fontWeight:600}}>{l}</div>
@@ -2542,14 +2543,14 @@ function EventVerifySection({event,amounts,matchResults,onApply,onReset}){
           ))}
         </div>
       )}
-      {partial.length>0&&(
+      {needsCheck.length>0&&(
         <div style={{marginBottom:16}}>
-          <div style={{fontSize:13,fontWeight:800,color:C.yellow,marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Icon n="triangle-alert" size={14} color={C.yellow}/>부분 입금 ({partial.length}명) — 추가 입금 필요</div>
+          <div style={{fontSize:13,fontWeight:800,color:C.yellow,marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Icon n="triangle-alert" size={14} color={C.yellow}/>확인 필요 ({needsCheck.length}명)</div>
           {partial.map((m,i)=>{
             const expected=amounts[m.sub.key]||0;
             const pct=expected>0?Math.round(m.totalAmount/expected*100):0;
             return(
-              <div key={i} style={{padding:'12px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+              <div key={'p'+i} style={{padding:'12px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
                   <span style={{fontWeight:700,color:C.text,fontSize:14}}>{mm[m.sub.key]||m.sub.name}</span>
                   <span style={{fontSize:12,color:C.yellow,fontWeight:700}}>{fmtKRW(m.totalAmount)} / {fmtKRW(expected)}</span>
@@ -2561,16 +2562,11 @@ function EventVerifySection({event,amounts,matchResults,onApply,onReset}){
               </div>
             );
           })}
-        </div>
-      )}
-      {overpaid.length>0&&(
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:13,fontWeight:800,color:C.purple,marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Icon n="refresh-cw" size={14} color={C.purple}/>초과 입금 ({overpaid.length}명) — 환불 검토 필요</div>
           {overpaid.map((m,i)=>(
-            <div key={i} style={{padding:'12px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+            <div key={'o'+i} style={{padding:'12px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                 <span style={{fontWeight:700,color:C.text,fontSize:14}}>{mm[m.sub.key]||m.sub.name}</span>
-                <span style={{color:C.purple,fontWeight:700,fontSize:13}}>{fmtKRW(m.totalAmount)}</span>
+                <span style={{color:C.yellow,fontWeight:700,fontSize:13}}>{fmtKRW(m.totalAmount)}</span>
               </div>
               <div style={{fontSize:11,color:C.textDim,marginTop:2}}>{fmtKRW(m.diff)} 초과 · 예상 {fmtKRW(amounts[m.sub.key]||0)}</div>
             </div>
@@ -2590,11 +2586,11 @@ function EventVerifySection({event,amounts,matchResults,onApply,onReset}){
       )}
       {matchResults.refund.length>0&&(
         <div style={{marginBottom:16}}>
-          <div style={{fontSize:13,fontWeight:800,color:C.purple,marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Icon n="refresh-cw" size={14} color={C.purple}/>환불 대상 ({matchResults.refund.length}명)</div>
+          <div style={{fontSize:13,fontWeight:800,color:C.textMid,marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Icon n="circle-alert" size={14} color={C.textMid}/>명단에 없는 입금 ({matchResults.refund.length}건)</div>
           {matchResults.refund.map((d,i)=>(
             <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
               <span style={{fontWeight:700,color:C.text,fontSize:14}}>{d.name}</span>
-              <span style={{color:C.purple,fontWeight:700,fontSize:13}}>{fmtKRW(d.amount)}</span>
+              <span style={{color:C.textMid,fontWeight:700,fontSize:13}}>{fmtKRW(d.amount)}</span>
             </div>
           ))}
         </div>
