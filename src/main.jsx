@@ -1862,12 +1862,10 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
 function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
   const [event,setEvent]=useState(initEvent);
   const [viewCount,setViewCount]=useState(0);
-  const getInitSlide=ev=>{
-    const hasRoundsWithAmount=(ev.rounds||[]).some(r=>r.amount>0);
-    if(hasRoundsWithAmount) return 2;
-    return 0;
-  };
-  const [slide,setSlide]=useState(()=>getInitSlide(initEvent));
+  const [slide,setSlide]=useState(0);
+  const [attDirty,setAttDirty]=useState(false);
+  const saveAttRef=useRef(null);
+  const [savePrompt,setSavePrompt]=useState(null);
 
   useEffect(()=>setEvent(initEvent),[initEvent]);
   useRealtimeEvent(event.code,ev=>setEvent(ev));
@@ -1875,11 +1873,13 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
 
   const update=async ev=>{setEvent(ev);if(updateEvent) await updateEvent(ev);};
 
-  const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
-  const hasRounds=event.rounds.length>0;
-
   const steps=['금액 입력','공유하기','정산현황'];
   const stepDone=steps.map((_,i)=>i<slide);
+
+  const safeNavigate=fn=>{
+    if(slide===0&&attDirty){setSavePrompt({navigateFn:fn});}
+    else fn();
+  };
 
   const archiveEvent=async()=>{
     if(!window.confirm('정산을 종료하고 내역으로 이동할까요?')) return;
@@ -1893,7 +1893,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
     <div className="screen" style={{background:C.pageBg,display:'flex',flexDirection:'column'}}>
       {/* 헤더 */}
       <div style={{display:'flex',alignItems:'center',padding:'16px 20px',background:C.cardBg,position:'sticky',top:0,zIndex:10,gap:12}}>
-        <button onClick={()=>nav.setView('home')} style={{background:'transparent',border:'none',color:C.text,cursor:'pointer',width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,padding:0,margin:'-8px'}}><span className="ms" style={{fontSize:24}}>arrow_back</span></button>
+        <button onClick={()=>safeNavigate(()=>nav.setView('home'))} style={{background:'transparent',border:'none',color:C.text,cursor:'pointer',width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,padding:0,margin:'-8px'}}><span className="ms" style={{fontSize:24}}>arrow_back</span></button>
         <div style={{flex:1}}>
           <div style={{fontSize:18,fontWeight:800,color:C.text,letterSpacing:-0.5}}>{event.name}</div>
           <div style={{fontSize:12,color:C.textDim,marginTop:2,display:'flex',alignItems:'center',gap:8}}>
@@ -1904,14 +1904,14 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
         <button onClick={archiveEvent} style={{background:C.inputBg,border:'none',borderRadius:12,color:C.textMid,cursor:'pointer',padding:'8px 14px',fontSize:13,fontWeight:700}}>종료</button>
       </div>
 
-      <FlowStepper steps={steps} current={slide} done={stepDone} onStepClick={setSlide}/>
+      <FlowStepper steps={steps} current={slide} done={stepDone} onStepClick={i=>safeNavigate(()=>setSlide(i))}/>
 
       {/* 슬라이드 콘텐츠 */}
       <div style={{flex:1,overflow:'auto'}}>
         <div style={{padding:'16px 18px'}}>
           {slide===0&&(
             <div className="fade-up">
-              <RoundsSection event={event} updateEvent={update} onRoundAdded={()=>setSlide(1)} groups={profile?.groups}/>
+              <RoundsSection event={event} updateEvent={update} onRoundAdded={()=>setSlide(1)} groups={profile?.groups} onAttDirtyChange={setAttDirty} saveAttFnRef={saveAttRef}/>
             </div>
           )}
           {slide===1&&(
@@ -1929,12 +1929,23 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
 
       {/* 하단 네비게이션 */}
       <div style={{padding:'12px 20px 24px',background:C.cardBg,borderTop:`1px solid ${C.pageBg}`,display:'flex',gap:10}}>
-        {slide>0&&<Btn variant="secondary" onClick={()=>setSlide(s=>s-1)} style={{flex:1}}>이전</Btn>}
+        {slide>0&&<Btn variant="secondary" onClick={()=>safeNavigate(()=>setSlide(s=>s-1))} style={{flex:1}}>이전</Btn>}
         {slide<steps.length-1&&(
-          <Btn onClick={()=>setSlide(s=>s+1)} style={{flex:2}}>다음</Btn>
+          <Btn onClick={()=>safeNavigate(()=>setSlide(s=>s+1))} style={{flex:2}}>다음</Btn>
         )}
         {slide===steps.length-1&&<Btn variant="green" onClick={()=>nav.setView('home')} style={{flex:2}}>홈으로</Btn>}
       </div>
+
+      {savePrompt&&(
+        <Modal isOpen={true} onClose={()=>setSavePrompt(null)} title="출석 미저장" closeOnBackdrop={false} showCloseButton={false}>
+          <div style={{fontSize:14,color:C.textMid,marginBottom:20}}>출석이 저장되지 않았어요. 어떻게 할까요?</div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            <Btn onClick={async()=>{await saveAttRef.current?.();savePrompt.navigateFn();setSavePrompt(null);}}>저장 후 닫기</Btn>
+            <Btn variant="secondary" onClick={()=>{savePrompt.navigateFn();setSavePrompt(null);}}>저장 안 하고 닫기</Btn>
+            <Btn variant="ghost" onClick={()=>setSavePrompt(null)}>취소</Btn>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -2138,238 +2149,199 @@ function FeeConfigSection({event,updateEvent}){
 }
 
 // ── RoundsSection ──────────────────────────────────────────
-function RoundsSection({event,updateEvent,onRoundAdded,groups}){
+function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,saveAttFnRef}){
   const mm=event.memberMap||{};
   const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
 
-  const [slideIdx,setSlideIdx]=useState(0);
   const [localAtt,setLocalAtt]=useState(()=>({...event.attendance}));
-  const [localMembers,setLocalMembers]=useState(()=>[...(event.rounds[0]?.members||presentMembers)]);
-  const [localAmount,setLocalAmount]=useState(()=>event.rounds[0]?.amount>0?String(event.rounds[0].amount):'');
-  const [localExtra,setLocalExtra]=useState(()=>[...(event.rounds[0]?.extraMembers||[])]);
   const [attDirty,setAttDirty]=useState(false);
-  const [amtDirty,setAmtDirty]=useState(false);
   const [attSavedAt,setAttSavedAt]=useState(null);
-  const [amtSavedAt,setAmtSavedAt]=useState(null);
+
+  const [editingId,setEditingId]=useState(()=>event.rounds[0]?.id||null);
+  const [editAmount,setEditAmount]=useState(()=>event.rounds[0]?.amount>0?String(event.rounds[0].amount):'');
+  const [editExtra,setEditExtra]=useState(()=>[...(event.rounds[0]?.extraMembers||[])]);
   const [extraInput,setExtraInput]=useState('');
 
-  // 1차 자동 생성
   useEffect(()=>{
     if(!event.rounds.some(r=>r.label==='1차')&&presentMembers.length>0){
       updateEvent({...event,rounds:[{id:'round_1',label:'1차',amount:0,members:[...presentMembers]}]});
     }
   },[]);
 
-  // Sync local state when slide changes
-  useEffect(()=>{
-    const r=event.rounds[slideIdx];
-    if(!r) return;
-    if(slideIdx===0) setLocalAtt({...event.attendance});
-    else setLocalMembers([...r.members]);
-    setLocalAmount(r.amount>0?String(r.amount):'');
-    setLocalExtra([...(r.extraMembers||[])]);
-    setAttDirty(false);setAmtDirty(false);
-    setAttSavedAt(null);setAmtSavedAt(null);
-    setExtraInput('');
-  },[slideIdx]);
-
-  const confirmSwitch=()=>{
-    if(attDirty&&!window.confirm('출석이 저장 안 됐어요. 그래도 이동할까요?')) return false;
-    if(!attDirty&&amtDirty&&!window.confirm('금액이 저장 안 됐어요. 그래도 이동할까요?')) return false;
-    return true;
-  };
-  const goSlide=idx=>{if(idx===slideIdx||!confirmSwitch()) return;setSlideIdx(idx);};
-
-  const saveAtt=async()=>{
-    if(slideIdx===0){
-      const presKeys=event.members.filter(k=>localAtt[k]!==false);
-      await updateEvent({...event,attendance:{...localAtt},rounds:event.rounds.map((r,i)=>i===0?{...r,members:presKeys}:r)});
-    } else {
-      await updateEvent({...event,rounds:event.rounds.map((r,i)=>i===slideIdx?{...r,members:[...localMembers]}:r)});
-    }
+  const doSaveAtt=async()=>{
+    const presKeys=event.members.filter(k=>localAtt[k]!==false);
+    await updateEvent({...event,attendance:{...localAtt},rounds:event.rounds.map((r,i)=>i===0?{...r,members:presKeys}:r)});
     setAttDirty(false);setAttSavedAt(new Date());
   };
 
-  const saveAmt=async()=>{
+  useEffect(()=>{onAttDirtyChange?.(attDirty);},[attDirty]);
+  useEffect(()=>{if(saveAttFnRef) saveAttFnRef.current=doSaveAtt;});
+
+  const toggleAtt=k=>{
+    setLocalAtt(a=>({...a,[k]:a[k]===false?true:false}));
+    setAttDirty(true);
+  };
+
+  const openRound=r=>{
+    setEditingId(r.id);
+    setEditAmount(r.amount>0?String(r.amount):'');
+    setEditExtra([...(r.extraMembers||[])]);
+    setExtraInput('');
+  };
+
+  const doSaveRound=async rid=>{
     const fc=event.feeConfig;
-    const isFc=slideIdx===0&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
-    const patch=isFc?{extraMembers:[...localExtra]}:{amount:Number(localAmount.replace(/[^0-9]/g,''))||0,extraMembers:[...localExtra]};
-    await updateEvent({...event,rounds:event.rounds.map((r,i)=>i===slideIdx?{...r,...patch}:r)});
-    setAmtDirty(false);setAmtSavedAt(new Date());
+    const isFirstRound=event.rounds[0]?.id===rid;
+    const useFc=isFirstRound&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
+    const amtNum=Number(editAmount.replace(/[^0-9]/g,''))||0;
+    const roundPatch=useFc?{extraMembers:[...editExtra]}:{amount:amtNum,extraMembers:[...editExtra]};
+    let newRounds=event.rounds.map(r=>r.id===rid?{...r,...roundPatch}:r);
+    let patch={rounds:newRounds};
+    if(attDirty){
+      const presKeys=event.members.filter(k=>localAtt[k]!==false);
+      patch.attendance={...localAtt};
+      patch.rounds=newRounds.map((r,i)=>i===0?{...r,members:presKeys}:r);
+    }
+    await updateEvent({...event,...patch});
+    if(attDirty){setAttDirty(false);setAttSavedAt(new Date());}
+    setEditingId(null);
   };
 
   const doAddRound=()=>{
-    if(!confirmSwitch()) return;
-    const newLabel=`${event.rounds.length+1}차`;
-    const newIdx=event.rounds.length;
-    const newRound={id:Date.now().toString(),label:newLabel,amount:0,members:[...presentMembers],extraMembers:[]};
+    const newRound={id:Date.now().toString(),label:`${event.rounds.length+1}차`,amount:0,members:[...presentMembers],extraMembers:[]};
     updateEvent({...event,rounds:[...event.rounds,newRound]});
-    setLocalMembers([...presentMembers]);
-    setLocalAmount('');setLocalExtra([]);
-    setAttDirty(false);setAmtDirty(false);
-    setAttSavedAt(null);setAmtSavedAt(null);
-    setExtraInput('');
-    setSlideIdx(newIdx);
+    setEditAmount('');setEditExtra([]);setExtraInput('');
+    setEditingId(newRound.id);
   };
 
-  const deleteRound=idx=>{
-    if(!window.confirm(`${event.rounds[idx].label}을 삭제할까요?`)) return;
-    const newRounds=event.rounds.filter((_,i)=>i!==idx);
+  const deleteRound=rid=>{
+    const r=event.rounds.find(r=>r.id===rid);
+    if(!window.confirm(`${r?.label||'이 차수'}을 삭제할까요?`)) return;
+    const newRounds=event.rounds.filter(r=>r.id!==rid);
     updateEvent({...event,rounds:newRounds});
-    if(slideIdx>=newRounds.length) setSlideIdx(Math.max(0,newRounds.length-1));
+    setEditingId(newRounds[0]?.id||null);
   };
 
   if(event.rounds.length===0) return null;
 
-  const r=event.rounds[slideIdx]||event.rounds[0];
-  const isFirst=slideIdx===0;
+  const attCount=event.members.filter(k=>localAtt[k]!==false).length;
+  const allPresent=attCount===event.members.length;
   const fc=event.feeConfig;
-  const useFeeConfig=isFirst&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
-
-  const attPresentCount=isFirst?event.members.filter(k=>localAtt[k]!==false).length:localMembers.length;
-  const totalForAtt=isFirst?event.members.length:presentMembers.length;
-  const localAmtNum=Number(localAmount.replace(/[^0-9]/g,''))||0;
-  const totalCountForAmt=attPresentCount+localExtra.length;
-  const previewPerPerson=localAmtNum>0&&totalCountForAmt>0?Math.ceil(localAmtNum/totalCountForAmt):0;
-
-  const allPresent=isFirst?attPresentCount===event.members.length:localMembers.length===presentMembers.length;
-
-  const AttRow=({k})=>{
-    const isAbsent=isFirst?localAtt[k]===false:!localMembers.includes(k);
-    const toggle=()=>{
-      if(isFirst) setLocalAtt(a=>({...a,[k]:a[k]===false?true:false}));
-      else setLocalMembers(ms=>ms.includes(k)?ms.filter(x=>x!==k):[...ms,k]);
-      setAttDirty(true);
-    };
-    return(
-      <div onClick={toggle} className="press" style={{background:isAbsent?C.inputBg:C.cardBg,borderRadius:12,padding:'10px 14px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',border:`1.5px solid ${isAbsent?C.red+'40':C.green+'40'}`,opacity:isAbsent?0.6:1,transition:'all 0.15s'}}>
-        <div style={{fontWeight:600,color:isAbsent?C.textDim:C.text,fontSize:14,textDecoration:isAbsent?'line-through':'none'}}>{mm[k]||k}</div>
-        <div style={{width:28,height:28,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:isAbsent?C.redBg:C.green,transition:'all 0.15s'}}>
-          {isAbsent?<Icon n="x" size={14} color={C.red}/>:<Icon n="check" size={14} color="#fff"/>}
-        </div>
-      </div>
-    );
-  };
-
-  const SaveBtn=({dirty,savedAt,onClick,label,savedLabel='저장됨'})=>(
-    <button onClick={onClick} disabled={!dirty} style={{width:'100%',padding:'12px',borderRadius:12,border:'none',background:dirty?C.accent:C.inputBg,color:dirty?'#fff':savedAt?C.textMid:C.textDim,fontWeight:700,fontSize:14,cursor:dirty?'pointer':'default',transition:'all 0.2s'}}>
-      {!dirty&&savedAt?savedLabel:label}
-    </button>
-  );
 
   return(
     <div>
       <FeeConfigSection event={event} updateEvent={updateEvent}/>
 
-      {/* 슬라이드 헤더 */}
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
-        <div style={{display:'flex',alignItems:'center',gap:4}}>
-          <button onClick={()=>goSlide(slideIdx-1)} disabled={slideIdx===0} style={{background:'none',border:'none',cursor:slideIdx>0?'pointer':'default',padding:4,display:'flex',alignItems:'center',opacity:slideIdx>0?1:0.25}}>
-            <Icon n="chevron_left" size={22} color={C.text}/>
-          </button>
-          <span style={{fontWeight:800,fontSize:17,color:C.text,minWidth:36,textAlign:'center'}}>{r.label}</span>
-          <button onClick={()=>goSlide(slideIdx+1)} disabled={slideIdx>=event.rounds.length-1} style={{background:'none',border:'none',cursor:slideIdx<event.rounds.length-1?'pointer':'default',padding:4,display:'flex',alignItems:'center',opacity:slideIdx<event.rounds.length-1?1:0.25}}>
-            <Icon n="chevron_right" size={22} color={C.text}/>
-          </button>
-        </div>
-        <div style={{display:'flex',alignItems:'center',gap:8}}>
-          {event.rounds.length>1&&(
-            <div style={{display:'flex',gap:5,alignItems:'center'}}>
-              {event.rounds.map((_,i)=>(
-                <button key={i} onClick={()=>goSlide(i)} style={{width:i===slideIdx?18:6,height:6,borderRadius:3,background:i===slideIdx?C.accent:C.border,border:'none',cursor:'pointer',transition:'all 0.2s',padding:0}}/>
-              ))}
-            </div>
-          )}
-          <button onClick={doAddRound} style={{background:C.accentBg,border:'none',borderRadius:10,color:C.accent,fontWeight:700,fontSize:12,cursor:'pointer',padding:'6px 10px',display:'flex',alignItems:'center',gap:3}}>
-            <Icon n="add" size={14} color={C.accent}/>차수 추가
-          </button>
-        </div>
-      </div>
-
       {/* 출석 카드 */}
-      <div style={{background:C.cardBg,borderRadius:14,padding:'14px 14px 12px',marginBottom:12,boxShadow:C.shadow,border:`1.5px solid ${C.border}`}}>
+      <div style={{background:C.inputBg,borderRadius:14,padding:'14px',marginBottom:12,border:`1px solid ${C.border}`}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-          <div style={{fontWeight:800,fontSize:14,color:C.text}}>출석 체크 <span style={{fontWeight:500,fontSize:12,color:C.textDim}}>({attPresentCount}/{totalForAtt})</span></div>
-          {!attDirty&&attSavedAt&&<span style={{fontSize:11,color:C.textDim}}>방금 저장됨</span>}
-        </div>
-
-        {isFirst?(
-          <button onClick={()=>{const a={};event.members.forEach(k=>a[k]=true);setLocalAtt(a);setAttDirty(true);}} style={{width:'100%',marginBottom:10,padding:'11px',borderRadius:12,border:`2px solid ${allPresent?C.green:C.border}`,background:allPresent?C.green:C.cardBg,color:allPresent?'#fff':C.textMid,fontWeight:700,fontSize:14,cursor:'pointer',transition:'all 0.2s'}}>
-            {allPresent?<><Icon n="check" size={14} color="#fff" style={{marginRight:4}}/>전원 참석</>:'전원 참석'}
-          </button>
-        ):(
-          <div style={{display:'flex',gap:6,marginBottom:10}}>
-            <button onClick={()=>{setLocalMembers([...presentMembers]);setAttDirty(true);}} style={{flex:1,padding:'9px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontWeight:700,fontSize:12,cursor:'pointer'}}>전원 참석</button>
-            <button onClick={()=>{setLocalMembers([...(event.rounds[0]?.members||presentMembers)]);setAttDirty(true);}} style={{flex:2,padding:'9px',borderRadius:10,border:`1.5px solid ${C.accent+'30'}`,background:C.accentBg,color:C.accent,fontWeight:700,fontSize:12,cursor:'pointer'}}>1차 출석 그대로</button>
+          <div style={{fontWeight:700,fontSize:14,color:C.text}}>
+            출석 체크 <span style={{fontSize:12,color:C.textDim,fontWeight:500}}>({attCount}/{event.members.length})</span>
           </div>
-        )}
-
+          <button onClick={doSaveAtt} style={{background:attDirty?C.accent:C.cardBg,border:`1px solid ${attDirty?C.accent:C.border}`,borderRadius:8,color:attDirty?'#fff':C.textDim,fontSize:12,padding:'4px 10px',cursor:attDirty?'pointer':'default',fontWeight:600,opacity:attDirty?1:0.5}}>출석 저장</button>
+        </div>
+        <button onClick={()=>{const a={};event.members.forEach(k=>a[k]=true);setLocalAtt(a);setAttDirty(true);}} style={{width:'100%',marginBottom:10,padding:'11px',borderRadius:12,border:`2px solid ${allPresent?C.green:C.border}`,background:allPresent?C.green:C.cardBg,color:allPresent?'#fff':C.textMid,fontWeight:700,fontSize:14,cursor:'pointer',transition:'all 0.2s'}}>
+          {allPresent?<><Icon n="check" size={14} color="#fff" style={{marginRight:4}}/>전원 참석</>:'전원 참석'}
+        </button>
         <div style={{maxHeight:280,overflowY:'auto'}}>
-          {(isFirst?event.members:presentMembers).map(k=><AttRow key={k} k={k}/>)}
-        </div>
-        <div style={{marginTop:4,marginBottom:10,fontSize:11,color:C.textDim,textAlign:'center'}}>탭하면 불참 처리돼요</div>
-        <SaveBtn dirty={attDirty} savedAt={attSavedAt} onClick={saveAtt} label="출석 저장"/>
-      </div>
-
-      {/* 금액 카드 */}
-      <div style={{background:C.cardBg,borderRadius:14,padding:'14px 14px 12px',marginBottom:12,boxShadow:C.shadow,border:`1.5px solid ${C.border}`}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-          <div style={{fontWeight:800,fontSize:14,color:C.text}}>금액 입력</div>
-          {!amtDirty&&amtSavedAt&&<span style={{fontSize:11,color:C.textDim}}>방금 저장됨</span>}
-        </div>
-
-        {useFeeConfig?(
-          <div style={{fontSize:12,color:C.textMid,background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
-            금액은 위 정산 방식 설정에서 관리됩니다<br/>
-            <span style={{color:C.accent,fontWeight:700}}>납부자 {fmtKRW(fc.paidFeeAmount)} · 미납자 {fmtKRW(fc.unpaidFeeAmount)}</span>
-          </div>
-        ):(
-          <>
-            <Field label="총 금액 (원)" value={localAmount} onChange={v=>{setLocalAmount(v.replace(/[^0-9]/g,''));setAmtDirty(true);}} inputMode="numeric" placeholder="150000"/>
-            {previewPerPerson>0&&(
-              <div style={{background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
-                <div style={{display:'flex',justifyContent:'space-between'}}>
-                  <span style={{fontSize:13,color:C.textMid}}>1인당 ({totalCountForAmt}명)</span>
-                  <span style={{fontSize:15,fontWeight:900,color:C.accent}}>{fmtKRW(previewPerPerson)}</span>
+          {event.members.map(k=>{
+            const isAbsent=localAtt[k]===false;
+            return(
+              <div key={k} onClick={()=>toggleAtt(k)} className="press" style={{background:isAbsent?C.inputBg:C.cardBg,borderRadius:12,padding:'10px 14px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',border:`1.5px solid ${isAbsent?C.red+'40':C.green+'40'}`,opacity:isAbsent?0.6:1,transition:'all 0.15s'}}>
+                <div style={{fontWeight:600,color:isAbsent?C.textDim:C.text,fontSize:14,textDecoration:isAbsent?'line-through':'none'}}>{mm[k]||k}</div>
+                <div style={{width:28,height:28,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:isAbsent?C.redBg:C.green,transition:'all 0.15s'}}>
+                  {isAbsent?<Icon n="x" size={14} color={C.red}/>:<Icon n="check" size={14} color="#fff"/>}
                 </div>
               </div>
-            )}
-          </>
-        )}
-
-        <div style={{marginBottom:12}}>
-          <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:6}}>임시 인원 ({localExtra.length}명) <span style={{fontWeight:400,color:C.orange,fontSize:11}}>링크 공유 제외</span></div>
-          {localExtra.length>0&&(
-            <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>
-              {localExtra.map((em,ei)=>(
-                <div key={ei} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:12,background:C.orange+'20',border:`1.5px solid ${C.orange}50`}}>
-                  <span style={{fontSize:10,fontWeight:800,color:C.orange}}>임시</span>
-                  <span style={{fontSize:12,color:C.text,fontWeight:600}}>{em.name}</span>
-                  <button onClick={()=>{setLocalExtra(s=>s.filter((_,j)=>j!==ei));setAmtDirty(true);}} style={{background:'none',border:'none',cursor:'pointer',color:C.textMid,fontSize:14,lineHeight:1,padding:'0 0 0 2px'}}>×</button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div style={{display:'flex',gap:6}}>
-            <input value={extraInput} onChange={e=>setExtraInput(e.target.value)} placeholder="이름 입력"
-              onKeyDown={e=>{if(e.key==='Enter'&&extraInput.trim()){setLocalExtra(s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:extraInput.trim()}]);setExtraInput('');setAmtDirty(true);}}}
-              style={{flex:1,padding:'7px 10px',borderRadius:8,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none'}}
-            />
-            <button onClick={()=>{if(extraInput.trim()){setLocalExtra(s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:extraInput.trim()}]);setExtraInput('');setAmtDirty(true);}}} style={{padding:'7px 12px',borderRadius:8,background:C.orange+'20',border:`1.5px solid ${C.orange}50`,color:C.orange,fontWeight:700,fontSize:13,cursor:'pointer'}}>추가</button>
-          </div>
+            );
+          })}
         </div>
-
-        {!isFirst&&(
-          <div style={{marginBottom:10,textAlign:'right'}}>
-            <button onClick={()=>deleteRound(slideIdx)} style={{fontSize:12,color:C.red,background:'none',border:'none',cursor:'pointer'}}>이 차수 삭제</button>
-          </div>
-        )}
-
-        <SaveBtn dirty={amtDirty} savedAt={amtSavedAt} onClick={saveAmt} label={useFeeConfig?'임시 인원 저장':'금액 저장'}/>
+        <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
+          <div style={{fontSize:11,color:C.textDim}}>탭하면 불참 처리돼요</div>
+          {attSavedAt&&!attDirty&&<div style={{fontSize:11,color:C.textDim}}>방금 저장됨</div>}
+        </div>
       </div>
 
+      {/* 차수 카드들 */}
+      {event.rounds.map((r,ridx)=>{
+        const isEditing=editingId===r.id;
+        const isFirst=ridx===0;
+        const useFc=isFirst&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
+        const amtNum=isEditing?(Number(editAmount.replace(/[^0-9]/g,''))||0):r.amount;
+        const extraList=isEditing?editExtra:(r.extraMembers||[]);
+        const rMembers=r.members||presentMembers;
+        const totalCount=rMembers.length+extraList.length;
+        const perPerson=amtNum>0&&totalCount>0?Math.ceil(amtNum/totalCount):0;
+
+        return(
+          <div key={r.id} style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${isEditing?C.accent+'50':C.border}`}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:isEditing?12:0,cursor:isEditing?'default':'pointer'}} onClick={()=>{if(!isEditing)openRound(r);}}>
+              <div style={{fontWeight:800,fontSize:15,color:C.text}}>{r.label}</div>
+              {!isEditing&&(
+                <div style={{fontSize:13,color:C.textMid}}>
+                  {r.amount>0?fmtKRW(r.amount):<span style={{color:C.textDim}}>금액 미입력</span>}
+                </div>
+              )}
+            </div>
+            {isEditing&&(
+              <>
+                {useFc?(
+                  <div style={{fontSize:12,color:C.textMid,background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
+                    금액은 위 정산 방식 설정에서 관리됩니다<br/>
+                    <span style={{color:C.accent,fontWeight:700}}>납부자 {fmtKRW(fc.paidFeeAmount)} · 미납자 {fmtKRW(fc.unpaidFeeAmount)}</span>
+                  </div>
+                ):(
+                  <>
+                    <Field label="총 금액 (원)" value={editAmount} onChange={v=>setEditAmount(v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="150000"/>
+                    {perPerson>0&&(
+                      <div style={{background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
+                        <div style={{display:'flex',justifyContent:'space-between'}}>
+                          <span style={{fontSize:13,color:C.textMid}}>1인당 ({totalCount}명)</span>
+                          <span style={{fontSize:15,fontWeight:900,color:C.accent}}>{fmtKRW(perPerson)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+                <div style={{marginBottom:12}}>
+                  <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:6}}>임시 인원 ({editExtra.length}명) <span style={{fontWeight:400,color:C.orange,fontSize:11}}>링크 공유 제외</span></div>
+                  {editExtra.length>0&&(
+                    <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>
+                      {editExtra.map((em,ei)=>(
+                        <div key={ei} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:12,background:C.orange+'20',border:`1.5px solid ${C.orange}50`}}>
+                          <span style={{fontSize:10,fontWeight:800,color:C.orange}}>임시</span>
+                          <span style={{fontSize:12,color:C.text,fontWeight:600}}>{em.name}</span>
+                          <button onClick={()=>setEditExtra(s=>s.filter((_,j)=>j!==ei))} style={{background:'none',border:'none',cursor:'pointer',color:C.textMid,fontSize:14,lineHeight:1,padding:'0 0 0 2px'}}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{display:'flex',gap:6}}>
+                    <input value={extraInput} onChange={e=>setExtraInput(e.target.value)} placeholder="이름 입력"
+                      onKeyDown={e=>{if(e.key==='Enter'&&extraInput.trim()){setEditExtra(s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:extraInput.trim()}]);setExtraInput('');}}}
+                      style={{flex:1,padding:'7px 10px',borderRadius:8,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none'}}
+                    />
+                    <button onClick={()=>{if(extraInput.trim()){setEditExtra(s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:extraInput.trim()}]);setExtraInput('');}}} style={{padding:'7px 12px',borderRadius:8,background:C.orange+'20',border:`1.5px solid ${C.orange}50`,color:C.orange,fontWeight:700,fontSize:13,cursor:'pointer'}}>추가</button>
+                  </div>
+                </div>
+                {!isFirst&&(
+                  <div style={{marginBottom:10,textAlign:'right'}}>
+                    <button onClick={()=>deleteRound(r.id)} style={{fontSize:12,color:C.red,background:'none',border:'none',cursor:'pointer'}}>이 차수 삭제</button>
+                  </div>
+                )}
+                <Btn onClick={()=>doSaveRound(r.id)}>저장</Btn>
+              </>
+            )}
+          </div>
+        );
+      })}
+
+      <button onClick={doAddRound} style={{width:'100%',padding:'12px',borderRadius:14,border:`2px dashed ${C.border}`,background:'none',color:C.textMid,fontWeight:700,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+        <Icon n="add" size={16} color={C.textMid}/>차수 추가
+      </button>
+
       {event.rounds.length>1&&event.rounds.some(r=>r.amount>0)&&(
-        <div style={{textAlign:'right',fontSize:13,color:C.textMid,marginBottom:4}}>
+        <div style={{textAlign:'right',fontSize:13,color:C.textMid,marginTop:10}}>
           합계 <span style={{color:C.text,fontWeight:900}}>{fmtKRW(event.rounds.reduce((s,r)=>s+r.amount,0))}</span>
         </div>
       )}
