@@ -1407,7 +1407,7 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
     await saveProfile({...profile,account:{bank,number,holder},groups});
     setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),2200);
   };
-  const cur=activeG===-1?null:(groups[activeG]||groups[0]);
+  const cur=activeG===-1?null:(groups[activeG]??null);
   const displayMembers=activeG===-1?groups.flatMap(g=>g.members||[]):(cur?.members||[]);
   const filteredMembers=searchQ?displayMembers.filter(m=>m.name.includes(searchQ)||(m.sid||'').includes(searchQ)):displayMembers;
   const sortedMembers=sortBy==='default'?filteredMembers:[...filteredMembers].sort((a,b)=>{
@@ -1461,7 +1461,7 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
                 fontSize:13,fontWeight:700,cursor:'pointer',transition:'all 0.12s',display:'flex',alignItems:'center',gap:6,
               }}>
                 {g.name}
-                {g.members.length>0&&<span style={{background:activeG===i?'rgba(255,255,255,0.3)':C.inputBg,borderRadius:10,padding:'1px 7px',fontSize:11}}>{g.members.length}</span>}
+                <span style={{background:activeG===i?'rgba(255,255,255,0.3)':C.inputBg,borderRadius:10,padding:'1px 7px',fontSize:11,color:g.members.length===0?(activeG===i?'rgba(255,255,255,0.6)':C.textDim):'inherit'}}>{g.members.length}</span>
               </button>
             ))}
             {addingGroup?(
@@ -1478,7 +1478,7 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
           </div>
           {(activeG===-1||cur)&&(
             <div key={activeG===-1?'__all':cur.id}>
-              {activeG!==-1&&(
+              {activeG!==-1&&cur&&(
                 <>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
                     <div style={{fontSize:13,fontWeight:700,color:C.textMid}}>{cur.name} 명단</div>
@@ -1490,12 +1490,20 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
                       <button onClick={()=>{setGuideHidden(true);localStorage.setItem('memberPasteGuideSeen','1');}} style={{background:'none',border:'none',cursor:'pointer',color:C.textDim,fontSize:18,lineHeight:1,flexShrink:0,padding:0}}>×</button>
                     </div>
                   )}
+                  <div style={{fontSize:12,fontWeight:700,color:C.accent,marginBottom:6,display:'flex',alignItems:'center',gap:4}}>
+                    <Icon n="users" size={12} color={C.accent}/>여기에 붙여넣으면 <span style={{textDecoration:'underline'}}>{cur.name}</span>에 추가됩니다
+                  </div>
                   <textarea ref={textareaRef} value={cur.rawText} onChange={e=>updateRaw(activeG,e.target.value)}
                     placeholder={`${cur.name} 명단 붙여넣기\n이름·학번, 탭·쉼표·공백 모두 인식`} rows={6}
                     style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:14,outline:'none',resize:'vertical',lineHeight:1.75,marginBottom:10}}
                     onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
                     onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
                   />
+                  {displayMembers.length===0&&(
+                    <div style={{textAlign:'center',padding:'14px 0 6px',color:C.textDim,fontSize:12}}>
+                      아직 명단이 없어요. 위에 붙여넣으면 바로 표시돼요.
+                    </div>
+                  )}
                   {displayMembers.length>0&&(
                     <div>
                       <div style={{display:'flex',gap:6,marginBottom:8}}>
