@@ -322,7 +322,7 @@ const extraKey = (roundId, em, ei) =>
 
 // 입금 대조 매칭 엔진 (순수 함수)
 const matchEngine = {
-  NAME_COLS: ['적요','입금자','입금자명','보내는분','거래내용','기재내용','통장표시','비고','내용','메모','받는분'],
+  NAME_COLS: ['의뢰인','수취인','입금자','입금자명','보내는분','받는분','거래상대','거래자','보낸이','받는이','이름','거래내용','기재내용','통장표시','비고','내용','메모','적요'],
   AMT_COLS: ['입금','입금액','입금금액','거래금액','금액'],
 
   normalize: s => (s||'').replace(/[（(][^)）]*[)）]/g,'').replace(/[\s·\-]/g,''),
@@ -336,7 +336,7 @@ const matchEngine = {
   },
 
   findCol(headers, candidates) {
-    return headers.findIndex(h => candidates.some(c => h.includes(c)));
+    for(const c of candidates){const i=headers.findIndex(h=>h.includes(c));if(i>=0)return i;}return -1;
   },
 
   parseExcel(arrayBuffer) {
