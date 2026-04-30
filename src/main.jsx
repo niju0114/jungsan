@@ -2097,8 +2097,8 @@ function FeeConfigSection({event,updateEvent}){
     }
     if(newMode==='manual'&&fc?.mode==='auto'){
       const {unpaid,paid}=previewAuto();
-      setPaidInput(String(paid));
-      setUnpaidInput(String(unpaid));
+      setPaidInput(String(paid||''));
+      setUnpaidInput(String(unpaid||''));
     }
     saveFeeConfig(newMode);
   };
