@@ -125,6 +125,7 @@ const rowToEv = r => ({
   sourceFormCode:r.source_form_code||null,
   feeConfig:r.fee_config||null,
   paidFeeKeys:Array.isArray(r.member_meta?.paidFeeKeys)?r.member_meta.paidFeeKeys:[],
+  lastMatchSummary:r.member_meta?.lastMatchSummary||null,
 });
 const evToRow = (ev, uid) => ({
   code:ev.code, name:ev.name, date:ev.date, pin:ev.pin,
@@ -133,7 +134,7 @@ const evToRow = (ev, uid) => ({
   attendance_open:ev.attendanceOpen,
   source_form_code:ev.sourceFormCode||null,
   fee_config:ev.feeConfig||null,
-  member_meta:{paidFeeKeys:ev.paidFeeKeys||[]},
+  member_meta:{paidFeeKeys:ev.paidFeeKeys||[],lastMatchSummary:ev.lastMatchSummary||null},
   ...(uid?{user_id:uid}:{}),
 });
 const rowToForm = r => ({
@@ -144,6 +145,7 @@ const rowToForm = r => ({
   fields:r.fields||[], submissions:r.submissions||[],
   status:r.status||'open', createdAt:r.created_at,
   time:r.time||null, place:r.place||null,
+  lastMatchSummary:r.last_match_summary||null,
 });
 const formToRow = (f, uid) => ({
   code:f.code, name:f.name, date:f.date, amount:f.amount,
@@ -152,6 +154,7 @@ const formToRow = (f, uid) => ({
   max_people:f.maxPeople, account:f.account, fields:f.fields,
   submissions:f.submissions, status:f.status,
   time:f.time||null, place:f.place||null,
+  last_match_summary:f.lastMatchSummary||null,
   ...(uid?{user_id:uid}:{}),
 });
 
@@ -2730,7 +2733,11 @@ function StatusSection({event,updateEvent,groups,showToast}){
   const [dunningOpen,setDunningOpen]=useState(false);
   const [openMenuKey,setOpenMenuKey]=useState(null);
   const [detailKey,setDetailKey]=useState(null);
-  const [matchSummary,setMatchSummary]=useState(null); // {byKey, refund, stats}
+  const [matchSummary,setMatchSummary]=useState(()=>{
+    const s=event.lastMatchSummary;
+    if(!s) return null;
+    return {byKey:{},refund:s.refund||[],stats:{matched:s.matchedCount||0,needsCheck:s.needsCheck||0}};
+  });
   const [animatingPaidKeys,setAnimatingPaidKeys]=useState(new Set());
   const [animating,setAnimating]=useState(false);
   const [uploading,setUploading]=useState(false);
@@ -2782,13 +2789,13 @@ function StatusSection({event,updateEvent,groups,showToast}){
           animTimers.current.push(t);
         });
         const finalT=setTimeout(async()=>{
-          await updateEvent({...eventRef.current,payments:newPayments,refundList:newSummary.refund.map(d=>({name:d.name,amount:d.amount}))});
+          await updateEvent({...eventRef.current,payments:newPayments,refundList:newSummary.refund.map(d=>({name:d.name,amount:d.amount})),lastMatchSummary:{matchedCount:newSummary.stats.matched,needsCheck:newSummary.stats.needsCheck,refund:newSummary.refund.map(d=>({name:d.name,amount:d.amount})),matchedAt:new Date().toISOString()}});
           setAnimating(false);
           setAnimatingPaidKeys(new Set());
         },matchedKeys.length*interval+100);
         animTimers.current.push(finalT);
       } else if(newSummary.refund.length>0){
-        await updateEvent({...eventRef.current,refundList:newSummary.refund.map(d=>({name:d.name,amount:d.amount}))});
+        await updateEvent({...eventRef.current,refundList:newSummary.refund.map(d=>({name:d.name,amount:d.amount})),lastMatchSummary:{matchedCount:newSummary.stats.matched,needsCheck:newSummary.stats.needsCheck,refund:newSummary.refund.map(d=>({name:d.name,amount:d.amount})),matchedAt:new Date().toISOString()}});
       }
       const parts=[];
       if(results.matched.length>0) parts.push(`${results.matched.length}명 처리`);
@@ -2867,7 +2874,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
             {matchSummary.stats.needsCheck>0&&<><span style={{color:C.textDim}}>·</span><span style={{color:'#EF9F27',fontWeight:700}}>확인 필요 {matchSummary.stats.needsCheck}</span></>}
             {matchSummary.refund?.length>0&&<><span style={{color:C.textDim}}>·</span><span style={{color:'#888780',fontWeight:700}}>명단에 없는 입금 {matchSummary.refund.length}건</span></>}
           </div>
-          <button onClick={()=>setMatchSummary(null)} style={{fontSize:11,color:C.textDim,background:'none',border:`1px solid ${C.border}`,cursor:'pointer',padding:'2px 8px',borderRadius:6,fontFamily:'inherit',flexShrink:0}}>초기화</button>
+          <button onClick={()=>{setMatchSummary(null);updateEvent({...eventRef.current,lastMatchSummary:null});}} style={{fontSize:11,color:C.textDim,background:'none',border:`1px solid ${C.border}`,cursor:'pointer',padding:'2px 8px',borderRadius:6,fontFamily:'inherit',flexShrink:0}}>초기화</button>
         </div>
       )}
       {showGroups&&groupSections?(
@@ -4619,7 +4626,11 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
   const toggleBankGuide=(id)=>setBankGuideOpen(prev=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;});
   const [uploadMode,setUploadMode]=useState('file');
   const fileRef=useRef(null);
-  const [formMatchSummary,setFormMatchSummary]=useState(null);
+  const [formMatchSummary,setFormMatchSummary]=useState(()=>{
+    const s=form.lastMatchSummary;
+    if(!s) return null;
+    return {byKey:{},refund:s.refund||[],stats:{matched:s.matchedCount||0,needsCheck:s.needsCheck||0}};
+  });
   const [animatingPaidCrAts,setAnimatingPaidCrAts]=useState(new Set());
   const [formAnimating,setFormAnimating]=useState(false);
   const [uploading,setUploading]=useState(false);
@@ -4720,13 +4731,13 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
           formAnimTimers.current.push(t);
         });
         const finalT=setTimeout(async()=>{
-          await updateForm({...formRef.current,submissions:newSubs});
+          await updateForm({...formRef.current,submissions:newSubs,lastMatchSummary:{matchedCount:matchedCrAts.length,needsCheck,refund:results.refund.map(d=>({name:d.name,amount:d.amount})),matchedAt:new Date().toISOString()}});
           setFormAnimating(false);
           setAnimatingPaidCrAts(new Set());
         },matchedCrAts.length*interval+100);
         formAnimTimers.current.push(finalT);
       } else {
-        await updateForm({...formRef.current,submissions:newSubs});
+        await updateForm({...formRef.current,submissions:newSubs,lastMatchSummary:{matchedCount:matchedCrAts.length,needsCheck,refund:results.refund.map(d=>({name:d.name,amount:d.amount})),matchedAt:new Date().toISOString()}});
       }
       const parts=[];
       if(matchedCrAts.length>0) parts.push(`${matchedCrAts.length}명 처리`);
@@ -4807,7 +4818,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
                     {formMatchSummary.stats.needsCheck>0&&<><span style={{color:C.textDim}}>·</span><span style={{color:'#EF9F27',fontWeight:700}}>확인 필요 {formMatchSummary.stats.needsCheck}</span></>}
                     {formMatchSummary.refund?.length>0&&<><span style={{color:C.textDim}}>·</span><span style={{color:'#888780',fontWeight:700}}>명단에 없는 입금 {formMatchSummary.refund.length}건</span></>}
                   </div>
-                  <button onClick={()=>setFormMatchSummary(null)} style={{fontSize:11,color:C.textDim,background:'none',border:`1px solid ${C.border}`,cursor:'pointer',padding:'2px 8px',borderRadius:6,fontFamily:'inherit',flexShrink:0}}>초기화</button>
+                  <button onClick={()=>{setFormMatchSummary(null);updateForm({...formRef.current,lastMatchSummary:null});}} style={{fontSize:11,color:C.textDim,background:'none',border:`1px solid ${C.border}`,cursor:'pointer',padding:'2px 8px',borderRadius:6,fontFamily:'inherit',flexShrink:0}}>초기화</button>
                 </div>
               )}
               <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
