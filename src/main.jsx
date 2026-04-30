@@ -3411,7 +3411,7 @@ function FormCreateScreen({nav,profile,createForm}){
         {/* 기본 정보 */}
         <Card>
           <Field label="행사명" value={name} onChange={setName} placeholder="5월 MT, 개강총회…"/>
-          <Field label="날짜·시간" value={date+(time?`T${time}`:'')} onChange={v=>{setDate(v.slice(0,10));setTime(v.length>10?v.slice(11,16):'');}} type="datetime-local"/>
+          <Field label="행사 날짜·시간" value={date+(time?`T${time}`:'')} onChange={v=>{setDate(v.slice(0,10));setTime(v.length>10?v.slice(11,16):'');}} type="datetime-local"/>
           <div style={{marginBottom:14}}>
             <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:8}}>금액 설정</div>
             <div style={{display:'flex',background:C.inputBg,borderRadius:10,padding:3,marginBottom:10}}>
@@ -4366,7 +4366,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
           <Card>
             {[
               ['이름', form.name],
-              ['날짜·시간', form.date+(form.time?` ${form.time}`:'')],
+              ['행사 날짜·시간', form.date+(form.time?` ${form.time}`:'')],
               ['참가비', form.amount?(form.amountPaid?`${fmtKRW(form.amount)} / ${fmtKRW(form.amountPaid)} (납부자)`:fmtKRW(form.amount)):'없음'],
               form.place?['장소', form.place]:null,
               form.maxPeople?['정원', `${form.maxPeople}명`]:null,
