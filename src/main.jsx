@@ -677,6 +677,8 @@ function App() {
     const urlParams=new URLSearchParams(window.location.search);
     const urlCode=urlParams.get('code');
     const urlForm=urlParams.get('form');
+    // 참여자 경로에서는 form/event 로딩 완료 전까지 setReady 차단 (로그인 화면 깜빡임 방지)
+    const isParticipantPath=!!(urlCode||urlForm);
 
     const {data:{subscription}}=api.onAuthChange((_evt,session)=>{
       if(!session){
@@ -684,7 +686,8 @@ function App() {
         setProfile({account:{bank:'',number:'',holder:''},groups:[],name:''});
         // 참여자 화면이면 유지
         setView(v=>['participantEvent','formSubmit'].includes(v)?v:'home');
-        setReady(true);
+        // 참여자 경로면 form/event 로딩이 setReady 담당
+        if(!isParticipantPath) setReady(true);
         return;
       }
       // onboarding 체크 — 참여자 화면이면 표시 안 함
@@ -728,7 +731,7 @@ function App() {
     }
 
     api.getSession().then(({data:{session}})=>{
-      if(!session){setUser(null);setReady(true);}
+      if(!session&&!isParticipantPath){setUser(null);setReady(true);}
     });
 
     return()=>subscription.unsubscribe();
