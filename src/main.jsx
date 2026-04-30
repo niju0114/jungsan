@@ -2229,8 +2229,6 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
     setEditingId(newRounds[0]?.id||null);
   };
 
-  if(event.rounds.length===0) return null;
-
   const attCount=event.members.filter(k=>localAtt[k]!==false).length;
   const fc=event.feeConfig;
   const useGroupView=!attSearch&&(groups||[]).filter(g=>(g.members||[]).length>0).length>1;
@@ -2247,6 +2245,8 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
     if(unassigned.length>0) sections.push({name:'미분류',keys:unassigned});
     return sections;
   },[useGroupView,groups,event.members]);
+
+  if(event.rounds.length===0) return null;
 
   return(
     <div>
