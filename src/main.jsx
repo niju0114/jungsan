@@ -368,39 +368,55 @@ const matchEngine = {
 
   match(deposits, subs, getExpectedAmount) {
     const getAmt=typeof getExpectedAmount==='function'?getExpectedAmount:()=>getExpectedAmount;
+
+    // 이름별 합산: 분할 송금 대응
+    const groupMap={};
+    deposits.forEach(dep=>{
+      const key=this.normalize(dep.name);
+      if(!key) return;
+      if(!groupMap[key]) groupMap[key]={name:dep.name,totalAmount:0,deposits:[]};
+      groupMap[key].totalAmount+=dep.amount;
+      groupMap[key].deposits.push(dep);
+    });
+    const groups=Object.values(groupMap).map(g=>({...g,_matched:false}));
+
     const dupMap={};
     subs.forEach(s=>{const n=this.normalize(s.name||'');if(!dupMap[n])dupMap[n]=[];dupMap[n].push({name:s.name,studentId:s.studentId||''});});
     const getDups=s=>{const arr=dupMap[this.normalize(s.name||'')];return arr&&arr.length>1?arr:null;};
 
-    const matched=[], amountMismatch=[], unpaid=[], refund=[];
+    const matched=[], partial=[], overpaid=[], unpaid=[], refund=[];
     const subsCopy=subs.map(s=>({...s,_matched:false}));
 
-    // 1차: 정확 매칭
-    deposits.forEach(dep=>{
-      const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='exact'&&dep.amount===getAmt(s));
-      if(idx>=0){matched.push({sub:subsCopy[idx],deposit:dep,type:'exact',duplicates:getDups(subsCopy[idx])});subsCopy[idx]._matched=true;dep.matched=true;}
+    const classify=(grp,sub,type)=>{
+      const ea=getAmt(sub);
+      const diff=grp.totalAmount-ea;
+      const entry={sub,deposits:grp.deposits,totalAmount:grp.totalAmount,diff,duplicates:getDups(sub),type};
+      if(diff===0) matched.push(entry);
+      else if(diff<0) partial.push(entry);
+      else overpaid.push(entry);
+    };
+
+    // 1차: 이름 정확 매칭
+    groups.forEach(grp=>{
+      const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(grp.name,s.name)==='exact');
+      if(idx<0) return;
+      classify(grp,subsCopy[idx],'exact');
+      subsCopy[idx]._matched=true; grp._matched=true;
     });
-    // 2차: 이름 매칭 + 금액 불일치
-    deposits.forEach(dep=>{
-      if(dep.matched) return;
-      const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='exact');
-      if(idx>=0){amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-getAmt(subsCopy[idx]),duplicates:getDups(subsCopy[idx])});subsCopy[idx]._matched=true;dep.matched=true;}
-    });
-    // 3차: 부분 매칭
-    deposits.forEach(dep=>{
-      if(dep.matched) return;
-      const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(dep.name,s.name)==='partial');
-      if(idx>=0){
-        const ea=getAmt(subsCopy[idx]);
-        if(dep.amount===ea) matched.push({sub:subsCopy[idx],deposit:dep,type:'partial',duplicates:getDups(subsCopy[idx])});
-        else amountMismatch.push({sub:subsCopy[idx],deposit:dep,diff:dep.amount-ea,duplicates:getDups(subsCopy[idx])});
-        subsCopy[idx]._matched=true;dep.matched=true;
-      }
+    // 2차: 이름 부분 매칭
+    groups.forEach(grp=>{
+      if(grp._matched) return;
+      const idx=subsCopy.findIndex(s=>!s._matched&&this.compareName(grp.name,s.name)==='partial');
+      if(idx<0) return;
+      classify(grp,subsCopy[idx],'partial');
+      subsCopy[idx]._matched=true; grp._matched=true;
     });
 
     subsCopy.filter(s=>!s._matched).forEach(s=>unpaid.push(s));
-    deposits.filter(d=>!d.matched).forEach(d=>refund.push(d));
-    return {matched,amountMismatch,unpaid,refund,totalDeposits:deposits.length};
+    groups.filter(g=>!g._matched).forEach(g=>refund.push(...g.deposits));
+    // amountMismatch는 partial+overpaid 합산 (하위호환 — VerifyTab)
+    const amountMismatch=[...partial,...overpaid].map(e=>({...e,deposit:e.deposits[0]}));
+    return {matched,partial,overpaid,amountMismatch,unpaid,refund,totalDeposits:deposits.length};
   },
 };
 
@@ -2499,13 +2515,15 @@ function ShareSection({event,showToast}){
 // ── EventVerifySection ─────────────────────────────────────
 function EventVerifySection({event,amounts,matchResults,onApply,onReset}){
   const mm=event.memberMap||{};
+  const partial=matchResults.partial||[];
+  const overpaid=matchResults.overpaid||[];
   return(
     <div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:12}}>
-        {[[matchResults.matched.length,'매칭',C.green,C.greenBg],[matchResults.amountMismatch.length,'금액불일치',C.orange,C.orangeBg],[matchResults.unpaid.length,'미입금',C.red,C.redBg],[matchResults.refund.length,'환불대상',C.purple,C.accentBg]].map(([n,l,c,bg])=>(
-          <div key={l} style={{background:bg,borderRadius:12,padding:'10px 4px',textAlign:'center'}}>
-            <div style={{fontSize:18,fontWeight:900,color:c}}>{n}</div>
-            <div style={{fontSize:10,color:c,fontWeight:600}}>{l}</div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:4,marginBottom:12}}>
+        {[[matchResults.matched.length,'매칭',C.green,C.greenBg],[partial.length,'부분입금',C.yellow,C.yellowBg],[overpaid.length,'초과입금',C.purple,C.accentBg],[matchResults.unpaid.length,'미입금',C.red,C.redBg],[matchResults.refund.length,'환불대상',C.textDim,C.inputBg]].map(([n,l,c,bg])=>(
+          <div key={l} style={{background:bg,borderRadius:12,padding:'8px 2px',textAlign:'center'}}>
+            <div style={{fontSize:16,fontWeight:900,color:c}}>{n}</div>
+            <div style={{fontSize:9,color:c,fontWeight:600}}>{l}</div>
           </div>
         ))}
       </div>
@@ -2514,26 +2532,47 @@ function EventVerifySection({event,amounts,matchResults,onApply,onReset}){
         <div style={{marginBottom:16}}>
           <div style={{fontSize:13,fontWeight:800,color:C.green,marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Icon n="circle-check" size={14} color={C.green}/>매칭 완료 ({matchResults.matched.length}명)</div>
           {matchResults.matched.map((m,i)=>(
-            <div key={i} style={{padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <span style={{fontWeight:700,color:C.text,fontSize:14}}>{mm[m.sub.key]||m.sub.name}</span>
-              <span style={{color:C.green,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
+            <div key={i} style={{padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <span style={{fontWeight:700,color:C.text,fontSize:14}}>{mm[m.sub.key]||m.sub.name}</span>
+                <span style={{color:C.green,fontWeight:700,fontSize:13}}>{fmtKRW(m.totalAmount)}</span>
+              </div>
+              {m.deposits.length>1&&<div style={{fontSize:11,color:C.textDim,marginTop:2}}>{m.deposits.length}회 분할 합산</div>}
             </div>
           ))}
         </div>
       )}
-      {matchResults.amountMismatch.length>0&&(
+      {partial.length>0&&(
         <div style={{marginBottom:16}}>
-          <div style={{fontSize:13,fontWeight:800,color:C.orange,marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Icon n="triangle-alert" size={14} color={C.orange}/>금액 불일치 ({matchResults.amountMismatch.length}명) — 수동 확인 필요</div>
-          {matchResults.amountMismatch.map((m,i)=>(
+          <div style={{fontSize:13,fontWeight:800,color:C.yellow,marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Icon n="triangle-alert" size={14} color={C.yellow}/>부분 입금 ({partial.length}명) — 추가 입금 필요</div>
+          {partial.map((m,i)=>{
+            const expected=amounts[m.sub.key]||0;
+            const pct=expected>0?Math.round(m.totalAmount/expected*100):0;
+            return(
+              <div key={i} style={{padding:'12px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                  <span style={{fontWeight:700,color:C.text,fontSize:14}}>{mm[m.sub.key]||m.sub.name}</span>
+                  <span style={{fontSize:12,color:C.yellow,fontWeight:700}}>{fmtKRW(m.totalAmount)} / {fmtKRW(expected)}</span>
+                </div>
+                <div style={{height:4,borderRadius:2,background:C.border,overflow:'hidden'}}>
+                  <div style={{height:'100%',width:`${pct}%`,background:C.yellow,borderRadius:2,transition:'width 0.3s'}}/>
+                </div>
+                <div style={{fontSize:11,color:C.textDim,marginTop:4}}>{fmtKRW(Math.abs(m.diff))} 부족 · {m.deposits.length}회 입금</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {overpaid.length>0&&(
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:800,color:C.purple,marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Icon n="refresh-cw" size={14} color={C.purple}/>초과 입금 ({overpaid.length}명) — 환불 검토 필요</div>
+          {overpaid.map((m,i)=>(
             <div key={i} style={{padding:'12px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                 <span style={{fontWeight:700,color:C.text,fontSize:14}}>{mm[m.sub.key]||m.sub.name}</span>
-                <span style={{color:C.orange,fontWeight:700,fontSize:13}}>{fmtKRW(m.deposit.amount)}</span>
+                <span style={{color:C.purple,fontWeight:700,fontSize:13}}>{fmtKRW(m.totalAmount)}</span>
               </div>
-              <div style={{fontSize:12,color:C.orange,marginTop:4}}>
-                {m.diff>0?`${fmtKRW(m.diff)} 초과 입금`:`${fmtKRW(Math.abs(m.diff))} 부족`}
-                <span style={{color:C.textDim,marginLeft:8}}>예상: {fmtKRW(amounts[m.sub.key]||0)}</span>
-              </div>
+              <div style={{fontSize:11,color:C.textDim,marginTop:2}}>{fmtKRW(m.diff)} 초과 · 예상 {fmtKRW(amounts[m.sub.key]||0)}</div>
             </div>
           ))}
         </div>
