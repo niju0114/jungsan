@@ -2161,6 +2161,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   const [editAmount,setEditAmount]=useState(()=>event.rounds[0]?.amount>0?String(event.rounds[0].amount):'');
   const [editExtra,setEditExtra]=useState(()=>[...(event.rounds[0]?.extraMembers||[])]);
   const [extraInput,setExtraInput]=useState('');
+  const [attSearch,setAttSearch]=useState('');
 
   useEffect(()=>{
     if(!event.rounds.some(r=>r.label==='1차')&&presentMembers.length>0){
@@ -2225,7 +2226,6 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   if(event.rounds.length===0) return null;
 
   const attCount=event.members.filter(k=>localAtt[k]!==false).length;
-  const allPresent=attCount===event.members.length;
   const fc=event.feeConfig;
 
   return(
@@ -2233,32 +2233,35 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
       <FeeConfigSection event={event} updateEvent={updateEvent}/>
 
       {/* 출석 카드 */}
-      <div style={{background:C.inputBg,borderRadius:14,padding:'14px',marginBottom:12,border:`1px solid ${C.border}`}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-          <div style={{fontWeight:700,fontSize:14,color:C.text}}>
-            출석 체크 <span style={{fontSize:12,color:C.textDim,fontWeight:500}}>({attCount}/{event.members.length})</span>
-          </div>
-          <button onClick={doSaveAtt} style={{background:attDirty?C.accent:C.cardBg,border:`1px solid ${attDirty?C.accent:C.border}`,borderRadius:8,color:attDirty?'#fff':C.textDim,fontSize:12,padding:'4px 10px',cursor:attDirty?'pointer':'default',fontWeight:600,opacity:attDirty?1:0.5}}>출석 저장</button>
+      <div style={{background:C.pageBg,borderRadius:12,padding:'10px 12px',marginBottom:10,border:`1px solid ${C.border}`}}>
+        {/* 헤더: 카운터 + 저장 */}
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+          <span style={{fontSize:13,fontWeight:700,color:C.text}}>
+            출석 {attCount}/{event.members.length}명
+            {attSavedAt&&!attDirty&&<span style={{fontSize:11,color:C.textDim,fontWeight:400,marginLeft:6}}>방금 저장됨</span>}
+          </span>
+          <button onClick={doSaveAtt} style={{background:attDirty?C.accent:'transparent',border:`1px solid ${attDirty?C.accent:C.border}`,borderRadius:8,color:attDirty?'#fff':C.textDim,fontSize:12,padding:'3px 10px',cursor:attDirty?'pointer':'default',fontWeight:600,opacity:attDirty?1:0.5}}>출석 저장</button>
         </div>
-        <button onClick={()=>{const a={};event.members.forEach(k=>a[k]=true);setLocalAtt(a);setAttDirty(true);}} style={{width:'100%',marginBottom:10,padding:'11px',borderRadius:12,border:`2px solid ${allPresent?C.green:C.border}`,background:allPresent?C.green:C.cardBg,color:allPresent?'#fff':C.textMid,fontWeight:700,fontSize:14,cursor:'pointer',transition:'all 0.2s'}}>
-          {allPresent?<><Icon n="check" size={14} color="#fff" style={{marginRight:4}}/>전원 참석</>:'전원 참석'}
-        </button>
-        <div style={{maxHeight:280,overflowY:'auto'}}>
-          {event.members.map(k=>{
-            const isAbsent=localAtt[k]===false;
-            return(
-              <div key={k} onClick={()=>toggleAtt(k)} className="press" style={{background:isAbsent?C.inputBg:C.cardBg,borderRadius:12,padding:'10px 14px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',border:`1.5px solid ${isAbsent?C.red+'40':C.green+'40'}`,opacity:isAbsent?0.6:1,transition:'all 0.15s'}}>
-                <div style={{fontWeight:600,color:isAbsent?C.textDim:C.text,fontSize:14,textDecoration:isAbsent?'line-through':'none'}}>{mm[k]||k}</div>
-                <div style={{width:28,height:28,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:isAbsent?C.redBg:C.green,transition:'all 0.15s'}}>
-                  {isAbsent?<Icon n="x" size={14} color={C.red}/>:<Icon n="check" size={14} color="#fff"/>}
+        {/* 검색 + 일괄 버튼 */}
+        <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:10}}>
+          <input value={attSearch} onChange={e=>setAttSearch(e.target.value)} placeholder="이름 검색"
+            style={{flex:1,padding:'5px 9px',borderRadius:8,border:`1px solid ${C.border}`,background:C.cardBg,fontSize:12,color:C.text,outline:'none'}}/>
+          <button onClick={()=>{const a={};event.members.forEach(k=>a[k]=true);setLocalAtt(a);setAttDirty(true);}} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:C.accent,fontWeight:600,whiteSpace:'nowrap',padding:0}}>전원 참석</button>
+          <button onClick={()=>{const a={};event.members.forEach(k=>a[k]=false);setLocalAtt(a);setAttDirty(true);}} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:C.textDim,fontWeight:600,whiteSpace:'nowrap',padding:0}}>전원 불참</button>
+        </div>
+        {/* 칩 리스트 */}
+        <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+          {event.members
+            .filter(k=>!attSearch||(mm[k]||k).includes(attSearch))
+            .map(k=>{
+              const isAbsent=localAtt[k]===false;
+              return(
+                <div key={k} onClick={()=>toggleAtt(k)} className="press" style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:isAbsent?'#F1EFE8':'#EEEDFE',border:`1px solid ${isAbsent?'#E0DDD5':'#D4D1F5'}`,transition:'all 0.15s'}}>
+                  {!isAbsent&&<Icon n="check" size={11} color="#3C3489"/>}
+                  <span style={{fontSize:13,fontWeight:600,color:isAbsent?'#888780':'#3C3489'}}>{mm[k]||k}</span>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-        <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
-          <div style={{fontSize:11,color:C.textDim}}>탭하면 불참 처리돼요</div>
-          {attSavedAt&&!attDirty&&<div style={{fontSize:11,color:C.textDim}}>방금 저장됨</div>}
+              );
+            })}
         </div>
       </div>
 
