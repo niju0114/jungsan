@@ -4305,7 +4305,7 @@ function VerifyTab({form, subs, groups, matchResults, uploading, bankGuideOpen, 
   );
 }
 
-function FormShareTab({form, showToast}){
+function FormShareTab({form, showToast, onShared}){
   const formLink=getLink(`form=${form.code}`);
   const autoMsg=[
     `[${form.name}] 신청 안내`,
@@ -4346,17 +4346,17 @@ function FormShareTab({form, showToast}){
         <div style={{background:C.inputBg,borderRadius:12,padding:'14px 16px',fontSize:13,color:C.textMid,lineHeight:1.85,marginBottom:12,whiteSpace:'pre-wrap'}}>{autoMsg}</div>
       )}
       <div style={{display:'flex',gap:8}}>
-        <Btn onClick={async()=>{const msg=getMsg();const shared=await shareText(msg);if(!shared){await copyText(msg);showToast('메시지 복사됨');}else showToast('공유 완료');}} small style={{flex:2}}><Icon n="message-circle" size={14} color="#fff" style={{marginRight:4}}/>카톡 공유</Btn>
-        <Btn onClick={async()=>{await copyText(getMsg());showToast('메시지 복사됨');}} variant="ghost" small style={{flex:1}}><Icon n="clipboard-list" size={14} color={C.textDim} style={{marginRight:4}}/>복사</Btn>
+        <Btn onClick={async()=>{const msg=getMsg();const shared=await shareText(msg);if(!shared){await copyText(msg);showToast('메시지 복사됨');}else showToast('공유 완료');onShared&&onShared();}} small style={{flex:2}}><Icon n="message-circle" size={14} color="#fff" style={{marginRight:4}}/>카톡 공유</Btn>
+        <Btn onClick={async()=>{await copyText(getMsg());showToast('메시지 복사됨');onShared&&onShared();}} variant="ghost" small style={{flex:1}}><Icon n="clipboard-list" size={14} color={C.textDim} style={{marginRight:4}}/>복사</Btn>
       </div>
     </div>
   );
 }
 
-function FormShareModal({form, showToast, onClose}){
+function FormShareModal({form, showToast, onClose, onShared}){
   return(
     <Modal isOpen={true} onClose={onClose} title="공유하기">
-      <FormShareTab form={form} showToast={showToast}/>
+      <FormShareTab form={form} showToast={showToast} onShared={onShared}/>
     </Modal>
   );
 }
@@ -4644,7 +4644,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
         </div>
       )}
 
-      {shareOpen&&<FormShareModal form={form} showToast={showToast} onClose={()=>setShareOpen(false)}/>}
+      {shareOpen&&<FormShareModal form={form} showToast={showToast} onClose={()=>setShareOpen(false)} onShared={()=>{setShareOpen(false);setSlide(1);}}/>}
       {dunningOpen&&form.account?.bank&&(
         <DunningModal eventName={form.name} account={form.account} link={getLink(`form=${form.code}`)}
           unpaidList={unpaidXList} showToast={showToast} onClose={()=>setDunningOpen(false)}/>
