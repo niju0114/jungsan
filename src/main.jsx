@@ -2696,8 +2696,8 @@ function StatusSection({event,updateEvent,groups,showToast}){
 
   return(
     <div>
-      <div style={{background:C.accentBg,borderRadius:12,padding:'12px 14px',marginBottom:12}}>
-        <div style={{fontSize:13,color:C.accent,fontWeight:600,lineHeight:1.7}}>신청 받으셨어요. 저녁이나 다음 날에 통장과 여유롭게 대조하세요.</div>
+      <div style={{fontSize:14,color:C.textMid,lineHeight:1.6,marginBottom:14}}>
+        신청 받으셨어요. 저녁이나 다음 날에 통장과 여유롭게 대조하세요.<br/>귀찮으시다면 거래내역서 업로드로 한 번에 자동 매칭도 가능해요.
       </div>
       <input ref={excelFileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleExcel} style={{display:'none'}}/>
       {event.account?.bank&&!matchResults&&(
@@ -2705,7 +2705,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
           <button onClick={()=>excelFileRef.current?.click()} disabled={uploading} className="press" style={{width:'100%',padding:'14px',borderRadius:12,background:C.accent,border:'none',color:'#fff',fontWeight:800,fontSize:14,cursor:uploading?'default':'pointer',marginBottom:4}}>
             {uploading?'분석 중...':<><Icon n="bar-chart" size={14} color="#fff" style={{marginRight:4}}/>거래내역 대조</>}
           </button>
-          <div style={{fontSize:11,color:C.textDim,textAlign:'center',marginBottom:12}}>귀찮으시다면 거래내역서 업로드로 한 번에 자동 매칭도 가능해요.</div>
+          <div style={{fontSize:11,color:C.textDim,textAlign:'center',marginBottom:12}}>한 번에 자동 매칭. 통장 보면서 손체크 안 해도 돼요.</div>
         </>
       )}
       {!matchResults&&(unpaidXKeys.length>0&&!!event.account?.bank||requestedKeys.length>0)&&(
@@ -4614,15 +4614,15 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
             </>
           ):(
             <>
-              <div style={{background:C.accentBg,borderRadius:12,padding:'12px 14px',marginBottom:12}}>
-                <div style={{fontSize:13,color:C.accent,fontWeight:600,lineHeight:1.7}}>신청 받으셨어요. 저녁이나 다음 날에 통장과 여유롭게 대조하세요.</div>
+              <div style={{fontSize:14,color:C.textMid,lineHeight:1.6,marginBottom:14}}>
+                신청 받으셨어요. 저녁이나 다음 날에 통장과 여유롭게 대조하세요.<br/>귀찮으시다면 거래내역서 업로드로 한 번에 자동 매칭도 가능해요.
               </div>
               <div style={{display:'flex',marginBottom:4,gap:6}}>
                 <button onClick={()=>setShowVerify(true)} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="download" size={12} color={C.textMid}/>입금 자동 대조</button>
                 <button onClick={()=>{if(!form.account?.bank){showToast('계좌 정보를 먼저 등록해주세요',C.orange);return;}setDunningOpen(true);}} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="megaphone" size={12} color={C.textMid}/>콕 찌르기</button>
                 {subs.length>0&&<button onClick={downloadExcel} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="table" size={12} color={C.textMid}/>엑셀 추출</button>}
               </div>
-              <div style={{fontSize:11,color:C.textDim,textAlign:'center',marginBottom:10}}>귀찮으시다면 거래내역서 업로드로 한 번에 자동 매칭도 가능해요.</div>
+              <div style={{fontSize:11,color:C.textDim,textAlign:'center',marginBottom:10}}>한 번에 자동 매칭. 통장 보면서 손체크 안 해도 돼요.</div>
               <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
                 unregisteredCount={unregisteredCount} groups={groups}
                 searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
