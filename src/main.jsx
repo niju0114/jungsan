@@ -2825,8 +2825,19 @@ function StatusSection({event,updateEvent,groups,showToast}){
       if(parsed.deposits.length===0){showToast('입금 내역이 없어요',C.red);setUploading(false);return;}
       const esubs=presentMembers.map(k=>({name:mm[k]||k,key:k}));
       const results=matchEngine.match(parsed.deposits,esubs,s=>amounts[s.key]||0);
-      setMatchResults(results);
-      showToast(`${results.totalDeposits}건 분석 완료`);
+      // 매칭 완료 멤버 즉시 처리 — 버튼 클릭 불필요
+      const now=new Date().toISOString();
+      const newPayments={...event.payments};
+      results.matched.forEach(m=>{newPayments[m.sub.key]={payStatus:'paid',hasBeenConfirmed:true,requestedAt:event.payments[m.sub.key]?.requestedAt||null,time:now,by:'admin'};});
+      await updateEvent({...event,payments:newPayments,refundList:(results.refund||[]).map(d=>({name:d.name,amount:d.amount}))});
+      const needsCheck=(results.partial||[]).length+(results.overpaid||[]).length;
+      const parts=[];
+      if(results.matched.length>0) parts.push(`${results.matched.length}명 처리`);
+      if(needsCheck>0) parts.push(`확인 필요 ${needsCheck}명`);
+      showToast(parts.length?parts.join(', '):`${results.totalDeposits}건 분석`);
+      // 확인 필요·환불 건만 리뷰 섹션에 표시 (매칭 완료는 이미 처리됨)
+      const hasReview=needsCheck>0||results.refund.length>0;
+      setMatchResults(hasReview?{...results,matched:[]}:null);
     }catch(err){
       console.error(err);
       showToast('파일을 읽을 수 없어요',C.red);
@@ -2864,7 +2875,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
           )}
         </div>
       )}
-      {!matchResults&&requestedKeys.length>0&&(
+      {requestedKeys.length>0&&(
         <div style={{marginBottom:12}}>
           <button onClick={()=>setConfirmBulk(true)} className="press" style={{width:'100%',padding:'9px',borderRadius:10,background:C.yellowBg,border:`1.5px solid ${C.yellow}40`,color:C.yellow,fontWeight:700,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
             <Icon n="check" size={12} color={C.yellow}/>{requestedKeys.length}명 확인 완료
@@ -2872,7 +2883,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
         </div>
       )}
       <ConfirmBulkModal isOpen={confirmBulk} onClose={()=>setConfirmBulk(false)} count={requestedKeys.length} onConfirm={applyBulkConfirm}/>
-      {!matchResults&&<>
+      {matchResults&&<EventVerifySection event={event} amounts={amounts} matchResults={matchResults} onApply={applyExcelMatched} onReset={()=>setMatchResults(null)}/>}
       {surplus>0&&<div style={{fontSize:11,color:C.textDim,textAlign:'center',marginBottom:12}}>소수점을 올림해서 총액보다 <span style={{fontWeight:700,color:C.textMid}}>{fmtKRW(surplus)}</span> 더 걷혀요</div>}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
         <div style={{fontSize:12,fontWeight:600}}>
@@ -2930,8 +2941,6 @@ function StatusSection({event,updateEvent,groups,showToast}){
         </>
       )}
       {unpaidList.length===0&&pc>0&&<div style={{textAlign:'center',color:C.green,fontWeight:900,fontSize:15,padding:'16px 0',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Icon n="sparkles" size={16} color={C.green}/>전원 완료!</div>}
-      </>}
-      {matchResults&&<EventVerifySection event={event} amounts={amounts} matchResults={matchResults} onApply={applyExcelMatched} onReset={()=>setMatchResults(null)}/>}
       {dunningOpen&&event.account?.bank&&(
         <DunningModal eventName={event.name} account={event.account} link={directLink}
           unpaidList={unpaidXList} showToast={showToast} onClose={()=>setDunningOpen(false)}/>
