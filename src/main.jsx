@@ -1629,16 +1629,14 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
         </Card>
         {pfmOpen&&<PasteFeeModal
           members={groups.flatMap(g=>g.members.map(m=>m.name+(m.sid?'_'+m.sid:'')))}
-          memberMap={Object.fromEntries(groups.flatMap(g=>g.members.map(m=>[m.name+(m.sid?'_'+m.sid:''),m.name])))}
+          currentPaidKeys={groups.flatMap(g=>g.paidFeeMembers||[])}
           onApply={matched=>{
             setGroups(gs=>gs.map(g=>{
               const gKeys=new Set(g.members.map(m=>m.name+(m.sid?'_'+m.sid:'')));
-              const toAdd=[...matched].filter(k=>gKeys.has(k));
-              if(!toAdd.length) return g;
-              return {...g,paidFeeMembers:[...new Set([...(g.paidFeeMembers||[]),...toAdd])]};
+              const newPaid=[...matched].filter(k=>gKeys.has(k));
+              return {...g,paidFeeMembers:newPaid};
             }));
             setPfmOpen(false);
-            showToast(`납부자 ${matched.size}명 적용됐어요`);
           }}
           showToast={showToast}
           onClose={()=>setPfmOpen(false)}
@@ -4401,45 +4399,80 @@ function FormShareModal({form, showToast, onClose, onShared}){
   );
 }
 
-function PasteFeeModal({members, memberMap, onApply, showToast, onClose}){
-  const [pasteText,setPasteText]=useState('');
-  const [unmatched,setUnmatched]=useState([]);
+function PasteFeeModal({members, currentPaidKeys, onApply, showToast, onClose}){
+  const initialText=React.useMemo(()=>{
+    const set=new Set(currentPaidKeys||[]);
+    return members.filter(k=>set.has(k)).map(k=>{
+      const idx=k.lastIndexOf('_');
+      return idx===-1?k:k.slice(0,idx)+'\t'+k.slice(idx+1);
+    }).join('\n');
+  },[]);// eslint-disable-line
+  const [pasteText,setPasteText]=useState(initialText);
+  const [noSid,setNoSid]=useState([]);
+  const [notFound,setNotFound]=useState([]);
+
+  const parseLine=raw=>{
+    const s=raw.trim();
+    if(!s) return null;
+    const tabParts=s.split('\t');
+    if(tabParts.length>=2){
+      const name=tabParts[0].trim();
+      const sid=tabParts.slice(1).map(p=>p.trim()).find(p=>/^\d{8,10}$/.test(p));
+      return {name,sid:sid||null};
+    }
+    const spaceParts=s.split(/\s+/);
+    if(spaceParts.length>=2){
+      const last=spaceParts[spaceParts.length-1];
+      if(/^\d{8,10}$/.test(last)) return {name:spaceParts.slice(0,-1).join(' '),sid:last};
+    }
+    return {name:s,sid:null};
+  };
 
   const apply=()=>{
-    const names=pasteText.split('\n').map(s=>s.trim()).filter(Boolean);
-    if(!names.length) return;
-    const nameToKeys={};
-    members.forEach(k=>{
-      const norm=(memberMap[k]||k).replace(/\s/g,'');
-      if(!nameToKeys[norm]) nameToKeys[norm]=[];
-      nameToKeys[norm].push(k);
-    });
+    const lines=pasteText.split('\n').map(s=>s.trim()).filter(Boolean);
+    if(!lines.length) return;
+    const memberSet=new Set(members);
     const matchedKeys=new Set();
-    const missed=[];
-    names.forEach(raw=>{
-      const norm=raw.replace(/\s/g,'');
-      if(nameToKeys[norm]?.length){nameToKeys[norm].forEach(k=>matchedKeys.add(k));}
-      else missed.push(raw);
+    const missNoSid=[];
+    const missNotFound=[];
+    lines.forEach(line=>{
+      const p=parseLine(line);
+      if(!p) return;
+      if(!p.sid){missNoSid.push(p.name);return;}
+      const key=p.name+'_'+p.sid;
+      if(memberSet.has(key)) matchedKeys.add(key);
+      else missNotFound.push(p.name+' '+p.sid);
     });
+    setNoSid(missNoSid);
+    setNotFound(missNotFound);
+    if(missNoSid.length) return;
+    showToast(`납부자 ${matchedKeys.size}명 적용됐어요${missNotFound.length?` (미매칭 ${missNotFound.length}명)`:''}`);
     onApply(matchedKeys);
-    setUnmatched(missed);
-    showToast(`${matchedKeys.size}명 납부자 추가됨${missed.length?` (매칭 안 된 ${missed.length}명)`:'!'}`);
   };
 
   return(
     <Modal isOpen={true} onClose={onClose} title={<><Icon n="clipboard-list" size={15} color={C.text} style={{marginRight:4}}/>납부자 명단 붙여넣기</>}>
-      <div style={{fontSize:12,color:C.textDim,marginBottom:14}}>납부자 이름을 한 줄씩 붙여넣어 주세요. 이미 납부로 설정된 멤버는 그대로 유지돼요.</div>
+      <div style={{fontSize:12,color:C.textDim,marginBottom:8}}>이름과 학번을 함께 붙여넣어 주세요. 탭이나 공백으로 구분해요.</div>
+      <div style={{background:C.inputBg,border:`1px solid ${C.border}`,borderRadius:8,padding:'7px 10px',fontSize:11,color:C.textDim,fontFamily:'monospace',marginBottom:10,lineHeight:1.9}}>
+        홍길동{'\t'}20210001<br/>김철수{'\t'}20210002
+      </div>
       <textarea
         value={pasteText}
-        onChange={e=>setPasteText(e.target.value)}
-        placeholder={'홍길동\n김철수\n박영희'}
+        onChange={e=>{setPasteText(e.target.value);setNoSid([]);setNotFound([]);}}
+        placeholder={'홍길동\t20210001\n김철수\t20210002'}
         rows={6}
         style={{width:'100%',padding:'10px 12px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,lineHeight:1.8,resize:'vertical',outline:'none',boxSizing:'border-box',marginBottom:10}}
       />
-      {unmatched.length>0&&(
+      {noSid.length>0&&(
         <div style={{background:C.orangeBg,borderRadius:10,padding:'10px 12px',marginBottom:10}}>
-          <div style={{fontSize:12,color:C.orange,fontWeight:700,marginBottom:6}}>매칭 안 된 이름 ({unmatched.length}명)</div>
-          {unmatched.map((n,i)=><div key={i} style={{fontSize:12,color:C.orange}}>• {n}</div>)}
+          <div style={{fontSize:12,color:C.orange,fontWeight:700,marginBottom:4}}>학번이 없어요. 이름과 학번을 함께 입력해주세요</div>
+          {noSid.map((n,i)=><div key={i} style={{fontSize:12,color:C.orange}}>• {n}</div>)}
+        </div>
+      )}
+      {notFound.length>0&&(
+        <div style={{background:C.orangeBg,borderRadius:10,padding:'10px 12px',marginBottom:10}}>
+          <div style={{fontSize:12,color:C.orange,fontWeight:700,marginBottom:4}}>명단에 없는 사람</div>
+          {notFound.map((n,i)=><div key={i} style={{fontSize:12,color:C.orange}}>• {n}</div>)}
         </div>
       )}
       <div style={{display:'flex',gap:8}}>
