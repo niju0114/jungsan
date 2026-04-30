@@ -4090,8 +4090,7 @@ function FormShareTab({form, showToast}){
   const autoMsg=[
     `[${form.name}] 신청 안내`,
     '',
-    `📅 ${form.date}`,
-    form.time?`🕐 ${form.time}`:null,
+    (form.date||form.time)?`📅 ${(form.date||'').replace(/^\d{4}-(\d{2})-(\d{2})$/,(_,m,d)=>`${+m}월 ${+d}일`)}${form.time?` ${form.time}`:''}`:null,
     form.place?`📍 ${form.place}`:null,
     form.amount>0?(form.amountPaid?`💰 참가비\n학생회비 미납자: ${fmtKRW(form.amount)}\n학생회비 납부자: ${fmtKRW(form.amountPaid)}`:`💰 참가비 ${fmtKRW(form.amount)}`):`💰 참가비 없음`,
     form.maxPeople?`👥 선착순 ${form.maxPeople}명`:null,
