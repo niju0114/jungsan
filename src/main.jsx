@@ -1040,13 +1040,13 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
               <Field label="전화번호 *" value={phone} onChange={v=>setPhone(v.replace(/[^0-9]/g,''))} placeholder="01012345678" inputMode="numeric"/>
             </Card>
             <Card>
-              <div style={{fontWeight:700,color:C.textMid,fontSize:13,marginBottom:4}}>입금 계좌 <span style={{fontWeight:400,color:C.textDim}}>(선택)</span></div>
+              <div style={{fontWeight:700,color:C.textMid,fontSize:13,marginBottom:4}}>입금 계좌</div>
               <div style={{fontSize:11,color:C.textDim,marginBottom:14}}>행사 생성 시 자동으로 채워져요.</div>
               <div style={{display:'flex',gap:10,marginBottom:0}}>
                 <div style={{flex:1}}><Field label="은행명" value={acctBank} onChange={setAcctBank} placeholder="카카오뱅크"/></div>
                 <div style={{flex:1}}><Field label="예금주" value={acctHolder} onChange={setAcctHolder} placeholder="홍길동"/></div>
               </div>
-              <Field label="계좌번호" value={acctNumber} onChange={v=>setAcctNumber(v.replace(/[^0-9-]/g,''))} placeholder="1234-56-789012" inputMode="numeric"/>
+              <Field label="계좌번호" value={acctNumber} onChange={v=>setAcctNumber(v.replace(/[^0-9]/g,''))} placeholder="숫자만 입력" inputMode="numeric"/>
             </Card>
             <Card>
               <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:14}}>약관 동의</div>
