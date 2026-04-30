@@ -2139,7 +2139,7 @@ function FeeConfigSection({event,updateEvent}){
   return(
     <div style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:12,border:`1.5px solid ${C.accent}30`,boxShadow:C.shadow}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:fc?12:6}}>
-        <div style={{fontWeight:800,fontSize:14,color:C.text}}>정산 방식</div>
+        <div style={{fontWeight:800,fontSize:14,color:C.text}}>정산 방식{saved&&<span style={{fontSize:11,color:C.textDim,fontWeight:400,marginLeft:6}}>방금 저장됨</span>}</div>
         {fc?(
           <button onClick={deactivate} style={{fontSize:11,color:C.textMid,background:'none',border:'none',cursor:'pointer',padding:'2px 4px'}}>해제</button>
         ):(
@@ -2168,14 +2168,12 @@ function FeeConfigSection({event,updateEvent}){
                   <span style={{fontSize:15,fontWeight:900,color:C.red}}>{fmtKRW(pvUnpaid)}</span>
                 </div>
               </div>
-              <Btn onClick={()=>saveFeeConfig('auto')} small variant={saved?'green':'primary'}>{saved?<><Icon n="check" size={12} color="#fff" style={{marginRight:4}}/>저장됐어요</>:'적용'}</Btn>
             </div>
           )}
           {fc.mode==='manual'&&(
             <div className="fade-up">
               <Field label="납부자 공지 금액 (원)" value={paidInput} onChange={v=>setPaidInput(v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="8000"/>
               <Field label="미납자 공지 금액 (원)" value={unpaidInput} onChange={v=>setUnpaidInput(v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="13000"/>
-              <Btn onClick={()=>saveFeeConfig('manual')} small variant={saved?'green':'primary'}>{saved?<><Icon n="check" size={12} color="#fff" style={{marginRight:4}}/>저장됐어요</>:'적용'}</Btn>
             </div>
           )}
         </>
@@ -2198,6 +2196,8 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   const [editExtra,setEditExtra]=useState(()=>[...(event.rounds[0]?.extraMembers||[])]);
   const [extraInput,setExtraInput]=useState('');
   const [attSearch,setAttSearch]=useState('');
+  const [roundSaved,setRoundSaved]=useState(false);
+  const roundSavedTimerRef=useRef(null);
 
   useEffect(()=>{
     if(!event.rounds.some(r=>r.label==='1차')&&presentMembers.length>0){
@@ -2239,6 +2239,9 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
     const roundPatch=useFc?{extraMembers:[...extra]}:{amount:amtNum,extraMembers:[...extra]};
     const newRounds=ev.rounds.map(r=>r.id===rid?{...r,...roundPatch}:r);
     updateEventRef.current({...ev,rounds:newRounds});
+    if(roundSavedTimerRef.current) clearTimeout(roundSavedTimerRef.current);
+    setRoundSaved(true);
+    roundSavedTimerRef.current=setTimeout(()=>setRoundSaved(false),1500);
   };
 
   // 700ms 디바운스 자동저장 (편집 중일 때만)
@@ -2321,7 +2324,6 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
             출석 {attCount}/{event.members.length}명
             {attSavedAt&&!attDirty&&<span style={{fontSize:11,color:C.textDim,fontWeight:400,marginLeft:6}}>방금 저장됨</span>}
           </span>
-          <button onClick={doSaveAtt} style={{background:attDirty?C.accent:'transparent',border:`1px solid ${attDirty?C.accent:C.border}`,borderRadius:8,color:attDirty?'#fff':C.textDim,fontSize:12,padding:'3px 10px',cursor:attDirty?'pointer':'default',fontWeight:600,opacity:attDirty?1:0.5}}>출석 저장</button>
         </div>
         {/* 검색 + 일괄 버튼 */}
         <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:10}}>
@@ -2379,7 +2381,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
         return(
           <div key={r.id} style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${isEditing?C.accent+'50':C.border}`}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:isEditing?12:0,cursor:isEditing?'default':'pointer'}} onClick={()=>{if(!isEditing)openRound(r);}}>
-              <div style={{fontWeight:800,fontSize:15,color:C.text}}>{r.label}</div>
+              <div style={{fontWeight:800,fontSize:15,color:C.text}}>{r.label}{isEditing&&roundSaved&&<span style={{fontSize:11,color:C.textDim,fontWeight:400,marginLeft:6}}>방금 저장됨</span>}</div>
               {!isEditing&&(
                 <div style={{fontSize:13,color:C.textMid}}>
                   {r.amount>0?fmtKRW(r.amount):<span style={{color:C.textDim}}>금액 미입력</span>}
@@ -2432,7 +2434,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                     <button onClick={()=>deleteRound(r.id)} style={{fontSize:12,color:C.red,background:'none',border:'none',cursor:'pointer'}}>이 차수 삭제</button>
                   </div>
                 )}
-                <Btn onClick={()=>doSaveRound(r.id)}>저장</Btn>
+                <Btn onClick={()=>doSaveRound(r.id)}>저장하고 닫기</Btn>
               </>
             )}
           </div>
