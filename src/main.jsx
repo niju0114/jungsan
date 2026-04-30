@@ -3679,7 +3679,7 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
     const newSubs=[...subs];
     const s=newSubs[idx];
     newSubs[idx]=isPaid
-      ?{...s,paymentStatus:'pending',matchedBy:null,matchedAt:null}
+      ?{...s,paid:true,paymentStatus:'matched',matchedBy:'manual',matchedAt:new Date().toISOString()}
       :{...s,paid:false,paymentStatus:'unpaid_confirmed',matchedBy:null,matchedAt:null};
     await updateForm({...form,submissions:newSubs});
   };
@@ -3919,6 +3919,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
 
 function VerifyTab({form, subs, groups, matchResults, uploading, bankGuideOpen, setBankGuideOpen, uploadMode, setUploadMode, fileRef, onUpload, onApply, onReset, onCopyNudge, onManualConfirm}){
   const [unpaidOnly,setUnpaidOnly]=useState(false);
+  const toggleBankGuide=(id)=>setBankGuideOpen(prev=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;});
 
   if(matchResults){
     const pendingMismatch=matchResults.amountMismatch.filter(m=>{
@@ -3960,7 +3961,7 @@ function VerifyTab({form, subs, groups, matchResults, uploading, bankGuideOpen, 
           </div>
         )}
         {!unpaidOnly&&pendingMismatch.length>0&&(
-          <div style={{marginBottom:16}}>
+          <div style={{marginBottom:16,borderTop:'1.5px solid #D1D5DB',paddingTop:14,marginTop:4}}>
             <div style={{fontSize:13,fontWeight:800,color:C.orange,marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Icon n="triangle-alert" size={14} color={C.orange}/>수동 확인 필요 ({pendingMismatch.length}명)</div>
             {pendingMismatch.map((m,i)=>(
               <div key={i} style={{padding:'12px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
@@ -3986,7 +3987,7 @@ function VerifyTab({form, subs, groups, matchResults, uploading, bankGuideOpen, 
         {matchResults.unpaid.length>0&&(()=>{
           const useGrpView=(groups||[]).length>1;
           if(!useGrpView) return(
-            <div style={{marginBottom:16}}>
+            <div style={{marginBottom:16,borderTop:'1.5px solid #D1D5DB',paddingTop:14,marginTop:4}}>
               <div style={{fontSize:13,fontWeight:800,color:C.red,marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Icon n="circle-x" size={14} color={C.red}/>미입금 ({matchResults.unpaid.length}명)</div>
               {matchResults.unpaid.map((s,i)=>(
                 <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fff',borderRadius:12,marginBottom:4}}>
@@ -4006,7 +4007,7 @@ function VerifyTab({form, subs, groups, matchResults, uploading, bankGuideOpen, 
           const unassigned=matchResults.unpaid.filter(s=>!assigned.has(s));
           if(unassigned.length>0) sections.push({name:'미분류',items:unassigned});
           return(
-            <div style={{marginBottom:16}}>
+            <div style={{marginBottom:16,borderTop:'1.5px solid #D1D5DB',paddingTop:14,marginTop:4}}>
               <div style={{fontSize:13,fontWeight:800,color:C.red,marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Icon n="circle-x" size={14} color={C.red}/>미입금 ({matchResults.unpaid.length}명)</div>
               {sections.map(section=>(
                 <div key={section.name} style={{marginBottom:8}}>
@@ -4024,7 +4025,7 @@ function VerifyTab({form, subs, groups, matchResults, uploading, bankGuideOpen, 
           );
         })()}
         {!unpaidOnly&&matchResults.refund.length>0&&(
-          <div style={{marginBottom:16}}>
+          <div style={{marginBottom:16,borderTop:'1.5px solid #D1D5DB',paddingTop:14,marginTop:4}}>
             <div style={{fontSize:13,fontWeight:800,color:C.purple,marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Icon n="refresh-cw" size={14} color={C.purple}/>환불 대상 ({matchResults.refund.length}명)</div>
             <div style={{fontSize:12,color:C.textMid,marginBottom:8,lineHeight:1.6}}>신청 내역 없이 입금한 건이에요</div>
             {matchResults.refund.map((d,i)=>(
