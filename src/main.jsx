@@ -1682,6 +1682,7 @@ function DeleteAccountBtn(){
 
 // ── CreateScreen ───────────────────────────────────────────
 function CreateScreen({nav,profile,events,createEvent,showToast}){
+  const [showOnboarding,setShowOnboarding]=useState(()=>!localStorage.getItem('smallEventOnboardingDone'));
   const [name,setName]=useState('');
   const [date,setDate]=useState(new Date().toISOString().slice(0,10));
 
@@ -1753,6 +1754,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
 
   return(
     <div className="fade-up screen" style={{background:C.pageBg}}>
+      {showOnboarding&&<SmallEventOnboardingModal onClose={()=>setShowOnboarding(false)}/>}
       <Header title="새 정산 만들기" onBack={()=>nav.setView('home')}/>
       <div style={{padding:'6px 16px 0',fontSize:12,color:C.textDim,fontWeight:500}}>친구·동아리 모임에 적합. 명단 직접 입력</div>
       <div style={{padding:'16px 16px 24px'}}>
@@ -3319,8 +3321,161 @@ function OnboardingModal({onClose}){
   );
 }
 
+// ── SmallEventOnboardingModal (소규모 첫 진입 1회) ──────────
+function SmallEventOnboardingModal({onClose}){
+  const [slide,setSlide]=useState(0);
+  const [dontShow,setDontShow]=useState(false);
+  const SLIDES=3;
+  const finish=()=>{if(dontShow)localStorage.setItem('smallEventOnboardingDone','true');onClose();};
+  const payStates=[
+    {mark:'X',color:C.red,bg:C.redBg,label:'미입금',desc:'송금 버튼 안 누름'},
+    {mark:'△',color:C.yellow,bg:C.yellowBg,label:'입금 확인 필요',desc:'송금 버튼 눌렀지만 미확인'},
+    {mark:'O',color:C.green,bg:C.greenBg,label:'입금 완료',desc:'거래내역 확인됨'},
+  ];
+  return(
+    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+        <div style={{display:'flex',gap:6}}>
+          {Array.from({length:SLIDES}).map((_,i)=>(
+            <div key={i} style={{height:4,width:i===slide?28:8,borderRadius:4,background:i<=slide?C.accent:C.border,transition:'all 0.25s'}}/>
+          ))}
+        </div>
+        <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',color:C.textDim,fontSize:13,fontWeight:600}}>건너뛰기</button>
+      </div>
+      {slide===0&&(
+        <div className="fade-up">
+          <div style={{textAlign:'center',marginBottom:20}}>
+            <div style={{fontSize:44,marginBottom:10}}>🏃</div>
+            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>현장에서 시작해보세요</div>
+            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>출석 체크 후 공지 금액을 설정해주세요.<br/>학생회비 차등 또는 1/N 분배 가능.</div>
+          </div>
+          <Btn onClick={()=>setSlide(1)}>다음 →</Btn>
+        </div>
+      )}
+      {slide===1&&(
+        <div className="fade-up">
+          <div style={{textAlign:'center',marginBottom:16}}>
+            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5}}>입금 상태 3가지로 관리</div>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:20}}>
+            {payStates.map(({mark,color,bg,label,desc})=>(
+              <div key={label} style={{display:'flex',alignItems:'center',gap:12,background:bg,borderRadius:12,padding:'12px 14px'}}>
+                <div style={{width:36,height:36,borderRadius:18,background:color+'30',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <span style={{fontSize:17,fontWeight:900,color}}>{mark}</span>
+                </div>
+                <div>
+                  <div style={{fontWeight:800,color:C.text,fontSize:14}}>{label}</div>
+                  <div style={{fontSize:12,color:C.textMid,marginTop:1}}>{desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{display:'flex',gap:8}}>
+            <Btn variant="ghost" onClick={()=>setSlide(0)} style={{flex:1}}>이전</Btn>
+            <Btn onClick={()=>setSlide(2)} style={{flex:2}}>다음 →</Btn>
+          </div>
+        </div>
+      )}
+      {slide===2&&(
+        <div className="fade-up">
+          <div style={{textAlign:'center',marginBottom:20}}>
+            <div style={{fontSize:44,marginBottom:10}}>📊</div>
+            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>거래내역 한 번에 자동 대조</div>
+            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>통장 보면서 한 명씩 체크할 필요 없어요.<br/>거래내역서 엑셀 한 번 올리면 자동 매칭.</div>
+          </div>
+          <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
+            <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:18,height:18,accentColor:C.accent,cursor:'pointer'}}/>
+            <span style={{fontSize:13,color:C.textMid,fontWeight:600}}>다시 보지 않기</span>
+          </label>
+          <div style={{display:'flex',gap:8}}>
+            <Btn variant="ghost" onClick={()=>setSlide(1)} style={{flex:1}}>이전</Btn>
+            <Btn onClick={finish} style={{flex:2}}>시작하기 →</Btn>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+// ── FormOnboardingModal (신청폼 첫 진입 1회) ──────────────────
+function FormOnboardingModal({onClose}){
+  const [slide,setSlide]=useState(0);
+  const [dontShow,setDontShow]=useState(false);
+  const SLIDES=3;
+  const finish=()=>{if(dontShow)localStorage.setItem('formOnboardingDone','true');onClose();};
+  const payStates=[
+    {mark:'X',color:C.red,bg:C.redBg,label:'미입금',desc:'송금 버튼 안 누름'},
+    {mark:'△',color:C.yellow,bg:C.yellowBg,label:'입금 확인 필요',desc:'송금 버튼 눌렀지만 미확인'},
+    {mark:'O',color:C.green,bg:C.greenBg,label:'입금 완료',desc:'거래내역 확인됨'},
+  ];
+  return(
+    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+        <div style={{display:'flex',gap:6}}>
+          {Array.from({length:SLIDES}).map((_,i)=>(
+            <div key={i} style={{height:4,width:i===slide?28:8,borderRadius:4,background:i<=slide?C.accent:C.border,transition:'all 0.25s'}}/>
+          ))}
+        </div>
+        <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',color:C.textDim,fontSize:13,fontWeight:600}}>건너뛰기</button>
+      </div>
+      {slide===0&&(
+        <div className="fade-up">
+          <div style={{textAlign:'center',marginBottom:20}}>
+            <div style={{fontSize:44,marginBottom:10}}>📋</div>
+            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>신청 + 입금 한 화면에서</div>
+            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>신청폼 만들어 명단 받고,<br/>입금 확인까지 같이 관리하세요.</div>
+          </div>
+          <Btn onClick={()=>setSlide(1)}>다음 →</Btn>
+        </div>
+      )}
+      {slide===1&&(
+        <div className="fade-up">
+          <div style={{textAlign:'center',marginBottom:16}}>
+            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5}}>입금 상태 3가지로 관리</div>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:20}}>
+            {payStates.map(({mark,color,bg,label,desc})=>(
+              <div key={label} style={{display:'flex',alignItems:'center',gap:12,background:bg,borderRadius:12,padding:'12px 14px'}}>
+                <div style={{width:36,height:36,borderRadius:18,background:color+'30',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <span style={{fontSize:17,fontWeight:900,color}}>{mark}</span>
+                </div>
+                <div>
+                  <div style={{fontWeight:800,color:C.text,fontSize:14}}>{label}</div>
+                  <div style={{fontSize:12,color:C.textMid,marginTop:1}}>{desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{display:'flex',gap:8}}>
+            <Btn variant="ghost" onClick={()=>setSlide(0)} style={{flex:1}}>이전</Btn>
+            <Btn onClick={()=>setSlide(2)} style={{flex:2}}>다음 →</Btn>
+          </div>
+        </div>
+      )}
+      {slide===2&&(
+        <div className="fade-up">
+          <div style={{textAlign:'center',marginBottom:20}}>
+            <div style={{fontSize:44,marginBottom:10}}>📤</div>
+            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>엑셀 추출 + 이어서 정산</div>
+            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>신청자 정보를 엑셀로 추출 가능.<br/>행사 후 뒷풀이 등 이어서 정산도 가능.</div>
+          </div>
+          <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
+            <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:18,height:18,accentColor:C.accent,cursor:'pointer'}}/>
+            <span style={{fontSize:13,color:C.textMid,fontWeight:600}}>다시 보지 않기</span>
+          </label>
+          <div style={{display:'flex',gap:8}}>
+            <Btn variant="ghost" onClick={()=>setSlide(1)} style={{flex:1}}>이전</Btn>
+            <Btn onClick={finish} style={{flex:2}}>시작하기 →</Btn>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 // ── FormCreateScreen (대규모 신청폼 생성) ──────────────────
 function FormCreateScreen({nav,profile,createForm}){
+  const [showOnboarding,setShowOnboarding]=useState(()=>!localStorage.getItem('formOnboardingDone'));
   const [name,setName]=useState('');
   const [date,setDate]=useState(new Date().toISOString().slice(0,10));
   const [amount,setAmount]=useState('');
@@ -3404,6 +3559,7 @@ function FormCreateScreen({nav,profile,createForm}){
 
   return(
     <div className="fade-up screen" style={{background:C.pageBg,display:'flex',flexDirection:'column'}}>
+      {showOnboarding&&<FormOnboardingModal onClose={()=>setShowOnboarding(false)}/>}
       <Header title="신청폼 만들기" onBack={()=>nav.setView('home')}/>
       <FlowStepper steps={['폼 생성+공유','대조']} current={0} done={[]}/>
       <div style={{flex:1,padding:'8px 16px 16px',overflow:'auto'}}>
