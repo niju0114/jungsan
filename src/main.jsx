@@ -897,10 +897,10 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
   const [org,setOrg]=useState('');
   const [dept,setDept]=useState('');
   const [role,setRole]=useState('');
-  const [size,setSize]=useState('');
-  const [freq,setFreq]=useState('');
-  const [method,setMethod]=useState([]);
   const [referral,setReferral]=useState('');
+  const [acctBank,setAcctBank]=useState('');
+  const [acctNumber,setAcctNumber]=useState('');
+  const [acctHolder,setAcctHolder]=useState('');
   const [phone,setPhone]=useState('');
   const [marketing,setMarketing]=useState(false);
   const [privacyAgree,setPrivacyAgree]=useState(false);
@@ -979,9 +979,8 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
           school:org.trim(),
           department:dept.trim(),
           username:userId.trim().toLowerCase(),
-          role,event_size:size,event_frequency:freq,
-          current_method:Array.isArray(method)?method.join(','):method,
-          referral,phone:phone.trim(),
+          role,referral,phone:phone.trim(),
+          account:{bank:acctBank.trim(),number:acctNumber.trim(),holder:acctHolder.trim()},
           marketing_agree:marketing,
           updated_at:new Date().toISOString(),
         });
@@ -1041,18 +1040,13 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
               <Field label="전화번호 *" value={phone} onChange={v=>setPhone(v.replace(/[^0-9]/g,''))} placeholder="01012345678" inputMode="numeric"/>
             </Card>
             <Card>
-              <div style={{fontWeight:700,color:C.textMid,fontSize:13,marginBottom:14}}>사용 패턴 (선택)</div>
-              <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:8}}>주로 몇 명 규모?</div>
-              <SelectGrid options={['10명 미만','10~30명','30~50명','50명 이상']} value={size} onChange={setSize}/>
-              <div style={{fontSize:12,color:C.textMid,fontWeight:700,margin:'14px 0 8px'}}>연간 행사 횟수</div>
-              <SelectGrid options={['1~2회','3~5회','6~10회','10회 이상']} value={freq} onChange={setFreq}/>
-              <div style={{fontSize:12,color:C.textMid,fontWeight:700,margin:'14px 0 8px'}}>기존 정산 방법 <span style={{fontWeight:400,color:C.textDim}}>(복수 선택)</span></div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:7,marginBottom:4}}>
-                {['카톡으로 직접','손으로','엑셀/구글시트','다른 앱','따로 안 함'].map(o=>{
-                  const sel=method.includes(o);
-                  return <button key={o} onClick={()=>setMethod(m=>sel?m.filter(x=>x!==o):[...m,o])} className="press" style={{padding:'8px 13px',borderRadius:20,border:`2px solid ${sel?C.accent:C.border}`,background:sel?C.accentBg:C.cardBg,color:sel?C.accent:C.textMid,fontSize:12,fontWeight:600,cursor:'pointer'}}>{o}</button>;
-                })}
+              <div style={{fontWeight:700,color:C.textMid,fontSize:13,marginBottom:4}}>입금 계좌 <span style={{fontWeight:400,color:C.textDim}}>(선택)</span></div>
+              <div style={{fontSize:11,color:C.textDim,marginBottom:14}}>행사 생성 시 자동으로 채워져요.</div>
+              <div style={{display:'flex',gap:10,marginBottom:0}}>
+                <div style={{flex:1}}><Field label="은행명" value={acctBank} onChange={setAcctBank} placeholder="카카오뱅크"/></div>
+                <div style={{flex:1}}><Field label="예금주" value={acctHolder} onChange={setAcctHolder} placeholder="홍길동"/></div>
               </div>
+              <Field label="계좌번호" value={acctNumber} onChange={v=>setAcctNumber(v.replace(/[^0-9-]/g,''))} placeholder="1234-56-789012" inputMode="numeric"/>
             </Card>
             <Card>
               <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:14}}>약관 동의</div>
