@@ -2206,9 +2206,9 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups}){
               </div>
               <div style={{display:'flex',alignItems:'center',gap:8}}>
                 {!useFeeConfig&&r.amount>0&&<div style={{color:C.accent,fontWeight:900}}>{fmtKRW(r.amount)}</div>}
-                <button onClick={()=>{ setEditingId(isEditing?null:r.id); setEditAmount(r.amount>0?String(r.amount):''); setExtraInput(''); }} style={{background:isEditing?C.accentBg:C.inputBg,border:`1.5px solid ${isEditing?C.accent:C.border}`,borderRadius:8,color:isEditing?C.accent:C.textMid,cursor:'pointer',padding:'5px 10px',fontSize:12,fontWeight:600}}>
+                {!(isFirst&&isEditing)&&<button onClick={()=>{ setEditingId(isEditing?null:r.id); setEditAmount(r.amount>0?String(r.amount):''); setExtraInput(''); }} style={{background:isEditing?C.accentBg:C.inputBg,border:`1.5px solid ${isEditing?C.accent:C.border}`,borderRadius:8,color:isEditing?C.accent:C.textMid,cursor:'pointer',padding:'5px 10px',fontSize:12,fontWeight:600}}>
                   {isEditing?'완료':'수정'}
-                </button>
+                </button>}
                 {!isFirst&&<button onClick={()=>updateEvent({...event,rounds:event.rounds.filter(x=>x.id!==r.id)})} style={{background:C.redBg,border:'none',borderRadius:8,color:C.red,cursor:'pointer',width:26,height:26,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>×</button>}
               </div>
             </div>
@@ -2459,7 +2459,6 @@ function StatusSection({event,updateEvent,groups,showToast}){
   const surplus=calcSurplus(event);
   const attendingMembers=event.members.filter(k=>event.attendance[k]!==false);
   const presentMembers=attendingMembers.filter(k=>(amounts[k]||0)>0);
-  const zeroMembers=attendingMembers.filter(k=>(amounts[k]||0)===0);
 
   // 임시 인원 합산
   const extraAmounts={};
@@ -2851,7 +2850,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
           {!dupWarning&&(
             <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'10px 14px',background:C.accentBg,borderRadius:12,border:`1px solid ${C.accent}20`}}>
               <span style={{fontSize:16}}>🍻</span>
-              <span style={{fontSize:13,color:C.accent,fontWeight:700}}>입금 후 완료 버튼 누르면 끝!</span>
+              <span style={{fontSize:13,color:C.accent,fontWeight:700}}>본인 이름 검색 후 입금해주세요</span>
             </div>
           )}
           <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:12}}>이름을 검색해주세요</div>
@@ -3333,8 +3332,8 @@ function FormCreateScreen({nav,profile,createForm}){
   const [number,setNumber]=useState(profile.account?.number||'');
   const [holder,setHolder]=useState(profile.account?.holder||'');
   const [fields,setFields]=useState([
-    {id:'name',type:'text',label:'이름',required:false},
-    {id:'grade',type:'select',label:'학년',required:false,options:['1학년','2학년','3학년','4학년']},
+    {id:'name',type:'text',label:'이름',required:true},
+    {id:'studentId',type:'text',label:'학번',required:true},
   ]);
   const [time,setTime]=useState('');
   const [place,setPlace]=useState('');
@@ -3350,8 +3349,9 @@ function FormCreateScreen({nav,profile,createForm}){
   // 빠른 추가용 프리셋
   const presets=[
     {id:'phone',label:'연락처',type:'text'},
-    {id:'studentId',label:'학번',type:'text'},
-    {id:'f_extra',label:'기타 (자유 기재)',type:'textarea'},
+    {id:'ssn',label:'주민번호',type:'text',hint:'여행자보험 가입 시 필요'},
+    {id:'generation',label:'기수',type:'text'},
+    {id:'f_extra',label:'자유 입력',type:'textarea'},
   ];
   const usedLabels=fields.map(f=>f.label);
   const availPresets=presets.filter(p=>!usedLabels.includes(p.label));
@@ -3405,7 +3405,7 @@ function FormCreateScreen({nav,profile,createForm}){
   return(
     <div className="fade-up screen" style={{background:C.pageBg,display:'flex',flexDirection:'column'}}>
       <Header title="신청폼 만들기" onBack={()=>nav.setView('home')}/>
-      <FlowStepper steps={['폼 설정','공유','입금 확인','정산 시작']} current={0} done={[]}/>
+      <FlowStepper steps={['폼 생성+공유','대조']} current={0} done={[]}/>
       <div style={{flex:1,padding:'8px 16px 16px',overflow:'auto'}}>
         <div style={{fontSize:12,color:C.textDim,fontWeight:500,marginBottom:8,padding:'4px 2px'}}>신청 명단 + 입금 상태를 한 화면에서 관리합니다</div>
         {/* 기본 정보 */}
@@ -3537,7 +3537,11 @@ function FormCreateScreen({nav,profile,createForm}){
                     background:'#fff',color:C.accent,fontSize:13,fontWeight:600,cursor:'pointer',
                     display:'flex',alignItems:'center',gap:4,
                   }}>
-                    <span style={{fontSize:16,lineHeight:1}}>+</span> {p.label}
+                    <span style={{fontSize:16,lineHeight:1}}>+</span>
+                    <span style={{display:'flex',flexDirection:'column',alignItems:'flex-start'}}>
+                      <span>{p.label}</span>
+                      {p.hint&&<span style={{fontSize:10,color:C.textDim,fontWeight:500}}>{p.hint}</span>}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -4052,6 +4056,13 @@ function VerifyTab({form, subs, groups, matchResults, uploading, bankGuideOpen, 
       <div style={{marginBottom:14,padding:'9px 14px',background:C.accentBg,borderRadius:10,fontSize:12,color:C.textMid,display:'flex',alignItems:'center',gap:6}}>
         <Icon n="lock" size={13} color={C.accent}/><span>거래내역은 브라우저에서만 처리되며 서버에 저장되지 않아요.</span>
       </div>
+      <div style={{marginBottom:16,borderRadius:14,overflow:'hidden',border:`1.5px solid ${C.border}`,background:C.inputBg,display:'flex',alignItems:'center',justifyContent:'center',minHeight:120}}>
+        <img src="/assets/bank-statement-sample.png" alt="거래내역 예시" style={{maxWidth:'100%',display:'block'}} onError={e=>{e.currentTarget.style.display='none';e.currentTarget.nextSibling.style.display='flex';}}/>
+        <div style={{display:'none',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'20px',gap:6}}>
+          <Icon n="image" size={28} color={C.textDim}/>
+          <span style={{fontSize:12,color:C.textDim}}>거래내역 예시 이미지</span>
+        </div>
+      </div>
       <div style={{textAlign:'center',marginBottom:20}}>
         <Btn onClick={()=>fileRef.current?.click()} loading={uploading}>파일 선택하기</Btn>
         <div style={{marginTop:10,fontSize:12,color:C.textDim}}>지원: .xlsx, .xls, .csv</div>
@@ -4298,13 +4309,8 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
   const unpaidConfirmedCount=subs.filter(s=>s.paymentStatus==='unpaid_confirmed').length;
 
   const downloadExcel=()=>{
-    const payLabel=(s)=>{
-      if(s.paid||s.paymentStatus==='matched') return '입금 완료';
-      if(s.paymentStatus==='requested') return '입금 확인 필요';
-      return '미입금';
-    };
-    const headers=['이름',...form.fields.map(f=>f.label),'입금 상태'];
-    const rows=subs.map(s=>[s.name,...form.fields.map(f=>s.data?.[f.id]??''),payLabel(s)]);
+    const headers=['이름',...form.fields.map(f=>f.label)];
+    const rows=subs.map(s=>[s.name,...form.fields.map(f=>s.data?.[f.id]??'')]);
     const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,ws,'신청 명단');
@@ -4559,9 +4565,9 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
         )}
         <div style={{fontSize:14,color:C.textMid,marginBottom:28,lineHeight:1.7}}>
           {isConfirmed?'총무가 입금을 확인했어요':isRequested?(
-            <>입금 완료 요청을 보냈어요<br/><span style={{color:C.green,fontWeight:700}}>확인 대기</span></>
+            <>입금 확인 필요 상태예요<br/><span style={{color:C.green,fontWeight:700}}>총무 확인 대기 중</span></>
           ):(
-            <>아래 계좌로 입금해주세요<br/><span style={{color:C.orange,fontWeight:700}}>입금 요청 중</span></>
+            <>아래 계좌로 입금해주세요<br/><span style={{color:C.orange,fontWeight:700}}>미입금</span></>
           )}
         </div>
         
@@ -4658,19 +4664,20 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
       </div>
 
       <div style={{padding:'20px 16px'}}>
-        <Card>
+        <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:16}}>
           {form.fields.map(f=>(
-            <div key={f.id} style={{marginBottom:14}}>
-              <label style={{display:'block',fontSize:12,color:C.textMid,marginBottom:6,fontWeight:600}}>
-                {f.label} {f.required&&<span style={{color:C.red}}>*</span>}
+            <div key={f.id} style={{background:'#fff',borderRadius:16,padding:'20px',boxShadow:C.shadow}}>
+              <label style={{display:'block',fontSize:14,fontWeight:700,color:C.text,marginBottom:f.hint?2:12}}>
+                {f.label}{f.required&&<span style={{color:C.red}}> *</span>}
               </label>
+              {f.hint&&<div style={{fontSize:12,color:C.textMid,marginBottom:10}}>{f.hint}</div>}
               {f.type==='text'&&(
                 <input
                   value={values[f.id]||''}
                   onChange={e=>setValue(f.id,e.target.value)}
-                  maxLength={f.id==='name'?50:f.id==='phone'?20:f.id==='grade'||f.id==='studentId'?20:200}
-                  style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,background:C.inputBg}}
-                  placeholder={f.label}
+                  maxLength={f.id==='name'?50:f.id==='phone'?20:f.id==='studentId'||f.id==='generation'?20:200}
+                  style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,background:C.inputBg,outline:'none'}}
+                  placeholder={f.id==='name'?'홍길동':f.id==='phone'?'01012345678':f.label}
                 />
               )}
               {f.type==='textarea'&&(
@@ -4679,7 +4686,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
                   onChange={e=>setValue(f.id,e.target.value)}
                   rows={3}
                   maxLength={500}
-                  style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,background:C.inputBg,resize:'vertical'}}
+                  style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,background:C.inputBg,resize:'vertical',outline:'none'}}
                   placeholder={f.label}
                 />
               )}
@@ -4689,7 +4696,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
                   value={values[f.id]||''}
                   onChange={e=>setValue(f.id,e.target.value)}
                   maxLength={10}
-                  style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,background:C.inputBg}}
+                  style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,background:C.inputBg,outline:'none'}}
                   placeholder="0"
                 />
               )}
@@ -4725,7 +4732,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
               )}
             </div>
           ))}
-        </Card>
+        </div>
 
         <Btn onClick={submit} loading={loading} variant="orange">신청하기 →</Btn>
       </div>
