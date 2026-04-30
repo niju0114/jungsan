@@ -630,7 +630,8 @@ const ConfirmBulkModal = ({isOpen, onClose, count, onConfirm}) => (
   <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} maxWidth={360}>
     <div style={{textAlign:'center',marginBottom:20}}>
       <div style={{width:56,height:56,borderRadius:28,background:C.green+'20',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 10px'}}><Icon n="circle-check" size={28} color={C.green}/></div>
-      <div style={{fontWeight:900,color:C.text,fontSize:17,marginBottom:6}}>입금 완료 요청 {count}명,{'\n'}모두 확인 처리할까요?</div>
+      <div style={{fontWeight:900,color:C.text,fontSize:17,marginBottom:4}}>입금 확인 필요 {count}명,{'\n'}모두 확인 처리할까요?</div>
+      <div style={{fontSize:12,color:C.textDim}}>거래내역 대조 후 일괄 확인에 사용하세요</div>
     </div>
     <div style={{display:'flex',gap:10}}>
       <Btn variant="ghost" onClick={onClose} style={{flex:1}}>취소</Btn>
@@ -1750,6 +1751,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
   return(
     <div className="fade-up screen" style={{background:C.pageBg}}>
       <Header title="새 정산 만들기" onBack={()=>nav.setView('home')}/>
+      <div style={{padding:'6px 16px 0',fontSize:12,color:C.textDim,fontWeight:500}}>친구·동아리 모임에 적합. 명단 직접 입력</div>
       <div style={{padding:'16px 16px 24px'}}>
         <Card>
           <Field label="정산 이름" value={name} onChange={setName} placeholder="5월 MT, 종강 회식…"/>
@@ -2447,6 +2449,8 @@ function EventVerifySection({event,amounts,matchResults,onApply,onReset}){
 // ── StatusSection ──────────────────────────────────────────
 function StatusSection({event,updateEvent,groups,showToast}){
   const [sortByTime,setSortByTime]=useState(true);
+  const [hintVisible,setHintVisible]=useState(()=>!localStorage.getItem('hint_status_seen'));
+  const dismissHint=()=>{localStorage.setItem('hint_status_seen','1');setHintVisible(false);};
   const mm=event.memberMap||{};
   const amounts=calcAmounts(event);
   const surplus=calcSurplus(event);
@@ -2565,7 +2569,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
                 {rejected&&<span style={{fontSize:10,fontWeight:800,color:C.red,background:C.redBg,borderRadius:6,padding:'1px 6px'}}>✕ 제외</span>}
               </div>
               {paid&&p?.time&&<div style={{fontSize:11,color:C.textDim}}>{fmtTime(p.time)}{p.by==='admin'?' · 관리자':p.by==='archive'?' · 종료처리':''}</div>}
-              {requested&&p?.requestedAt&&<div style={{fontSize:11,color:C.textDim}}>{fmtRelTime(p.requestedAt)} · 요청됨</div>}
+              {requested&&p?.requestedAt&&<div style={{fontSize:11,color:C.textDim}}>{fmtRelTime(p.requestedAt)} · 입금 확인 필요</div>}
             </div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
@@ -2638,23 +2642,37 @@ function StatusSection({event,updateEvent,groups,showToast}){
 
   return(
     <div>
+      {hintVisible&&(
+        <div style={{background:C.accentBg,borderRadius:12,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
+          <div style={{fontSize:12,color:C.accent,fontWeight:600,flex:1,lineHeight:1.6}}>💡 미입금·확인 필요한 사람만 골라서 콕 찌르기 — 통장 보면서 엑셀 대조 안 해도 됩니다</div>
+          <button onClick={dismissHint} style={{background:'none',border:'none',cursor:'pointer',color:C.textDim,padding:'0 0 0 8px',flexShrink:0,fontSize:18,lineHeight:1}}>×</button>
+        </div>
+      )}
       <input ref={excelFileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleExcel} style={{display:'none'}}/>
       {event.account?.bank&&!matchResults&&(
-        <button onClick={()=>excelFileRef.current?.click()} disabled={uploading} className="press" style={{width:'100%',padding:'14px',borderRadius:12,background:C.accent,border:'none',color:'#fff',fontWeight:800,fontSize:14,cursor:uploading?'default':'pointer',marginBottom:12}}>
-          {uploading?'분석 중...':<><Icon n="bar-chart" size={14} color="#fff" style={{marginRight:4}}/>거래내역 대조</>}
-        </button>
+        <>
+          <button onClick={()=>excelFileRef.current?.click()} disabled={uploading} className="press" style={{width:'100%',padding:'14px',borderRadius:12,background:C.accent,border:'none',color:'#fff',fontWeight:800,fontSize:14,cursor:uploading?'default':'pointer',marginBottom:4}}>
+            {uploading?'분석 중...':<><Icon n="bar-chart" size={14} color="#fff" style={{marginRight:4}}/>거래내역 대조</>}
+          </button>
+          <div style={{fontSize:11,color:C.textDim,textAlign:'center',marginBottom:12}}>거래내역 엑셀 한 번 넣으면 자동 대조 — 통장 보면서 한 명씩 체크 안 해도 됩니다</div>
+        </>
       )}
       {!matchResults&&(unpaidXKeys.length>0&&!!event.account?.bank||requestedKeys.length>0)&&(
-        <div style={{display:'flex',gap:8,marginBottom:16}}>
+        <div style={{marginBottom:16}}>
+          <div style={{display:'flex',gap:8,marginBottom:4}}>
+            {unpaidXKeys.length>0&&event.account?.bank&&(
+              <button onClick={()=>setDunningOpen(true)} className="press" style={{flex:1,padding:'9px',borderRadius:10,background:'transparent',border:`1.5px solid ${C.border}`,color:C.textMid,fontWeight:700,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
+                <Icon n="message-circle" size={12} color={C.textMid}/>미납자 {unpaidXKeys.length}명 콕 찌르기
+              </button>
+            )}
+            {requestedKeys.length>0&&(
+              <button onClick={()=>setConfirmBulk(true)} className="press" style={{flex:1,padding:'9px',borderRadius:10,background:C.yellowBg,border:`1.5px solid ${C.yellow}40`,color:C.yellow,fontWeight:700,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
+                <Icon n="check" size={12} color={C.yellow}/>{requestedKeys.length}명 확인 완료
+              </button>
+            )}
+          </div>
           {unpaidXKeys.length>0&&event.account?.bank&&(
-            <button onClick={()=>setDunningOpen(true)} className="press" style={{flex:1,padding:'9px',borderRadius:10,background:'transparent',border:`1.5px solid ${C.border}`,color:C.textMid,fontWeight:700,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
-              <Icon n="message-circle" size={12} color={C.textMid}/>미납자 {unpaidXKeys.length}명 콕 찌르기
-            </button>
-          )}
-          {requestedKeys.length>0&&(
-            <button onClick={()=>setConfirmBulk(true)} className="press" style={{flex:1,padding:'9px',borderRadius:10,background:C.yellowBg,border:`1.5px solid ${C.yellow}40`,color:C.yellow,fontWeight:700,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
-              <Icon n="check" size={12} color={C.yellow}/>{requestedKeys.length}명 확인 완료
-            </button>
+            <div style={{fontSize:10,color:C.textDim,textAlign:'center',lineHeight:1.5}}>미입금자 전원에게 한 번에 카톡 발송 — 한 명씩 보내지 않아도 됩니다</div>
           )}
         </div>
       )}
@@ -2715,11 +2733,6 @@ function StatusSection({event,updateEvent,groups,showToast}){
             </div>
           )}
         </>
-      )}
-      {zeroMembers.length>0&&(
-        <div style={{fontSize:11,color:C.textDim,textAlign:'center',marginTop:12,marginBottom:8}}>
-          이번 정산에 참여하지 않은 {zeroMembers.length}명 ({zeroMembers.map(k=>mm[k]||k).join(', ')})
-        </div>
       )}
       {unpaidList.length===0&&pc>0&&<div style={{textAlign:'center',color:C.green,fontWeight:900,fontSize:15,padding:'16px 0',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Icon n="sparkles" size={16} color={C.green}/>전원 완료!</div>}
       </>}
@@ -3218,6 +3231,9 @@ function HistoryScreen({nav,events,forms,deleteEvent,deleteForm}){
 
 // ── OnboardingModal (가입 후 1회) ─────────────────────────
 function OnboardingModal({onClose}){
+  const [slide,setSlide]=useState(0);
+  const SLIDES=2;
+
   const finish=async()=>{
     try{
       const {data:{user}}=await api.getUser();
@@ -3231,32 +3247,72 @@ function OnboardingModal({onClose}){
 
   return(
     <Modal isOpen={true} onClose={finish} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
-      <div style={{textAlign:'center',marginBottom:28}}>
-        <div style={{width:72,height:72,borderRadius:36,background:C.green+'20',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 12px'}}><Icon n="sparkles" size={36} color={C.green}/></div>
-        <div style={{fontWeight:900,color:C.text,fontSize:22,marginBottom:6,letterSpacing:-0.5}}>환영해요!</div>
-        <div style={{fontSize:14,color:C.textMid}}>정산해와 함께 시작해볼까요?</div>
+      {/* 진행 도트 */}
+      <div style={{display:'flex',gap:6,justifyContent:'center',marginBottom:22}}>
+        {Array.from({length:SLIDES}).map((_,i)=>(
+          <div key={i} style={{height:4,width:i===slide?28:8,borderRadius:4,background:i<=slide?C.accent:C.border,transition:'all 0.25s'}}/>
+        ))}
       </div>
-      <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:28}}>
-        <div style={{background:C.accentBg,borderRadius:14,padding:'16px 18px',display:'flex',gap:14,alignItems:'flex-start'}}>
-          <div style={{width:28,height:28,borderRadius:14,background:C.accent,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,flexShrink:0,marginTop:2}}>1</div>
-          <div>
-            <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:4}}>명단·계좌 입력</div>
-            <div style={{fontSize:13,color:C.textMid,lineHeight:1.6}}>누가 참여하는지, 어디로 받는지</div>
+
+      {slide===0&&(
+        <div className="fade-up">
+          <div style={{textAlign:'center',marginBottom:20}}>
+            <div style={{fontSize:44,marginBottom:10}}>🍻</div>
+            <div style={{fontWeight:900,color:C.text,fontSize:21,marginBottom:8,letterSpacing:-0.5,lineHeight:1.3}}>총무의 수기 정산,<br/>이제 끝내요</div>
+            <div style={{fontSize:13,color:C.textMid,lineHeight:1.7}}>통장 확인 → 엑셀 체크 → 카톡 독촉<br/>이 반복을 정산해가 대신합니다</div>
           </div>
+          <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:24}}>
+            {[
+              {icon:'clipboard-list',color:C.orange,bg:C.orangeBg,title:'신청폼 만들기',desc:'MT·행사 신청 받고 입금 상태 한눈에'},
+              {icon:'calculator',color:C.accent,bg:C.accentBg,title:'소규모 정산',desc:'뒷풀이·회식 1/N 자동 계산 + O/X 보드'},
+              {icon:'bar-chart',color:C.green,bg:C.greenBg,title:'거래내역 자동 대조',desc:'은행 엑셀 한 번 넣으면 입금자 자동 매칭'},
+            ].map(({icon,color,bg,title,desc})=>(
+              <div key={title} style={{background:bg,borderRadius:14,padding:'13px 16px',display:'flex',gap:12,alignItems:'center'}}>
+                <div style={{width:36,height:36,borderRadius:18,background:color+'30',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon n={icon} size={18} color={color}/></div>
+                <div>
+                  <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:2}}>{title}</div>
+                  <div style={{fontSize:12,color:C.textMid,lineHeight:1.4}}>{desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Btn onClick={()=>setSlide(1)}>다음 →</Btn>
         </div>
-        <div style={{background:C.orangeBg,borderRadius:14,padding:'16px 18px',display:'flex',gap:14,alignItems:'flex-start'}}>
-          <div style={{width:28,height:28,borderRadius:14,background:C.orange,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,flexShrink:0,marginTop:2}}>2</div>
-          <div>
-            <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:4}}>정산 방법 선택</div>
-            <div style={{fontSize:13,color:C.textMid,lineHeight:1.6}}>
-              상황에 맞게 골라요<br/>
-              <span style={{color:C.orange}}>• 신청부터 받기</span> (MT, 회비 등)<br/>
-              <span style={{color:C.accent}}>• 바로 정산하기</span> (뒷풀이, 회식 등)
+      )}
+
+      {slide===1&&(
+        <div className="fade-up">
+          <div style={{textAlign:'center',marginBottom:16}}>
+            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5}}>이렇게 달라져요</div>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:22}}>
+            {/* Before */}
+            <div style={{background:'#F3F4F6',borderRadius:14,padding:'14px 12px'}}>
+              <div style={{fontSize:10,fontWeight:800,color:'#9CA3AF',marginBottom:12,textAlign:'center',letterSpacing:1}}>BEFORE</div>
+              {['통장 캡처 보면서','이름 하나씩 체크','카톡으로 독촉','엑셀 정리 반복…'].map(t=>(
+                <div key={t} style={{display:'flex',alignItems:'flex-start',gap:5,marginBottom:7}}>
+                  <span style={{color:'#EF4444',flexShrink:0,fontSize:12,lineHeight:1.4}}>✕</span>
+                  <span style={{fontSize:11,color:'#6B7280',lineHeight:1.4}}>{t}</span>
+                </div>
+              ))}
+            </div>
+            {/* After */}
+            <div style={{background:'linear-gradient(135deg,#EEF0FF 0%,#F3E8FF 100%)',borderRadius:14,padding:'14px 12px',border:`1px solid ${C.accent}20`}}>
+              <div style={{fontSize:10,fontWeight:800,color:C.accent,marginBottom:12,textAlign:'center',letterSpacing:1}}>정산해</div>
+              {['엑셀 한 번 → 자동 매칭','링크 공유 → 실시간 O/X','미입금자 한 번에 콕','명단·입금 한 화면에서'].map(t=>(
+                <div key={t} style={{display:'flex',alignItems:'flex-start',gap:5,marginBottom:7}}>
+                  <span style={{color:C.accent,flexShrink:0,fontSize:12,lineHeight:1.4,fontWeight:900}}>O</span>
+                  <span style={{fontSize:11,color:C.text,fontWeight:600,lineHeight:1.4}}>{t}</span>
+                </div>
+              ))}
             </div>
           </div>
+          <div style={{display:'flex',gap:8}}>
+            <Btn variant="ghost" onClick={()=>setSlide(0)} style={{flex:1}}>이전</Btn>
+            <Btn onClick={finish} style={{flex:2}}>시작하기 →</Btn>
+          </div>
         </div>
-      </div>
-      <Btn onClick={finish}>시작하기 →</Btn>
+      )}
     </Modal>
   );
 }
@@ -3348,6 +3404,7 @@ function FormCreateScreen({nav,profile,createForm}){
       <Header title="신청폼 만들기" onBack={()=>nav.setView('home')}/>
       <FlowStepper steps={['폼 설정','공유','입금 확인','정산 시작']} current={0} done={[]}/>
       <div style={{flex:1,padding:'8px 16px 16px',overflow:'auto'}}>
+        <div style={{fontSize:12,color:C.textDim,fontWeight:500,marginBottom:8,padding:'4px 2px'}}>신청 명단 + 입금 상태를 한 화면에서 관리합니다</div>
         {/* 기본 정보 */}
         <Card>
           <Field label="행사명" value={name} onChange={setName} placeholder="5월 MT, 개강총회…"/>
@@ -3468,7 +3525,8 @@ function FormCreateScreen({nav,profile,createForm}){
           {/* 빠른 추가 칩 */}
           {availPresets.length>0&&(
             <div style={{marginTop:12}}>
-              <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:8}}>탭해서 항목 추가</div>
+              <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:2}}>탭해서 항목 추가</div>
+              <div style={{fontSize:11,color:C.textDim,marginBottom:8}}>학번, 주민번호 등 자유 추가 가능 — 여행자보험·명단 작성용</div>
               <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
                 {availPresets.map(p=>(
                   <button key={p.label} onClick={()=>addPreset(p)} className="press" style={{
@@ -4235,6 +4293,20 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
   const subs=form.submissions||[];
   const groups=profile?.groups||[];
   const unpaidConfirmedCount=subs.filter(s=>s.paymentStatus==='unpaid_confirmed').length;
+
+  const downloadExcel=()=>{
+    const payLabel=(s)=>{
+      if(s.paid||s.paymentStatus==='matched') return '입금 완료';
+      if(s.paymentStatus==='requested') return '입금 확인 필요';
+      return '미입금';
+    };
+    const headers=['이름',...form.fields.map(f=>f.label),'입금 상태'];
+    const rows=subs.map(s=>[s.name,...form.fields.map(f=>s.data?.[f.id]??''),payLabel(s)]);
+    const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'신청 명단');
+    XLSX.writeFile(wb,`${form.name}_신청명단.xlsx`);
+  };
   const unpaidXList=subs.filter(s=>s.paymentStatus==='unpaid_confirmed').map(s=>({name:s.name,amount:getUserAmount(form,s.name,s.data?.studentId)}));
   const [slide,setSlide]=useState(()=>subs.length===0?0:1);
   const stepDone=[true,subs.length>0];
@@ -4330,10 +4402,12 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
             </>
           ):(
             <>
-              <div style={{display:'flex',marginBottom:10,gap:6}}>
+              <div style={{display:'flex',marginBottom:4,gap:6}}>
                 <button onClick={()=>setShowVerify(true)} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="download" size={12} color={C.textMid}/>입금 자동 대조</button>
                 <button onClick={()=>{if(!form.account?.bank){showToast('계좌 정보를 먼저 등록해주세요',C.orange);return;}setDunningOpen(true);}} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="megaphone" size={12} color={C.textMid}/>콕 찌르기</button>
+                {subs.length>0&&<button onClick={downloadExcel} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="table" size={12} color={C.textMid}/>엑셀 추출</button>}
               </div>
+              <div style={{fontSize:11,color:C.textDim,textAlign:'center',marginBottom:10}}>거래내역 엑셀 한 번 넣으면 자동 대조 — 통장 보면서 한 명씩 체크 안 해도 됩니다</div>
               <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
                 unregisteredCount={unregisteredCount} groups={groups}
                 searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
@@ -4530,7 +4604,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
 
             {isRequested&&(
               <div style={{textAlign:'center',padding:'14px',background:C.greenBg,borderRadius:14}}>
-                <div style={{fontWeight:700,color:C.green,fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="check" size={14} color={C.green}/>입금 완료 요청됨</div>
+                <div style={{fontWeight:700,color:C.green,fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="check" size={14} color={C.green}/>입금 확인 필요</div>
                 <div style={{fontSize:12,color:C.textMid,marginTop:4}}>총무가 확인하면 확정돼요</div>
               </div>
             )}
