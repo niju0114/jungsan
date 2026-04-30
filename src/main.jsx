@@ -2139,187 +2139,239 @@ function FeeConfigSection({event,updateEvent}){
 
 // ── RoundsSection ──────────────────────────────────────────
 function RoundsSection({event,updateEvent,onRoundAdded,groups}){
-  const [editingId,setEditingId]=useState('round_1'); // 1차 기본으로 열려있음
-  const [adding,setAdding]=useState(false);
-  const [label,setLabel]=useState('');
-  const [amount,setAmount]=useState('');
-  const [roundMembers,setRoundMembers]=useState([]);
-  const [roundExtraMembers,setRoundExtraMembers]=useState([]);
-  const [roundExtraInput,setRoundExtraInput]=useState('');
-  const [editAmount,setEditAmount]=useState('');
-  const [extraInput,setExtraInput]=useState('');
   const mm=event.memberMap||{};
   const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
 
-  const useGroupChips=(groups||[]).length>1;
-  const chipGroupSections=React.useMemo(()=>{
-    if(!useGroupChips) return null;
-    const pMembers=event.members.filter(k=>event.attendance[k]!==false);
-    const assigned=new Set();
-    const sections=(groups||[]).map(g=>{
-      const gKeys=new Set((g.members||[]).map(m=>m.name+(m.sid?`_${m.sid}`:'')));
-      const keys=pMembers.filter(k=>gKeys.has(k));
-      keys.forEach(k=>assigned.add(k));
-      return {name:g.name,keys};
-    }).filter(s=>s.keys.length>0);
-    const unassigned=pMembers.filter(k=>!assigned.has(k));
-    if(unassigned.length>0) sections.push({name:'미분류',keys:unassigned});
-    return sections;
-  },[useGroupChips,groups,event.members,event.attendance]);
+  const [slideIdx,setSlideIdx]=useState(0);
+  const [localAtt,setLocalAtt]=useState(()=>({...event.attendance}));
+  const [localMembers,setLocalMembers]=useState(()=>[...(event.rounds[0]?.members||presentMembers)]);
+  const [localAmount,setLocalAmount]=useState(()=>event.rounds[0]?.amount>0?String(event.rounds[0].amount):'');
+  const [localExtra,setLocalExtra]=useState(()=>[...(event.rounds[0]?.extraMembers||[])]);
+  const [attDirty,setAttDirty]=useState(false);
+  const [amtDirty,setAmtDirty]=useState(false);
+  const [attSavedAt,setAttSavedAt]=useState(null);
+  const [amtSavedAt,setAmtSavedAt]=useState(null);
+  const [extraInput,setExtraInput]=useState('');
 
-  // 1차가 없으면 자동 생성 (출석자 기반, 금액만 입력)
-  const hasFirst=event.rounds.some(r=>r.label==='1차');
+  // 1차 자동 생성
   useEffect(()=>{
-    if(!hasFirst&&presentMembers.length>0&&!adding){
-      // 1차 자동 생성 (금액 0으로)
+    if(!event.rounds.some(r=>r.label==='1차')&&presentMembers.length>0){
       updateEvent({...event,rounds:[{id:'round_1',label:'1차',amount:0,members:[...presentMembers]}]});
     }
   },[]);
 
-  useEffect(()=>{if(adding){setRoundMembers([...presentMembers]);setRoundExtraMembers([]);setRoundExtraInput('');}},[adding]);
+  // Sync local state when slide changes
+  useEffect(()=>{
+    const r=event.rounds[slideIdx];
+    if(!r) return;
+    if(slideIdx===0) setLocalAtt({...event.attendance});
+    else setLocalMembers([...r.members]);
+    setLocalAmount(r.amount>0?String(r.amount):'');
+    setLocalExtra([...(r.extraMembers||[])]);
+    setAttDirty(false);setAmtDirty(false);
+    setAttSavedAt(null);setAmtSavedAt(null);
+    setExtraInput('');
+  },[slideIdx]);
 
-  const updateRound=(id,patch)=>updateEvent({...event,rounds:event.rounds.map(r=>r.id===id?{...r,...patch}:r)});
+  const confirmSwitch=()=>{
+    if(attDirty&&!window.confirm('출석이 저장 안 됐어요. 그래도 이동할까요?')) return false;
+    if(!attDirty&&amtDirty&&!window.confirm('금액이 저장 안 됐어요. 그래도 이동할까요?')) return false;
+    return true;
+  };
+  const goSlide=idx=>{if(idx===slideIdx||!confirmSwitch()) return;setSlideIdx(idx);};
 
-  const addRound=()=>{
-    const amt=Number(amount.replace(/[^0-9]/g,''));
-    if(!label.trim()||!amt||roundMembers.length===0) return;
-    updateEvent({...event,rounds:[...event.rounds,{id:Date.now().toString(),label:label.trim(),amount:amt,members:[...roundMembers],extraMembers:[...roundExtraMembers]}]});
-    setAdding(false);setLabel('');setAmount('');setRoundExtraMembers([]);setRoundExtraInput('');
-    onRoundAdded&&onRoundAdded();
+  const saveAtt=async()=>{
+    if(slideIdx===0){
+      const presKeys=event.members.filter(k=>localAtt[k]!==false);
+      await updateEvent({...event,attendance:{...localAtt},rounds:event.rounds.map((r,i)=>i===0?{...r,members:presKeys}:r)});
+    } else {
+      await updateEvent({...event,rounds:event.rounds.map((r,i)=>i===slideIdx?{...r,members:[...localMembers]}:r)});
+    }
+    setAttDirty(false);setAttSavedAt(new Date());
   };
 
+  const saveAmt=async()=>{
+    const fc=event.feeConfig;
+    const isFc=slideIdx===0&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
+    const patch=isFc?{extraMembers:[...localExtra]}:{amount:Number(localAmount.replace(/[^0-9]/g,''))||0,extraMembers:[...localExtra]};
+    await updateEvent({...event,rounds:event.rounds.map((r,i)=>i===slideIdx?{...r,...patch}:r)});
+    setAmtDirty(false);setAmtSavedAt(new Date());
+  };
+
+  const doAddRound=()=>{
+    if(!confirmSwitch()) return;
+    const newLabel=`${event.rounds.length+1}차`;
+    const newIdx=event.rounds.length;
+    const newRound={id:Date.now().toString(),label:newLabel,amount:0,members:[...presentMembers],extraMembers:[]};
+    updateEvent({...event,rounds:[...event.rounds,newRound]});
+    setLocalMembers([...presentMembers]);
+    setLocalAmount('');setLocalExtra([]);
+    setAttDirty(false);setAmtDirty(false);
+    setAttSavedAt(null);setAmtSavedAt(null);
+    setExtraInput('');
+    setSlideIdx(newIdx);
+  };
+
+  const deleteRound=idx=>{
+    if(!window.confirm(`${event.rounds[idx].label}을 삭제할까요?`)) return;
+    const newRounds=event.rounds.filter((_,i)=>i!==idx);
+    updateEvent({...event,rounds:newRounds});
+    if(slideIdx>=newRounds.length) setSlideIdx(Math.max(0,newRounds.length-1));
+  };
+
+  if(event.rounds.length===0) return null;
+
+  const r=event.rounds[slideIdx]||event.rounds[0];
+  const isFirst=slideIdx===0;
   const fc=event.feeConfig;
+  const useFeeConfig=isFirst&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
+
+  const attPresentCount=isFirst?event.members.filter(k=>localAtt[k]!==false).length:localMembers.length;
+  const totalForAtt=isFirst?event.members.length:presentMembers.length;
+  const localAmtNum=Number(localAmount.replace(/[^0-9]/g,''))||0;
+  const totalCountForAmt=attPresentCount+localExtra.length;
+  const previewPerPerson=localAmtNum>0&&totalCountForAmt>0?Math.ceil(localAmtNum/totalCountForAmt):0;
+
+  const allPresent=isFirst?attPresentCount===event.members.length:localMembers.length===presentMembers.length;
+
+  const AttRow=({k})=>{
+    const isAbsent=isFirst?localAtt[k]===false:!localMembers.includes(k);
+    const toggle=()=>{
+      if(isFirst) setLocalAtt(a=>({...a,[k]:a[k]===false?true:false}));
+      else setLocalMembers(ms=>ms.includes(k)?ms.filter(x=>x!==k):[...ms,k]);
+      setAttDirty(true);
+    };
+    return(
+      <div onClick={toggle} className="press" style={{background:isAbsent?C.inputBg:C.cardBg,borderRadius:12,padding:'10px 14px',marginBottom:6,display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',border:`1.5px solid ${isAbsent?C.red+'40':C.green+'40'}`,opacity:isAbsent?0.6:1,transition:'all 0.15s'}}>
+        <div style={{fontWeight:600,color:isAbsent?C.textDim:C.text,fontSize:14,textDecoration:isAbsent?'line-through':'none'}}>{mm[k]||k}</div>
+        <div style={{width:28,height:28,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:isAbsent?C.redBg:C.green,transition:'all 0.15s'}}>
+          {isAbsent?<Icon n="x" size={14} color={C.red}/>:<Icon n="check" size={14} color="#fff"/>}
+        </div>
+      </div>
+    );
+  };
+
+  const SaveBtn=({dirty,savedAt,onClick,label,savedLabel='저장됨'})=>(
+    <button onClick={onClick} disabled={!dirty} style={{width:'100%',padding:'12px',borderRadius:12,border:'none',background:dirty?C.accent:C.inputBg,color:dirty?'#fff':savedAt?C.textMid:C.textDim,fontWeight:700,fontSize:14,cursor:dirty?'pointer':'default',transition:'all 0.2s'}}>
+      {!dirty&&savedAt?savedLabel:label}
+    </button>
+  );
 
   return(
     <div>
       <FeeConfigSection event={event} updateEvent={updateEvent}/>
-      {event.rounds.map((r,idx)=>{
-        const isFirst=r.label==='1차';
-        const isEditing=editingId===r.id;
-        const useFeeConfig=isFirst&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
-        return(
-          <div key={r.id} style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:10,border:`1.5px solid ${(r.amount>0||useFeeConfig)?C.accent+'30':C.orange+'50'}`,boxShadow:C.shadow}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:isEditing?12:0}}>
-              <div>
-                <div style={{fontWeight:800,color:C.text,fontSize:15}}>{r.label}</div>
-                {useFeeConfig&&<div style={{fontSize:12,color:C.textMid,marginTop:2}}>납부자 {fmtKRW(fc.paidFeeAmount)} · 미납자 {fmtKRW(fc.unpaidFeeAmount)}</div>}
-                {!useFeeConfig&&r.amount>0&&<div style={{fontSize:12,color:C.textMid,marginTop:2}}>{r.members.length+(r.extraMembers?.length||0)}명 · 1인당 {fmtKRW(Math.ceil(r.amount/(r.members.length+(r.extraMembers?.length||0))))}{(r.extraMembers?.length||0)>0&&<span style={{color:C.orange,marginLeft:5}}>임시 {r.extraMembers.length}명 포함</span>}</div>}
-                {!useFeeConfig&&r.amount===0&&<div style={{fontSize:12,color:C.orange,marginTop:2}}>금액을 입력해주세요</div>}
-              </div>
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
-                {!useFeeConfig&&r.amount>0&&<div style={{color:C.accent,fontWeight:900}}>{fmtKRW(r.amount)}</div>}
-                {!(isFirst&&isEditing)&&<button onClick={()=>{ setEditingId(isEditing?null:r.id); setEditAmount(r.amount>0?String(r.amount):''); setExtraInput(''); }} style={{background:isEditing?C.accentBg:C.inputBg,border:`1.5px solid ${isEditing?C.accent:C.border}`,borderRadius:8,color:isEditing?C.accent:C.textMid,cursor:'pointer',padding:'5px 10px',fontSize:12,fontWeight:600}}>
-                  {isEditing?'완료':'수정'}
-                </button>}
-                {!isFirst&&<button onClick={()=>updateEvent({...event,rounds:event.rounds.filter(x=>x.id!==r.id)})} style={{background:C.redBg,border:'none',borderRadius:8,color:C.red,cursor:'pointer',width:26,height:26,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>×</button>}
-              </div>
-            </div>
-            {isEditing&&(
-              <div className="fade-up">
-                {useFeeConfig?(
-                  <div style={{fontSize:12,color:C.textMid,background:C.accentBg,borderRadius:10,padding:'8px 12px',marginBottom:12}}>금액은 위 정산 방식 설정에서 관리됩니다</div>
-                ):(
-                  <Field label="금액 (원)" value={editAmount} onChange={v=>setEditAmount(v.replace(/[^0-9]/g,''))} placeholder="150000" inputMode="numeric"/>
-                )}
-                <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:8}}>참여자 ({r.members.length}명)</div>
-                {useGroupChips&&chipGroupSections?(
-                  <>
-                    <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>
-                      <button onClick={()=>updateRound(r.id,{members:[...presentMembers]})} style={{padding:'5px 9px',borderRadius:12,border:`1.5px solid ${C.accent}`,cursor:'pointer',fontSize:11,background:C.accentBg,color:C.accent,fontWeight:700}}>전체</button>
-                    </div>
-                    {chipGroupSections.map(section=>(
-                      <div key={section.name} style={{marginBottom:8}}>
-                        <div style={{fontSize:11,fontWeight:700,color:C.textDim,marginBottom:4}}>{section.name}</div>
-                        <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
-                          {section.keys.map(k=>{
-                            const sel=r.members.includes(k);
-                            return <button key={k} onClick={()=>updateRound(r.id,{members:sel?r.members.filter(x=>x!==k):[...r.members,k]})} style={{padding:'5px 9px',borderRadius:12,border:`1.5px solid ${sel?C.accent:C.border}`,cursor:'pointer',fontSize:12,fontWeight:600,background:sel?C.accentBg:C.cardBg,color:sel?C.accent:C.textMid}}>{mm[k]||k}</button>;
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                ):(
-                  <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
-                    <button onClick={()=>updateRound(r.id,{members:[...presentMembers]})} style={{padding:'5px 9px',borderRadius:12,border:`1.5px solid ${C.accent}`,cursor:'pointer',fontSize:11,background:C.accentBg,color:C.accent,fontWeight:700}}>전체</button>
-                    {presentMembers.map(k=>{
-                      const sel=r.members.includes(k);
-                      return <button key={k} onClick={()=>updateRound(r.id,{members:sel?r.members.filter(x=>x!==k):[...r.members,k]})} style={{padding:'5px 9px',borderRadius:12,border:`1.5px solid ${sel?C.accent:C.border}`,cursor:'pointer',fontSize:12,fontWeight:600,background:sel?C.accentBg:C.cardBg,color:sel?C.accent:C.textMid}}>{mm[k]||k}</button>;
-                    })}
-                  </div>
-                )}
-                <div style={{marginTop:14,borderTop:`1px solid ${C.border}`,paddingTop:12}}>
-                  <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:6}}>임시 인원 ({(r.extraMembers||[]).length}명)</div>
-                  <div style={{fontSize:11,color:C.orange,marginBottom:8,lineHeight:1.5}}>임시 인원은 카톡 공유 링크에 포함되지 않아요. 분담금을 직접 알려주세요.</div>
-                  {(r.extraMembers||[]).length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>
-                    {(r.extraMembers||[]).map((em,ei)=>(
-                      <div key={ei} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:12,background:C.orange+'20',border:`1.5px solid ${C.orange}50`}}>
-                        <span style={{fontSize:10,fontWeight:800,color:C.orange}}>임시</span>
-                        <span style={{fontSize:12,color:C.text,fontWeight:600}}>{em.name}</span>
-                        <button onClick={()=>updateRound(r.id,{extraMembers:(r.extraMembers||[]).filter((_,j)=>j!==ei)})} style={{background:'none',border:'none',cursor:'pointer',color:C.textMid,fontSize:14,lineHeight:1,padding:'0 0 0 2px'}}>×</button>
-                      </div>
-                    ))}
-                  </div>}
-                  <div style={{display:'flex',gap:6}}>
-                    <input value={extraInput} onChange={e=>setExtraInput(e.target.value)} placeholder="이름 입력" onKeyDown={e=>{if(e.key==='Enter'&&extraInput.trim()){updateRound(r.id,{extraMembers:[...(r.extraMembers||[]),{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:extraInput.trim()}]});setExtraInput('');}}} style={{flex:1,padding:'7px 10px',borderRadius:8,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none'}}/>
-                    <button onClick={()=>{if(extraInput.trim()){updateRound(r.id,{extraMembers:[...(r.extraMembers||[]),{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:extraInput.trim()}]});setExtraInput('');}}} style={{padding:'7px 12px',borderRadius:8,background:C.orange+'20',border:`1.5px solid ${C.orange}50`,color:C.orange,fontWeight:700,fontSize:13,cursor:'pointer'}}>추가</button>
-                  </div>
-                  <div style={{marginTop:7,fontSize:11,color:C.textMid,lineHeight:1.5}}>명단에 빠진 멤버는 명단 관리 화면에서 추가해주세요. 그래야 다음 정산에도 쓸 수 있어요.</div>
-                </div>
-                <Btn onClick={()=>{
-                  if(!useFeeConfig){const amt=Number(editAmount.replace(/[^0-9]/g,''));if(amt>0) updateRound(r.id,{amount:amt});}
-                  setEditingId(null);
-                }} disabled={!useFeeConfig&&!editAmount} style={{marginTop:12}} small>저장</Btn>
-              </div>
-            )}
-          </div>
-        );
-      })}
-      {event.rounds.length>0&&event.rounds[0].amount>0&&<div style={{textAlign:'right',fontSize:13,color:C.textMid,marginBottom:10}}>합계 <span style={{color:C.text,fontWeight:900}}>{fmtKRW(event.rounds.reduce((s,r)=>s+r.amount,0))}</span></div>}
 
-      {/* 2차부터 추가 가능 */}
-      {event.rounds.length>0&&(event.rounds[0].amount>0||(fc?.paidFeeAmount!=null&&(fc.paidFeeAmount>0||fc.unpaidFeeAmount>0)))&&(
-        adding?(
-          <div style={{background:C.inputBg,borderRadius:14,padding:14,border:`1.5px solid ${C.accent}30`}}>
-            <Field label="차수 이름" value={label} onChange={setLabel} placeholder="2차, 노래방…"/>
-            <Field label="총 금액 (원)" value={amount} onChange={v=>setAmount(v.replace(/[^0-9]/g,''))} placeholder="80000" inputMode="numeric"/>
-            <div style={{marginBottom:12}}>
-              <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:8}}>참여자 ({roundMembers.length}명)</div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
-                <button onClick={()=>setRoundMembers([...presentMembers])} style={{padding:'5px 9px',borderRadius:12,border:`1.5px solid ${C.accent}`,cursor:'pointer',fontSize:11,background:C.accentBg,color:C.accent,fontWeight:700}}>전체</button>
-                {presentMembers.map(k=>(
-                  <button key={k} onClick={()=>setRoundMembers(s=>s.includes(k)?s.filter(x=>x!==k):[...s,k])} style={{padding:'5px 9px',borderRadius:12,border:`1.5px solid ${roundMembers.includes(k)?C.accent:C.border}`,cursor:'pointer',fontSize:12,fontWeight:600,background:roundMembers.includes(k)?C.accentBg:C.cardBg,color:roundMembers.includes(k)?C.accent:C.textMid}}>
-                    {mm[k]||k}
-                  </button>
-                ))}
-              </div>
+      {/* 슬라이드 헤더 */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+        <div style={{display:'flex',alignItems:'center',gap:4}}>
+          <button onClick={()=>goSlide(slideIdx-1)} disabled={slideIdx===0} style={{background:'none',border:'none',cursor:slideIdx>0?'pointer':'default',padding:4,display:'flex',alignItems:'center',opacity:slideIdx>0?1:0.25}}>
+            <Icon n="chevron_left" size={22} color={C.text}/>
+          </button>
+          <span style={{fontWeight:800,fontSize:17,color:C.text,minWidth:36,textAlign:'center'}}>{r.label}</span>
+          <button onClick={()=>goSlide(slideIdx+1)} disabled={slideIdx>=event.rounds.length-1} style={{background:'none',border:'none',cursor:slideIdx<event.rounds.length-1?'pointer':'default',padding:4,display:'flex',alignItems:'center',opacity:slideIdx<event.rounds.length-1?1:0.25}}>
+            <Icon n="chevron_right" size={22} color={C.text}/>
+          </button>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          {event.rounds.length>1&&(
+            <div style={{display:'flex',gap:5,alignItems:'center'}}>
+              {event.rounds.map((_,i)=>(
+                <button key={i} onClick={()=>goSlide(i)} style={{width:i===slideIdx?18:6,height:6,borderRadius:3,background:i===slideIdx?C.accent:C.border,border:'none',cursor:'pointer',transition:'all 0.2s',padding:0}}/>
+              ))}
             </div>
-            <div style={{marginTop:4,marginBottom:4}}>
-              <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:6}}>임시 인원 ({roundExtraMembers.length}명)</div>
-              <div style={{fontSize:11,color:C.orange,marginBottom:8,lineHeight:1.5}}>임시 인원은 카톡 공유 링크에 포함되지 않아요. 분담금을 직접 알려주세요.</div>
-              {roundExtraMembers.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>
-                {roundExtraMembers.map((em,ei)=>(
-                  <div key={ei} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:12,background:C.orange+'20',border:`1.5px solid ${C.orange}50`}}>
-                    <span style={{fontSize:10,fontWeight:800,color:C.orange}}>임시</span>
-                    <span style={{fontSize:12,color:C.text,fontWeight:600}}>{em.name}</span>
-                    <button onClick={()=>setRoundExtraMembers(s=>s.filter((_,j)=>j!==ei))} style={{background:'none',border:'none',cursor:'pointer',color:C.textMid,fontSize:14,lineHeight:1,padding:'0 0 0 2px'}}>×</button>
-                  </div>
-                ))}
-              </div>}
-              <div style={{display:'flex',gap:6,marginBottom:6}}>
-                <input value={roundExtraInput} onChange={e=>setRoundExtraInput(e.target.value)} placeholder="이름 입력" onKeyDown={e=>{if(e.key==='Enter'&&roundExtraInput.trim()){setRoundExtraMembers(s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:roundExtraInput.trim()}]);setRoundExtraInput('');}}} style={{flex:1,padding:'7px 10px',borderRadius:8,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none'}}/>
-                <button onClick={()=>{if(roundExtraInput.trim()){setRoundExtraMembers(s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:roundExtraInput.trim()}]);setRoundExtraInput('');}}} style={{padding:'7px 12px',borderRadius:8,background:C.orange+'20',border:`1.5px solid ${C.orange}50`,color:C.orange,fontWeight:700,fontSize:13,cursor:'pointer'}}>추가</button>
-              </div>
-              <div style={{fontSize:11,color:C.textMid,lineHeight:1.5}}>명단에 빠진 멤버는 명단 관리 화면에서 추가해주세요. 그래야 다음 정산에도 쓸 수 있어요.</div>
-            </div>
-            <div style={{display:'flex',gap:8,marginTop:12}}>
-              <Btn variant="ghost" onClick={()=>setAdding(false)} style={{flex:1}}>취소</Btn>
-              <Btn onClick={addRound} disabled={!label||!(Number(amount)>0)||roundMembers.length===0} style={{flex:2}}>추가</Btn>
-            </div>
+          )}
+          <button onClick={doAddRound} style={{background:C.accentBg,border:'none',borderRadius:10,color:C.accent,fontWeight:700,fontSize:12,cursor:'pointer',padding:'6px 10px',display:'flex',alignItems:'center',gap:3}}>
+            <Icon n="add" size={14} color={C.accent}/>차수 추가
+          </button>
+        </div>
+      </div>
+
+      {/* 출석 카드 */}
+      <div style={{background:C.cardBg,borderRadius:14,padding:'14px 14px 12px',marginBottom:12,boxShadow:C.shadow,border:`1.5px solid ${C.border}`}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+          <div style={{fontWeight:800,fontSize:14,color:C.text}}>출석 체크 <span style={{fontWeight:500,fontSize:12,color:C.textDim}}>({attPresentCount}/{totalForAtt})</span></div>
+          {!attDirty&&attSavedAt&&<span style={{fontSize:11,color:C.textDim}}>방금 저장됨</span>}
+        </div>
+
+        {isFirst?(
+          <button onClick={()=>{const a={};event.members.forEach(k=>a[k]=true);setLocalAtt(a);setAttDirty(true);}} style={{width:'100%',marginBottom:10,padding:'11px',borderRadius:12,border:`2px solid ${allPresent?C.green:C.border}`,background:allPresent?C.green:C.cardBg,color:allPresent?'#fff':C.textMid,fontWeight:700,fontSize:14,cursor:'pointer',transition:'all 0.2s'}}>
+            {allPresent?<><Icon n="check" size={14} color="#fff" style={{marginRight:4}}/>전원 참석</>:'전원 참석'}
+          </button>
+        ):(
+          <div style={{display:'flex',gap:6,marginBottom:10}}>
+            <button onClick={()=>{setLocalMembers([...presentMembers]);setAttDirty(true);}} style={{flex:1,padding:'9px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,color:C.textMid,fontWeight:700,fontSize:12,cursor:'pointer'}}>전원 참석</button>
+            <button onClick={()=>{setLocalMembers([...(event.rounds[0]?.members||presentMembers)]);setAttDirty(true);}} style={{flex:2,padding:'9px',borderRadius:10,border:`1.5px solid ${C.accent+'30'}`,background:C.accentBg,color:C.accent,fontWeight:700,fontSize:12,cursor:'pointer'}}>1차 출석 그대로</button>
+          </div>
+        )}
+
+        <div style={{maxHeight:280,overflowY:'auto'}}>
+          {(isFirst?event.members:presentMembers).map(k=><AttRow key={k} k={k}/>)}
+        </div>
+        <div style={{marginTop:4,marginBottom:10,fontSize:11,color:C.textDim,textAlign:'center'}}>탭하면 불참 처리돼요</div>
+        <SaveBtn dirty={attDirty} savedAt={attSavedAt} onClick={saveAtt} label="출석 저장"/>
+      </div>
+
+      {/* 금액 카드 */}
+      <div style={{background:C.cardBg,borderRadius:14,padding:'14px 14px 12px',marginBottom:12,boxShadow:C.shadow,border:`1.5px solid ${C.border}`}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+          <div style={{fontWeight:800,fontSize:14,color:C.text}}>금액 입력</div>
+          {!amtDirty&&amtSavedAt&&<span style={{fontSize:11,color:C.textDim}}>방금 저장됨</span>}
+        </div>
+
+        {useFeeConfig?(
+          <div style={{fontSize:12,color:C.textMid,background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
+            금액은 위 정산 방식 설정에서 관리됩니다<br/>
+            <span style={{color:C.accent,fontWeight:700}}>납부자 {fmtKRW(fc.paidFeeAmount)} · 미납자 {fmtKRW(fc.unpaidFeeAmount)}</span>
           </div>
         ):(
-          <Btn variant="secondary" onClick={()=>{setAdding(true);setLabel(`${event.rounds.length+1}차`);}}>＋ 차수 추가</Btn>
-        )
+          <>
+            <Field label="총 금액 (원)" value={localAmount} onChange={v=>{setLocalAmount(v.replace(/[^0-9]/g,''));setAmtDirty(true);}} inputMode="numeric" placeholder="150000"/>
+            {previewPerPerson>0&&(
+              <div style={{background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
+                <div style={{display:'flex',justifyContent:'space-between'}}>
+                  <span style={{fontSize:13,color:C.textMid}}>1인당 ({totalCountForAmt}명)</span>
+                  <span style={{fontSize:15,fontWeight:900,color:C.accent}}>{fmtKRW(previewPerPerson)}</span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:6}}>임시 인원 ({localExtra.length}명) <span style={{fontWeight:400,color:C.orange,fontSize:11}}>링크 공유 제외</span></div>
+          {localExtra.length>0&&(
+            <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>
+              {localExtra.map((em,ei)=>(
+                <div key={ei} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:12,background:C.orange+'20',border:`1.5px solid ${C.orange}50`}}>
+                  <span style={{fontSize:10,fontWeight:800,color:C.orange}}>임시</span>
+                  <span style={{fontSize:12,color:C.text,fontWeight:600}}>{em.name}</span>
+                  <button onClick={()=>{setLocalExtra(s=>s.filter((_,j)=>j!==ei));setAmtDirty(true);}} style={{background:'none',border:'none',cursor:'pointer',color:C.textMid,fontSize:14,lineHeight:1,padding:'0 0 0 2px'}}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{display:'flex',gap:6}}>
+            <input value={extraInput} onChange={e=>setExtraInput(e.target.value)} placeholder="이름 입력"
+              onKeyDown={e=>{if(e.key==='Enter'&&extraInput.trim()){setLocalExtra(s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:extraInput.trim()}]);setExtraInput('');setAmtDirty(true);}}}
+              style={{flex:1,padding:'7px 10px',borderRadius:8,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none'}}
+            />
+            <button onClick={()=>{if(extraInput.trim()){setLocalExtra(s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:extraInput.trim()}]);setExtraInput('');setAmtDirty(true);}}} style={{padding:'7px 12px',borderRadius:8,background:C.orange+'20',border:`1.5px solid ${C.orange}50`,color:C.orange,fontWeight:700,fontSize:13,cursor:'pointer'}}>추가</button>
+          </div>
+        </div>
+
+        {!isFirst&&(
+          <div style={{marginBottom:10,textAlign:'right'}}>
+            <button onClick={()=>deleteRound(slideIdx)} style={{fontSize:12,color:C.red,background:'none',border:'none',cursor:'pointer'}}>이 차수 삭제</button>
+          </div>
+        )}
+
+        <SaveBtn dirty={amtDirty} savedAt={amtSavedAt} onClick={saveAmt} label={useFeeConfig?'임시 인원 저장':'금액 저장'}/>
+      </div>
+
+      {event.rounds.length>1&&event.rounds.some(r=>r.amount>0)&&(
+        <div style={{textAlign:'right',fontSize:13,color:C.textMid,marginBottom:4}}>
+          합계 <span style={{color:C.text,fontWeight:900}}>{fmtKRW(event.rounds.reduce((s,r)=>s+r.amount,0))}</span>
+        </div>
       )}
     </div>
   );
