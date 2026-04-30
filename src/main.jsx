@@ -1868,7 +1868,9 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
 function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
   const [event,setEvent]=useState(initEvent);
   const [viewCount,setViewCount]=useState(0);
-  const [slide,setSlide]=useState(0);
+  const slideKey=`jungsan_slide_${initEvent.code}`;
+  const [slide,setSlide]=useState(()=>parseInt(sessionStorage.getItem(slideKey)||'0',10));
+  useEffect(()=>{sessionStorage.setItem(slideKey,String(slide));},[slide]);
   const [attDirty,setAttDirty]=useState(false);
   const saveAttRef=useRef(null);
   const [savePrompt,setSavePrompt]=useState(null);
@@ -2058,6 +2060,8 @@ function FeeConfigSection({event,updateEvent}){
   const [unpaidInput,setUnpaidInput]=useState(String(fc?.unpaidFeeAmount||''));
   const [saved,setSaved]=useState(false);
   const saveTimerRef=useRef(null);
+  const autoSaveTimerRef=useRef(null);
+  const didMountRef=useRef(false);
 
   useEffect(()=>{
     if(fc){
@@ -2067,6 +2071,14 @@ function FeeConfigSection({event,updateEvent}){
       setUnpaidInput(String(fc.unpaidFeeAmount||''));
     }
   },[event.code]);
+
+  useEffect(()=>{
+    if(!didMountRef.current){didMountRef.current=true;return;}
+    if(!fc) return;
+    clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current=setTimeout(()=>saveFeeConfig(fc.mode),700);
+    return()=>clearTimeout(autoSaveTimerRef.current);
+  },[totalCostInput,subsidyInput,paidInput,unpaidInput]);
 
   const previewAuto=()=>{
     const total=Number(totalCostInput)||0;
@@ -2164,11 +2176,11 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   const mm=event.memberMap||{};
   const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
 
-  const [localAtt,setLocalAtt]=useState(()=>{const a={};event.members.forEach(k=>a[k]=false);return a;});
+  const [localAtt,setLocalAtt]=useState(()=>{const a={};event.members.forEach(k=>a[k]=event.attendance[k]!==false);return a;});
   const [attDirty,setAttDirty]=useState(false);
   const [attSavedAt,setAttSavedAt]=useState(null);
 
-  const [editingId,setEditingId]=useState(()=>event.rounds[0]?.id||null);
+  const [editingId,setEditingId]=useState(()=>event.rounds[0]?.amount===0?(event.rounds[0]?.id||null):null);
   const [editAmount,setEditAmount]=useState(()=>event.rounds[0]?.amount>0?String(event.rounds[0].amount):'');
   const [editExtra,setEditExtra]=useState(()=>[...(event.rounds[0]?.extraMembers||[])]);
   const [extraInput,setExtraInput]=useState('');
@@ -2180,19 +2192,56 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
     }
   },[]);
 
-  const doSaveAtt=async()=>{
-    const presKeys=event.members.filter(k=>localAtt[k]!==false);
-    await updateEvent({...event,attendance:{...localAtt},rounds:event.rounds.map((r,i)=>i===0?{...r,members:presKeys}:r)});
+  const saveAttWith=async(newAtt)=>{
+    const presKeys=event.members.filter(k=>newAtt[k]!==false);
+    await updateEvent({...event,attendance:{...newAtt},rounds:event.rounds.map((r,i)=>i===0?{...r,members:presKeys}:r)});
     setAttDirty(false);setAttSavedAt(new Date());
   };
+
+  const doSaveAtt=()=>saveAttWith(localAtt);
 
   useEffect(()=>{onAttDirtyChange?.(attDirty);},[attDirty]);
   useEffect(()=>{if(saveAttFnRef) saveAttFnRef.current=doSaveAtt;});
 
   const toggleAtt=k=>{
-    setLocalAtt(a=>({...a,[k]:a[k]===false?true:false}));
+    const newAtt={...localAtt,[k]:localAtt[k]===false?true:false};
+    setLocalAtt(newAtt);
     setAttDirty(true);
+    saveAttWith(newAtt);
   };
+
+  const roundTimerRef=useRef(null);
+  const pendingRoundRef=useRef({editingId:null,editAmount:'',editExtra:[]});
+  const eventRef=useRef(event);
+  const updateEventRef=useRef(updateEvent);
+  pendingRoundRef.current={editingId,editAmount,editExtra};
+  eventRef.current=event;
+  updateEventRef.current=updateEvent;
+
+  const saveRoundNow=(rid,amt,extra,ev)=>{
+    const fc=ev.feeConfig;
+    const isFirstRound=ev.rounds[0]?.id===rid;
+    const useFc=isFirstRound&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
+    const amtNum=Number(amt.replace(/[^0-9]/g,''))||0;
+    const roundPatch=useFc?{extraMembers:[...extra]}:{amount:amtNum,extraMembers:[...extra]};
+    const newRounds=ev.rounds.map(r=>r.id===rid?{...r,...roundPatch}:r);
+    updateEventRef.current({...ev,rounds:newRounds});
+  };
+
+  // 700ms 디바운스 자동저장 (편집 중일 때만)
+  useEffect(()=>{
+    if(!editingId) return;
+    clearTimeout(roundTimerRef.current);
+    roundTimerRef.current=setTimeout(()=>saveRoundNow(editingId,editAmount,editExtra,eventRef.current),700);
+    return()=>clearTimeout(roundTimerRef.current);
+  },[editAmount,editExtra]);
+
+  // 슬라이드 이동/언마운트 시 즉시 저장
+  useEffect(()=>()=>{
+    clearTimeout(roundTimerRef.current);
+    const {editingId:rid,editAmount:amt,editExtra:extra}=pendingRoundRef.current;
+    if(rid) saveRoundNow(rid,amt,extra,eventRef.current);
+  },[]);
 
   const openRound=r=>{
     setEditingId(r.id);
@@ -2202,20 +2251,14 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   };
 
   const doSaveRound=async rid=>{
+    clearTimeout(roundTimerRef.current);
     const fc=event.feeConfig;
     const isFirstRound=event.rounds[0]?.id===rid;
     const useFc=isFirstRound&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
     const amtNum=Number(editAmount.replace(/[^0-9]/g,''))||0;
     const roundPatch=useFc?{extraMembers:[...editExtra]}:{amount:amtNum,extraMembers:[...editExtra]};
-    let newRounds=event.rounds.map(r=>r.id===rid?{...r,...roundPatch}:r);
-    let patch={rounds:newRounds};
-    if(attDirty){
-      const presKeys=event.members.filter(k=>localAtt[k]!==false);
-      patch.attendance={...localAtt};
-      patch.rounds=newRounds.map((r,i)=>i===0?{...r,members:presKeys}:r);
-    }
-    await updateEvent({...event,...patch});
-    if(attDirty){setAttDirty(false);setAttSavedAt(new Date());}
+    const newRounds=event.rounds.map(r=>r.id===rid?{...r,...roundPatch}:r);
+    await updateEvent({...event,rounds:newRounds});
     setEditingId(null);
   };
 
@@ -2271,8 +2314,8 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
         <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:10}}>
           <input value={attSearch} onChange={e=>setAttSearch(e.target.value)} placeholder="이름 검색"
             style={{flex:1,padding:'5px 9px',borderRadius:8,border:`1px solid ${C.border}`,background:C.cardBg,fontSize:12,color:C.text,outline:'none'}}/>
-          <button onClick={()=>{const a={};event.members.forEach(k=>a[k]=true);setLocalAtt(a);setAttDirty(true);}} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:C.accent,fontWeight:600,whiteSpace:'nowrap',padding:0}}>전원 참석</button>
-          <button onClick={()=>{const a={};event.members.forEach(k=>a[k]=false);setLocalAtt(a);setAttDirty(true);}} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:C.textDim,fontWeight:600,whiteSpace:'nowrap',padding:0}}>전원 불참</button>
+          <button onClick={()=>{const a={};event.members.forEach(k=>a[k]=true);setLocalAtt(a);setAttDirty(true);saveAttWith(a);}} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:C.accent,fontWeight:600,whiteSpace:'nowrap',padding:0}}>전원 참석</button>
+          <button onClick={()=>{const a={};event.members.forEach(k=>a[k]=false);setLocalAtt(a);setAttDirty(true);saveAttWith(a);}} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:C.textDim,fontWeight:600,whiteSpace:'nowrap',padding:0}}>전원 불참</button>
         </div>
         {/* 칩 리스트 */}
         {useGroupView?(
@@ -2522,6 +2565,53 @@ function EventVerifySection({event,amounts,matchResults,onApply,onReset}){
   );
 }
 
+// ── ExcelUploadModal ───────────────────────────────────────
+function ExcelUploadModal({uploading,fileRef,onClose}){
+  const [bankOpen,setBankOpen]=useState(new Set());
+  const toggle=id=>setBankOpen(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
+  return(
+    <Modal isOpen={true} onClose={onClose} title={<><Icon n="bar-chart" size={15} color={C.text} style={{marginRight:4}}/>자동 대조</>}>
+      <div style={{textAlign:'center',marginBottom:16}}>
+        <div style={{width:64,height:64,borderRadius:32,background:C.accent+'20',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 10px'}}><Icon n="bar-chart" size={32} color={C.accent}/></div>
+        <div style={{color:C.textMid,fontSize:13,lineHeight:1.7}}>은행 거래내역을 업로드하면 자동 대조해요</div>
+      </div>
+      <div style={{marginBottom:14,padding:'9px 14px',background:C.accentBg,borderRadius:10,fontSize:12,color:C.textMid,display:'flex',alignItems:'center',gap:6}}>
+        <Icon n="lock" size={13} color={C.accent}/><span>거래내역은 브라우저에서만 처리되며 서버에 저장되지 않아요.</span>
+      </div>
+      <div style={{textAlign:'center',marginBottom:20}}>
+        <Btn onClick={()=>fileRef.current?.click()} loading={uploading}>파일 선택하기</Btn>
+        <div style={{marginTop:8,fontSize:12,color:C.textDim}}>지원: .xlsx, .xls, .csv</div>
+      </div>
+      <Card style={{padding:'16px'}}>
+        <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:12,display:'flex',alignItems:'center',gap:6}}><Icon n="smartphone" size={14} color={C.text}/>은행별 다운로드 방법</div>
+        <div style={{borderRadius:12,overflow:'hidden',marginBottom:8,border:`1.5px solid ${bankOpen.has('toss')?C.accent+'40':C.pageBg}`}}>
+          <button onClick={()=>toggle('toss')} style={{width:'100%',padding:'12px 14px',background:bankOpen.has('toss')?C.accentBg:C.inputBg,border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left'}}>
+            <span style={{fontWeight:700,color:C.text,fontSize:14}}>토스뱅크</span>
+            <Icon n={bankOpen.has('toss')?'chevron-up':'chevron-down'} size={14} color={C.textDim}/>
+          </button>
+          {bankOpen.has('toss')&&(
+            <div style={{padding:'12px 14px',background:'#fff',fontSize:13,color:C.textMid,lineHeight:2}}>
+              <div style={{fontWeight:700,color:C.text,marginBottom:6}}>토스 앱에서:</div>
+              1. 하단 <strong>전체</strong> 탭<br/>2. <strong>관리</strong> 메뉴<br/>3. <strong>증명서 발급</strong><br/>4. <strong>거래내역서</strong> 선택<br/>5. 기간 설정 → <strong>엑셀(xlsx) 다운로드</strong>
+              <div style={{marginTop:8,padding:'8px 10px',background:C.accentBg,borderRadius:8,fontSize:12,display:'flex',alignItems:'center',gap:4}}><Icon n="lightbulb" size={12} color={C.accent}/>이메일로 받기도 가능해요</div>
+            </div>
+          )}
+        </div>
+        {[{id:'kakao',bank:'카카오뱅크',steps:'더보기 → 입출금 내역 → 우측 상단 ··· → 엑셀 다운로드'},{id:'kb',bank:'국민은행',steps:'KB Star 앱 → 조회 → 계좌조회 → 거래내역조회 → 하단 "엑셀저장"'},{id:'shinhan',bank:'신한은행',steps:'SOL 앱 → 계좌관리 → 거래내역조회 → 우측 상단 내보내기 → 파일 저장'},{id:'woori',bank:'우리은행',steps:'확인 중 — 은행 앱에서 거래내역 조회 후 엑셀 내보내기를 찾아주세요'},{id:'hana',bank:'하나은행',steps:'확인 중 — 은행 앱에서 거래내역 조회 후 엑셀 내보내기를 찾아주세요'},{id:'nh',bank:'농협',steps:'NH올원뱅크 → 계좌 → 거래내역조회 → 하단 "파일저장" → 엑셀'},].map(({id,bank,steps})=>(
+          <div key={id} style={{borderRadius:12,overflow:'hidden',marginBottom:4}}>
+            <button onClick={()=>toggle(id)} style={{width:'100%',padding:'10px 14px',background:C.inputBg,border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',textAlign:'left',borderRadius:12}}>
+              <span style={{fontWeight:600,color:C.text,fontSize:13}}>{bank}</span>
+              <Icon n={bankOpen.has(id)?'chevron-up':'chevron-down'} size={12} color={C.textDim}/>
+            </button>
+            {bankOpen.has(id)&&<div style={{padding:'10px 14px',fontSize:12,color:C.textMid,lineHeight:1.8,background:'#fff'}}>{steps}</div>}
+          </div>
+        ))}
+        <div style={{fontSize:11,color:C.textDim,marginTop:10,lineHeight:1.6}}>* 앱 버전에 따라 메뉴가 다를 수 있어요</div>
+      </Card>
+    </Modal>
+  );
+}
+
 // ── StatusSection ──────────────────────────────────────────
 function StatusSection({event,updateEvent,groups,showToast}){
   const [sortByTime,setSortByTime]=useState(true);
@@ -2677,7 +2767,9 @@ function StatusSection({event,updateEvent,groups,showToast}){
   const [dunningOpen,setDunningOpen]=useState(false);
   const [matchResults,setMatchResults]=useState(null);
   const [uploading,setUploading]=useState(false);
+  const [showExcelModal,setShowExcelModal]=useState(false);
   const excelFileRef=useRef(null);
+  useEffect(()=>{if(matchResults)setShowExcelModal(false);},[matchResults]);
 
   const applyBulkConfirm=()=>{
     const now=new Date().toISOString();
@@ -2727,8 +2819,8 @@ function StatusSection({event,updateEvent,groups,showToast}){
       <input ref={excelFileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleExcel} style={{display:'none'}}/>
       {event.account?.bank&&!matchResults&&(
         <div style={{display:'flex',gap:8,marginBottom:12}}>
-          <button onClick={()=>excelFileRef.current?.click()} disabled={uploading} className="press" style={{flex:1,padding:'10px 4px',borderRadius:10,background:C.cardBg,border:`1px solid ${C.border}`,color:uploading?C.textDim:C.textMid,fontWeight:700,fontSize:12,cursor:uploading?'default':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
-            {uploading?<><Spinner size={12} color={C.textDim}/>&nbsp;분석 중...</>:<><Icon n="bar-chart" size={12} color={C.textMid}/>거래내역 대조</>}
+          <button onClick={()=>setShowExcelModal(true)} disabled={uploading} className="press" style={{flex:1,padding:'10px 4px',borderRadius:10,background:C.cardBg,border:`1px solid ${C.border}`,color:uploading?C.textDim:C.textMid,fontWeight:700,fontSize:12,cursor:uploading?'default':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
+            {uploading?<><Spinner size={12} color={C.textDim}/>&nbsp;분석 중...</>:<><Icon n="bar-chart" size={12} color={C.textMid}/>자동 대조</>}
           </button>
           {unpaidXKeys.length>0&&(
             <button onClick={()=>setDunningOpen(true)} className="press" style={{flex:1,padding:'10px 4px',borderRadius:10,background:C.cardBg,border:`1px solid ${C.border}`,color:C.textMid,fontWeight:700,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
@@ -2809,6 +2901,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
         <DunningModal eventName={event.name} account={event.account} link={directLink}
           unpaidList={unpaidXList} showToast={showToast} onClose={()=>setDunningOpen(false)}/>
       )}
+      {showExcelModal&&<ExcelUploadModal uploading={uploading} fileRef={excelFileRef} onClose={()=>setShowExcelModal(false)}/>}
     </div>
   );
 }
