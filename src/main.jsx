@@ -2743,11 +2743,14 @@ function StatusSection({event,updateEvent,groups,showToast}){
     const paid=status==='paid';
     const requested=status==='requested';
     const rejected=status==='rejected';
+    const isAnimPaid=animatingPaidKeys.has(k);
+    const effectivePaid=paid||isAnimPaid;
+    const matchInfo=matchSummary?.byKey[k];
     const displayName=isExtra
       ? (allExtraEntries.find(e=>e.key===k)?.name || k)
       : (mm[k]||k);
     const displayAmount=isExtra ? (extraAmounts[k]||0) : (amounts[k]||0);
-    const canDunning=status==='none'&&!!event.account?.bank;
+    const canDunning=status==='none'&&!matchInfo&&!!event.account?.bank&&!animating;
     const dunning=async e=>{
       e.stopPropagation();
       const msg=buildDunningMsg({name:displayName,eventName:event.name,amount:displayAmount,account:event.account,link:directLink});
@@ -2755,32 +2758,47 @@ function StatusSection({event,updateEvent,groups,showToast}){
       if(!shared){await copyText(msg);showToast('콕 찌르기 복사됐어요');}
       else showToast('공유 완료');
     };
-    const cardShadow=paid?`0 0 0 2px ${C.green}40`:rejected?`0 0 0 2px ${C.red}40`:C.shadow;
+    const dotColor=effectivePaid?'#5DCAA5':matchInfo?'#EF9F27':requested?'#EF9F27':'#E24B4A';
+    const cardShadow=effectivePaid?`0 0 0 2px ${C.green}40`:matchInfo?`0 0 0 2px ${C.yellow}40`:rejected?`0 0 0 2px ${C.red}40`:C.shadow;
+    const effectiveStatus=effectivePaid?'paid':(matchInfo?'requested':status);
     return(
-      <div style={{background:C.cardBg,borderRadius:12,marginBottom:6,boxShadow:cardShadow,overflow:'hidden'}}>
+      <div style={{background:C.cardBg,borderRadius:12,marginBottom:6,boxShadow:cardShadow,overflow:'hidden',pointerEvents:animating?'none':'auto'}}>
         <div style={{padding:'11px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div style={{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0}}>
             <div>
               <div style={{display:'flex',alignItems:'center',gap:6}}>
-                <span style={{fontWeight:600,color:rejected?C.textDim:C.text,fontSize:13}}>{displayName}</span>
+                <span style={{fontWeight:600,color:rejected&&!effectivePaid?C.textDim:C.text,fontSize:13}}>{displayName}</span>
                 {isExtra&&<span style={{fontSize:10,fontWeight:800,color:C.orange,background:C.orange+'20',borderRadius:6,padding:'1px 5px'}}>임시</span>}
               </div>
-              {paid&&p?.time&&<div style={{fontSize:11,color:C.textDim}}>{fmtTime(p.time)}{p.by==='admin'?' · 관리자':p.by==='archive'?' · 종료처리':''}</div>}
-              {requested&&p?.requestedAt&&<div style={{fontSize:11,color:C.textDim}}>{fmtRelTime(p.requestedAt)} · 입금 확인 필요</div>}
+              {effectivePaid&&p?.time&&<div style={{fontSize:11,color:C.textDim}}>{fmtTime(p.time)}{p.by==='admin'?' · 관리자':p.by==='archive'?' · 종료처리':''}</div>}
+              {requested&&!effectivePaid&&p?.requestedAt&&<div style={{fontSize:11,color:C.textDim}}>{fmtRelTime(p.requestedAt)} · 입금 확인 필요</div>}
             </div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
             <div style={{color:C.accent,fontWeight:900,fontSize:13}}>{fmtKRW(displayAmount)}</div>
             <div style={{display:'flex',alignItems:'center',gap:4}}>
-              {rejected
+              {rejected&&!effectivePaid
                 ?<span style={{fontSize:12,fontWeight:900,color:'#999'}}>✕</span>
-                :<div style={{width:9,height:9,borderRadius:'50%',background:paid?'#5DCAA5':requested?'#EF9F27':'#E24B4A'}}/>
+                :<div style={{width:9,height:9,borderRadius:'50%',background:dotColor}}/>
               }
-              <span style={{fontSize:12,color:C.textDim,fontWeight:500}}>{paid?'완료':requested?'확인 필요':rejected?'제외':'미입금'}</span>
+              <span style={{fontSize:12,color:C.textDim,fontWeight:500}}>{effectivePaid?'완료':matchInfo?'확인 필요':requested?'확인 필요':rejected?'제외':'미입금'}</span>
             </div>
-            <PayStatusSlider payStatus={status} onChange={()=>toggle(k)}/>
+            <PayStatusSlider payStatus={effectiveStatus} onChange={()=>toggle(k)}/>
           </div>
         </div>
+        {matchInfo?.type==='partial'&&!effectivePaid&&(
+          <div style={{padding:'0 14px 10px'}}>
+            <div style={{height:3,borderRadius:2,background:C.border,overflow:'hidden',marginBottom:3}}>
+              <div style={{height:'100%',width:`${Math.min(100,Math.round(matchInfo.totalAmount/matchInfo.expected*100))}%`,background:C.yellow,borderRadius:2}}/>
+            </div>
+            <span style={{fontSize:11,color:C.yellow,fontWeight:600}}>{fmtKRW(matchInfo.totalAmount)} / {fmtKRW(matchInfo.expected)}{matchInfo.depositCount>1?` · ${matchInfo.depositCount}회 합산`:''}</span>
+          </div>
+        )}
+        {matchInfo?.type==='overpaid'&&!effectivePaid&&(
+          <div style={{padding:'0 14px 10px',fontSize:11,color:C.yellow,fontWeight:600}}>
+            {fmtKRW(matchInfo.totalAmount)} 입금 ({fmtKRW(matchInfo.totalAmount-matchInfo.expected)} 초과)
+          </div>
+        )}
         {canDunning&&(
           <div style={{borderTop:`1px solid ${C.border}`,padding:'6px 14px',display:'flex',justifyContent:'flex-end'}}>
             <button onClick={dunning} style={{fontSize:12,color:C.orange,background:C.orange+'18',border:'none',borderRadius:8,padding:'5px 12px',cursor:'pointer',fontWeight:700,display:'flex',alignItems:'center',gap:4}}><Icon n="message-circle" size={12} color={C.orange}/>콕 찌르기</button>
@@ -2800,11 +2818,15 @@ function StatusSection({event,updateEvent,groups,showToast}){
   });
   const [confirmBulk,setConfirmBulk]=useState(false);
   const [dunningOpen,setDunningOpen]=useState(false);
-  const [matchResults,setMatchResults]=useState(null);
+  const [matchSummary,setMatchSummary]=useState(null); // {byKey, refund, stats}
+  const [animatingPaidKeys,setAnimatingPaidKeys]=useState(new Set());
+  const [animating,setAnimating]=useState(false);
   const [uploading,setUploading]=useState(false);
   const [showExcelModal,setShowExcelModal]=useState(false);
   const excelFileRef=useRef(null);
-  useEffect(()=>{if(matchResults)setShowExcelModal(false);},[matchResults]);
+  const animTimers=useRef([]);
+  const eventRef=useRef(event);
+  useEffect(()=>{eventRef.current=event;},[event]);
 
   const applyBulkConfirm=()=>{
     const now=new Date().toISOString();
@@ -2818,6 +2840,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
     const file=e.target.files?.[0];
     if(!file) return;
     setUploading(true);
+    setShowExcelModal(false);
     try{
       const data=await file.arrayBuffer();
       const parsed=matchEngine.parseExcel(data);
@@ -2825,36 +2848,47 @@ function StatusSection({event,updateEvent,groups,showToast}){
       if(parsed.deposits.length===0){showToast('입금 내역이 없어요',C.red);setUploading(false);return;}
       const esubs=presentMembers.map(k=>({name:mm[k]||k,key:k}));
       const results=matchEngine.match(parsed.deposits,esubs,s=>amounts[s.key]||0);
-      // 매칭 완료 멤버 즉시 처리 — 버튼 클릭 불필요
-      const now=new Date().toISOString();
-      const newPayments={...event.payments};
-      results.matched.forEach(m=>{newPayments[m.sub.key]={payStatus:'paid',hasBeenConfirmed:true,requestedAt:event.payments[m.sub.key]?.requestedAt||null,time:now,by:'admin'};});
-      await updateEvent({...event,payments:newPayments,refundList:(results.refund||[]).map(d=>({name:d.name,amount:d.amount}))});
+      // matchSummary 구성 (partial/overpaid 카드 인라인 표시용)
+      const byKey={};
+      (results.partial||[]).forEach(m=>{byKey[m.sub.key]={type:'partial',totalAmount:m.totalAmount,expected:amounts[m.sub.key]||0,depositCount:m.deposits.length};});
+      (results.overpaid||[]).forEach(m=>{byKey[m.sub.key]={type:'overpaid',totalAmount:m.totalAmount,expected:amounts[m.sub.key]||0};});
       const needsCheck=(results.partial||[]).length+(results.overpaid||[]).length;
+      const newSummary={byKey,refund:results.refund||[],stats:{matched:results.matched.length,needsCheck}};
+      setMatchSummary(newSummary);
+      // 매칭 완료 멤버: 순차 슬라이더 ON 애니메이션 후 DB 1회 저장
+      const matchedKeys=results.matched.map(m=>m.sub.key);
+      const now=new Date().toISOString();
+      const newPayments={...eventRef.current.payments};
+      results.matched.forEach(m=>{newPayments[m.sub.key]={payStatus:'paid',hasBeenConfirmed:true,requestedAt:eventRef.current.payments[m.sub.key]?.requestedAt||null,time:now,by:'admin'};});
+      animTimers.current.forEach(t=>clearTimeout(t));
+      animTimers.current=[];
+      if(matchedKeys.length>0){
+        setAnimating(true);
+        const interval=matchedKeys.length<=50?30:Math.floor(1500/matchedKeys.length);
+        matchedKeys.forEach((key,i)=>{
+          const t=setTimeout(()=>setAnimatingPaidKeys(prev=>new Set([...prev,key])),i*interval);
+          animTimers.current.push(t);
+        });
+        const finalT=setTimeout(async()=>{
+          await updateEvent({...eventRef.current,payments:newPayments,refundList:newSummary.refund.map(d=>({name:d.name,amount:d.amount}))});
+          setAnimating(false);
+          setAnimatingPaidKeys(new Set());
+        },matchedKeys.length*interval+100);
+        animTimers.current.push(finalT);
+      } else if(newSummary.refund.length>0){
+        await updateEvent({...eventRef.current,refundList:newSummary.refund.map(d=>({name:d.name,amount:d.amount}))});
+      }
       const parts=[];
       if(results.matched.length>0) parts.push(`${results.matched.length}명 처리`);
       if(needsCheck>0) parts.push(`확인 필요 ${needsCheck}명`);
       showToast(parts.length?parts.join(', '):`${results.totalDeposits}건 분석`);
-      // 확인 필요·환불 건만 리뷰 섹션에 표시 (매칭 완료는 이미 처리됨)
-      const hasReview=needsCheck>0||results.refund.length>0;
-      setMatchResults(hasReview?{...results,matched:[]}:null);
     }catch(err){
       console.error(err);
       showToast('파일을 읽을 수 없어요',C.red);
+      setAnimating(false);
     }
     setUploading(false);
     if(excelFileRef.current) excelFileRef.current.value='';
-  };
-
-  const applyExcelMatched=()=>{
-    if(!matchResults) return;
-    const now=new Date().toISOString();
-    const newPayments={...event.payments};
-    matchResults.matched.forEach(m=>{newPayments[m.sub.key]={payStatus:'paid',hasBeenConfirmed:true,requestedAt:event.payments[m.sub.key]?.requestedAt||null,time:now,by:'admin'};});
-    updateEvent({...event,payments:newPayments,refundList:(matchResults.refund||[]).map(d=>({name:d.name,amount:d.amount}))});
-    const cnt=matchResults.matched.length;
-    setMatchResults(null);
-    showToast(`${cnt}명 입금 확인 처리됐어요`);
   };
 
   return(
@@ -2863,12 +2897,12 @@ function StatusSection({event,updateEvent,groups,showToast}){
         신청 받으셨어요. 저녁이나 다음 날에 통장과 여유롭게 대조하세요.<br/>귀찮으시다면 거래내역서 업로드로 한 번에 자동 매칭도 가능해요.
       </div>
       <input ref={excelFileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleExcel} style={{display:'none'}}/>
-      {event.account?.bank&&!matchResults&&(
+      {event.account?.bank&&(
         <div style={{display:'flex',gap:8,marginBottom:12}}>
-          <button onClick={()=>setShowExcelModal(true)} disabled={uploading} className="press" style={{flex:1,padding:'10px 4px',borderRadius:10,background:C.cardBg,border:`1px solid ${C.border}`,color:uploading?C.textDim:C.textMid,fontWeight:700,fontSize:12,cursor:uploading?'default':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
-            {uploading?<><Spinner size={12} color={C.textDim}/>&nbsp;분석 중...</>:<><Icon n="bar-chart" size={12} color={C.textMid}/>자동 대조</>}
+          <button onClick={()=>setShowExcelModal(true)} disabled={uploading||animating} className="press" style={{flex:1,padding:'10px 4px',borderRadius:10,background:C.cardBg,border:`1px solid ${C.border}`,color:(uploading||animating)?C.textDim:C.textMid,fontWeight:700,fontSize:12,cursor:(uploading||animating)?'default':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
+            {uploading?<><Spinner size={12} color={C.textDim}/>&nbsp;분석 중...</>:animating?<><Spinner size={12} color={C.textDim}/>&nbsp;처리 중...</>:<><Icon n="bar-chart" size={12} color={C.textMid}/>자동 대조</>}
           </button>
-          {unpaidXKeys.length>0&&(
+          {unpaidXKeys.length>0&&!animating&&(
             <button onClick={()=>setDunningOpen(true)} className="press" style={{flex:1,padding:'10px 4px',borderRadius:10,background:C.cardBg,border:`1px solid ${C.border}`,color:C.textMid,fontWeight:700,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
               <Icon n="message-circle" size={12} color={C.textMid}/>미입금자 {unpaidXKeys.length}명 콕 찌르기
             </button>
@@ -2883,9 +2917,8 @@ function StatusSection({event,updateEvent,groups,showToast}){
         </div>
       )}
       <ConfirmBulkModal isOpen={confirmBulk} onClose={()=>setConfirmBulk(false)} count={requestedKeys.length} onConfirm={applyBulkConfirm}/>
-      {matchResults&&<EventVerifySection event={event} amounts={amounts} matchResults={matchResults} onApply={applyExcelMatched} onReset={()=>setMatchResults(null)}/>}
       {surplus>0&&<div style={{fontSize:11,color:C.textDim,textAlign:'center',marginBottom:12}}>소수점을 올림해서 총액보다 <span style={{fontWeight:700,color:C.textMid}}>{fmtKRW(surplus)}</span> 더 걷혀요</div>}
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:matchSummary?4:8}}>
         <div style={{fontSize:12,fontWeight:600}}>
           <span style={{color:C.red,display:'inline-flex',alignItems:'center',gap:3}}><span style={{width:8,height:8,borderRadius:'50%',background:C.red,display:'inline-block',flexShrink:0}}/>미입금 {totalCount-pc}</span>
           <span style={{color:C.textDim,margin:'0 5px'}}>·</span>
@@ -2916,6 +2949,17 @@ function StatusSection({event,updateEvent,groups,showToast}){
           </div>
         </div>
       </div>
+      {matchSummary&&(matchSummary.stats.matched>0||matchSummary.stats.needsCheck>0)&&(
+        <div style={{marginBottom:8,padding:'7px 10px',background:C.greenBg,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{display:'flex',gap:6,alignItems:'center',fontSize:11}}>
+            <Icon n="bar-chart" size={12} color={C.green}/>
+            {matchSummary.stats.matched>0&&<span><span style={{color:C.green,fontWeight:700}}>{matchSummary.stats.matched}명</span> 자동 처리</span>}
+            {matchSummary.stats.matched>0&&matchSummary.stats.needsCheck>0&&<span style={{color:C.textDim}}>·</span>}
+            {matchSummary.stats.needsCheck>0&&<span><span style={{color:C.yellow,fontWeight:700}}>{matchSummary.stats.needsCheck}명</span> 확인 필요</span>}
+          </div>
+          <button onClick={()=>setMatchSummary(null)} style={{fontSize:11,color:C.textDim,background:'none',border:`1px solid ${C.border}`,cursor:'pointer',padding:'2px 8px',borderRadius:6,fontFamily:'inherit'}}>초기화</button>
+        </div>
+      )}
       {showGroups&&groupSections?(
         groupSections.map(section=>(
           <div key={section.name} style={{marginBottom:4}}>
@@ -2941,6 +2985,20 @@ function StatusSection({event,updateEvent,groups,showToast}){
         </>
       )}
       {unpaidList.length===0&&pc>0&&<div style={{textAlign:'center',color:C.green,fontWeight:900,fontSize:15,padding:'16px 0',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Icon n="sparkles" size={16} color={C.green}/>전원 완료!</div>}
+      {matchSummary?.refund?.length>0&&(
+        <div style={{marginTop:8,padding:'12px 14px',background:C.inputBg,borderRadius:12,border:`1px solid ${C.border}`}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.textMid,marginBottom:6,display:'flex',alignItems:'center',gap:4}}>
+            <Icon n="circle-alert" size={13} color={C.textMid}/>명단에 없는 입금 {matchSummary.refund.length}건이 있어요
+          </div>
+          <div style={{fontSize:11,color:C.textDim,marginBottom:8}}>직접 확인 후 환불 처리해 주세요.</div>
+          {matchSummary.refund.map((d,i)=>(
+            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderTop:i>0?`1px solid ${C.border}`:''}}>
+              <span style={{fontSize:13,fontWeight:600,color:C.text}}>{d.name}</span>
+              <span style={{fontSize:13,fontWeight:700,color:C.textMid}}>{fmtKRW(d.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {dunningOpen&&event.account?.bank&&(
         <DunningModal eventName={event.name} account={event.account} link={directLink}
           unpaidList={unpaidXList} showToast={showToast} onClose={()=>setDunningOpen(false)}/>
