@@ -1375,6 +1375,7 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
   const [pfmOpen,setPfmOpen]=useState(false);
   const [searchQ,setSearchQ]=useState('');
   const [sortBy,setSortBy]=useState('default');
+  const [guideHidden,setGuideHidden]=useState(()=>!!localStorage.getItem('memberPasteGuideSeen'));
 
   const updateRaw=(idx,text)=>{
     const members=parseMembers(text);
@@ -1483,8 +1484,20 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
                     <div style={{fontSize:13,fontWeight:700,color:C.textMid}}>{cur.name} 명단</div>
                     {groups.length>1&&<button onClick={()=>delGroup(activeG)} style={{color:C.red,background:'none',border:'none',fontSize:12,cursor:'pointer',fontWeight:600}}>그룹 삭제</button>}
                   </div>
+                  {!guideHidden&&(
+                    <div style={{marginBottom:8,padding:'9px 12px',background:C.orangeBg,borderRadius:10,border:`1px solid ${C.orange}30`,fontSize:12,color:C.textMid,display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+                      <span style={{display:'inline-flex',alignItems:'center',gap:4,lineHeight:1.6,flexWrap:'wrap'}}><Icon n="lightbulb" size={13} color={C.orange}/>이름 한 줄씩, 또는 엑셀에서 복붙. 이름·학번, 탭·쉼표·공백 모두 인식.</span>
+                      <button onClick={()=>{setGuideHidden(true);localStorage.setItem('memberPasteGuideSeen','1');}} style={{background:'none',border:'none',cursor:'pointer',color:C.textDim,fontSize:18,lineHeight:1,flexShrink:0,padding:0}}>×</button>
+                    </div>
+                  )}
+                  <textarea ref={textareaRef} value={cur.rawText} onChange={e=>updateRaw(activeG,e.target.value)}
+                    placeholder={`${cur.name} 명단 붙여넣기\n이름·학번, 탭·쉼표·공백 모두 인식`} rows={6}
+                    style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:14,outline:'none',resize:'vertical',lineHeight:1.75,marginBottom:10}}
+                    onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
+                    onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
+                  />
                   {displayMembers.length>0&&(
-                    <div style={{marginBottom:12}}>
+                    <div>
                       <div style={{display:'flex',gap:6,marginBottom:8}}>
                         <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름·학번 검색"
                           style={{flex:1,padding:'7px 12px',borderRadius:10,border:`1.5px solid ${searchQ?C.accent:C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none'}}/>
@@ -1496,21 +1509,21 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
                           <option value="paid">납부순</option>
                         </select>
                       </div>
-                      <div style={{fontSize:12,color:C.green,fontWeight:700,marginBottom:8,display:'flex',alignItems:'center',gap:4}}>
+                      <div style={{fontSize:12,color:C.green,fontWeight:700,marginBottom:6,display:'flex',alignItems:'center',gap:4}}>
                         <Icon n="check" size={12} color={C.green}/>{searchQ?`${sortedMembers.length}/${displayMembers.length}명 검색됨`:`${displayMembers.length}명 인식됐어요`}
                       </div>
-                      <div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}>
-                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 28px',background:C.inputBg,padding:'6px 12px',borderBottom:`1px solid ${C.border}`}}>
+                      <div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',maxHeight:200,overflowY:'auto'}}>
+                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',background:C.inputBg,padding:'6px 12px',borderBottom:`1px solid ${C.border}`,position:'sticky',top:0,zIndex:1}}>
                           <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>이름</span>
                           <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>학번</span>
-                          <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>납부</span>
+                          <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>학생회비</span>
                         </div>
                         {sortedMembers.length>0?sortedMembers.map((m,i)=>{
                           const k=m.name+(m.sid?'_'+m.sid:'');
                           const isPaid=groups.some(g=>(g.paidFeeMembers||[]).includes(k));
                           return(
                             <div key={m.name+(m.sid||'')+i} style={{
-                              display:'grid',gridTemplateColumns:'1fr 1fr 28px',padding:'7px 12px',
+                              display:'grid',gridTemplateColumns:'1fr 1fr auto',padding:'7px 12px',
                               borderBottom:i<sortedMembers.length-1?`1px solid ${C.border}`:'none',
                               background:C.cardBg,alignItems:'center',
                             }}>
@@ -1518,8 +1531,8 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
                               <span style={{fontSize:13,color:m.sid?C.textMid:C.textDim}}>{m.sid||'—'}</span>
                               <div onClick={()=>togglePaidFee(activeG,k)} style={{
                                 width:20,height:20,borderRadius:6,
-                                border:`2px solid ${isPaid?C.green:C.textDim}`,
-                                background:isPaid?C.green:'transparent',
+                                border:`2px solid ${isPaid?C.accent:C.textDim}`,
+                                background:isPaid?C.accent:'transparent',
                                 display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',
                               }}>
                                 {isPaid&&<Icon n="check" size={11} color="#fff"/>}
@@ -1530,20 +1543,12 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
                           <div style={{padding:'16px',textAlign:'center',color:C.textDim,fontSize:13}}>검색 결과가 없어요</div>
                         )}
                       </div>
+                      <button onClick={()=>setPfmOpen(true)}
+                        style={{width:'100%',marginTop:8,padding:'8px',borderRadius:10,border:`1.5px solid ${C.accent}40`,background:C.accentBg,color:C.accent,fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
+                        <Icon n="clipboard-list" size={12} color={C.accent}/>학생회비 일괄 붙여넣기
+                      </button>
                     </div>
                   )}
-                  <div style={{marginBottom:8,padding:'10px 12px',background:C.orangeBg,borderRadius:10,border:`1px solid ${C.orange}30`,fontSize:12,color:C.textMid,lineHeight:1.9}}>
-                    <span style={{display:'inline-flex',alignItems:'center',gap:4}}><Icon n="lightbulb" size={13} color={C.orange}/>아래 형식으로 붙여넣으세요</span><br/>
-                    <span style={{fontFamily:'monospace',color:C.text}}>홍길동 20211234</span><br/>
-                    <span style={{fontFamily:'monospace',color:C.text}}>김철수, 20221111</span><br/>
-                    <span style={{fontFamily:'monospace',color:C.text}}>이영희 20231234</span>
-                  </div>
-                  <textarea ref={textareaRef} value={cur.rawText} onChange={e=>updateRaw(activeG,e.target.value)}
-                    placeholder={`${cur.name} 명단 붙여넣기\n이름·학번, 탭·쉼표·공백 모두 인식`} rows={9}
-                    style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:14,outline:'none',resize:'vertical',lineHeight:1.75}}
-                    onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
-                    onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
-                  />
                 </>
               )}
               {activeG===-1&&displayMembers.length>0&&(
@@ -1562,18 +1567,18 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
                   <div style={{fontSize:12,color:C.green,fontWeight:700,marginBottom:8}}>
                     ✓ {searchQ?`${sortedMembers.length}/${displayMembers.length}명 검색됨`:`${displayMembers.length}명 인식됐어요`}
                   </div>
-                  <div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 28px',background:C.inputBg,padding:'6px 12px',borderBottom:`1px solid ${C.border}`}}>
+                  <div style={{border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden',maxHeight:200,overflowY:'auto'}}>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',background:C.inputBg,padding:'6px 12px',borderBottom:`1px solid ${C.border}`,position:'sticky',top:0,zIndex:1}}>
                       <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>이름</span>
                       <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>학번</span>
-                      <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>납부</span>
+                      <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>학생회비</span>
                     </div>
                     {sortedMembers.length>0?sortedMembers.map((m,i)=>{
                       const k=m.name+(m.sid?'_'+m.sid:'');
                       const isPaid=groups.some(g=>(g.paidFeeMembers||[]).includes(k));
                       return(
                         <div key={m.name+(m.sid||'')+i} style={{
-                          display:'grid',gridTemplateColumns:'1fr 1fr 28px',padding:'7px 12px',
+                          display:'grid',gridTemplateColumns:'1fr 1fr auto',padding:'7px 12px',
                           borderBottom:i<sortedMembers.length-1?`1px solid ${C.border}`:'none',
                           background:C.cardBg,alignItems:'center',
                         }}>
@@ -1581,8 +1586,8 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
                           <span style={{fontSize:13,color:m.sid?C.textMid:C.textDim}}>{m.sid||'—'}</span>
                           <div onClick={()=>togglePaidFee(activeG,k)} style={{
                             width:20,height:20,borderRadius:6,
-                            border:`2px solid ${isPaid?C.green:C.textDim}`,
-                            background:isPaid?C.green:'transparent',
+                            border:`2px solid ${isPaid?C.accent:C.textDim}`,
+                            background:isPaid?C.accent:'transparent',
                             display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',
                           }}>
                             {isPaid&&<Icon n="check" size={11} color="#fff"/>}
