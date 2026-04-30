@@ -4647,7 +4647,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
         <div style={{width:56,height:56,borderRadius:28,background:'rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 10px'}}><Icon n="clipboard-list" size={28} color="#fff"/></div>
         <div style={{fontSize:22,fontWeight:900,color:'#fff',marginBottom:6}}>{form.name}</div>
         <div style={{display:'flex',justifyContent:'center',gap:12,fontSize:13,color:'rgba(255,255,255,0.9)'}}>
-          <span style={{display:'inline-flex',alignItems:'center',gap:4}}><Icon n="calendar" size={13} color="rgba(255,255,255,0.8)"/>{form.date}</span>
+          <span style={{display:'inline-flex',alignItems:'center',gap:4}}><Icon n="calendar" size={13} color="rgba(255,255,255,0.8)"/>{(form.date||'').replace(/^\d{4}-(\d{2})-(\d{2})$/,(_,m,d)=>`${+m}월 ${+d}일`)}{form.time?` ${form.time}`:''}</span>
           <span style={{display:'inline-flex',alignItems:'center',gap:4}}><Icon n="wallet" size={13} color="rgba(255,255,255,0.8)"/>{form.amountPaid?`${fmtKRW(form.amount)} / ${fmtKRW(form.amountPaid)}`:fmtKRW(form.amount)}</span>
         </div>
         {form.maxPeople&&(
