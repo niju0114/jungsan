@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 
@@ -488,6 +488,7 @@ const ICONS={
   'refresh-cw':'<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
   pencil:'<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
   zap:'<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+  'party-popper':'<path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/>',
   eye:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
 };
 const Icon=({n,size=18,color='currentColor',style={}})=>(
@@ -2715,30 +2716,22 @@ function StatusSection({event,updateEvent,groups,showToast}){
       </div>
       <input ref={excelFileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleExcel} style={{display:'none'}}/>
       {event.account?.bank&&!matchResults&&(
-        <>
-          <button onClick={()=>excelFileRef.current?.click()} disabled={uploading} className="press" style={{width:'100%',padding:'14px',borderRadius:12,background:C.accent,border:'none',color:'#fff',fontWeight:800,fontSize:14,cursor:uploading?'default':'pointer',marginBottom:4}}>
-            {uploading?'분석 중...':<><Icon n="bar-chart" size={14} color="#fff" style={{marginRight:4}}/>거래내역 대조</>}
+        <div style={{display:'flex',gap:8,marginBottom:12}}>
+          <button onClick={()=>excelFileRef.current?.click()} disabled={uploading} className="press" style={{flex:1,padding:'10px 4px',borderRadius:10,background:C.cardBg,border:`1px solid ${C.border}`,color:uploading?C.textDim:C.textMid,fontWeight:700,fontSize:12,cursor:uploading?'default':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
+            {uploading?<><Spinner size={12} color={C.textDim}/>&nbsp;분석 중...</>:<><Icon n="bar-chart" size={12} color={C.textMid}/>거래내역 대조</>}
           </button>
-          <div style={{fontSize:11,color:C.textDim,textAlign:'center',marginBottom:12}}>한 번에 자동 매칭. 통장 보면서 손체크 안 해도 돼요.</div>
-        </>
-      )}
-      {!matchResults&&(unpaidXKeys.length>0&&!!event.account?.bank||requestedKeys.length>0)&&(
-        <div style={{marginBottom:16}}>
-          <div style={{display:'flex',gap:8,marginBottom:4}}>
-            {unpaidXKeys.length>0&&event.account?.bank&&(
-              <button onClick={()=>setDunningOpen(true)} className="press" style={{flex:1,padding:'9px',borderRadius:10,background:'transparent',border:`1.5px solid ${C.border}`,color:C.textMid,fontWeight:700,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
-                <Icon n="message-circle" size={12} color={C.textMid}/>미납자 {unpaidXKeys.length}명 콕 찌르기
-              </button>
-            )}
-            {requestedKeys.length>0&&(
-              <button onClick={()=>setConfirmBulk(true)} className="press" style={{flex:1,padding:'9px',borderRadius:10,background:C.yellowBg,border:`1.5px solid ${C.yellow}40`,color:C.yellow,fontWeight:700,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
-                <Icon n="check" size={12} color={C.yellow}/>{requestedKeys.length}명 확인 완료
-              </button>
-            )}
-          </div>
-          {unpaidXKeys.length>0&&event.account?.bank&&(
-            <div style={{fontSize:10,color:C.textDim,textAlign:'center',lineHeight:1.5}}>미입금자 전원에게 한 번에 카톡 발송 — 한 명씩 보내지 않아도 됩니다</div>
+          {unpaidXKeys.length>0&&(
+            <button onClick={()=>setDunningOpen(true)} className="press" style={{flex:1,padding:'10px 4px',borderRadius:10,background:C.cardBg,border:`1px solid ${C.border}`,color:C.textMid,fontWeight:700,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
+              <Icon n="message-circle" size={12} color={C.textMid}/>미입금자 {unpaidXKeys.length}명 콕 찌르기
+            </button>
           )}
+        </div>
+      )}
+      {!matchResults&&requestedKeys.length>0&&(
+        <div style={{marginBottom:12}}>
+          <button onClick={()=>setConfirmBulk(true)} className="press" style={{width:'100%',padding:'9px',borderRadius:10,background:C.yellowBg,border:`1.5px solid ${C.yellow}40`,color:C.yellow,fontWeight:700,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
+            <Icon n="check" size={12} color={C.yellow}/>{requestedKeys.length}명 확인 완료
+          </button>
         </div>
       )}
       <ConfirmBulkModal isOpen={confirmBulk} onClose={()=>setConfirmBulk(false)} count={requestedKeys.length} onConfirm={applyBulkConfirm}/>
@@ -3408,9 +3401,11 @@ function SmallEventOnboardingModal({onClose}){
       {slide===0&&(
         <div className="fade-up">
           <div style={{textAlign:'center',marginBottom:20}}>
-            <div style={{fontSize:44,marginBottom:10}}>🏃</div>
-            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>현장에서 시작해보세요</div>
-            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>출석 체크 후 공지 금액을 설정해주세요.<br/>학생회비 차등 또는 1/N 분배 가능.</div>
+            <div style={{width:64,height:64,borderRadius:'50%',background:C.accent+'18',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
+              <Icon n="users" size={30} color={C.accent}/>
+            </div>
+            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>수기로 하던 일, 한 번에</div>
+            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>출석 체크하고 금액 설정하면 끝.<br/>인원별 링크 공유로 입금 현황을 실시간으로.</div>
           </div>
           <Btn onClick={()=>setSlide(1)}>다음 →</Btn>
         </div>
@@ -3441,9 +3436,11 @@ function SmallEventOnboardingModal({onClose}){
       {slide===2&&(
         <div className="fade-up">
           <div style={{textAlign:'center',marginBottom:20}}>
-            <div style={{fontSize:44,marginBottom:10}}>📊</div>
-            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>거래내역 한 번에 자동 대조</div>
-            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>통장 보면서 한 명씩 체크할 필요 없어요.<br/>거래내역서 엑셀 한 번 올리면 자동 매칭.</div>
+            <div style={{width:64,height:64,borderRadius:'50%',background:'#F59E0B18',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
+              <Icon n="zap" size={30} color="#F59E0B"/>
+            </div>
+            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>통장 보면서 손체크? 안 해도 돼요</div>
+            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>거래내역서 엑셀 한 번 올리면 자동 매칭.<br/>미입금자만 골라 콕 찌르기도 가능해요.</div>
           </div>
           <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
             <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:18,height:18,accentColor:C.accent,cursor:'pointer'}}/>
@@ -3463,7 +3460,7 @@ function SmallEventOnboardingModal({onClose}){
 function FormOnboardingModal({onClose}){
   const [slide,setSlide]=useState(0);
   const [dontShow,setDontShow]=useState(false);
-  const SLIDES=3;
+  const SLIDES=4;
   const finish=()=>{if(dontShow)localStorage.setItem('formOnboardingDone','true');onClose();};
   const payStates=[
     {dot:'#E24B4A',label:'미입금',desc:'송금 안 한 사람. 콕 찌르기로 알림 가능.'},
@@ -3483,9 +3480,11 @@ function FormOnboardingModal({onClose}){
       {slide===0&&(
         <div className="fade-up">
           <div style={{textAlign:'center',marginBottom:20}}>
-            <div style={{fontSize:44,marginBottom:10}}>📋</div>
-            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>신청 + 입금 한 화면에서</div>
-            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>신청폼 만들어 명단 받고,<br/>입금 확인까지 같이 관리하세요.</div>
+            <div style={{width:64,height:64,borderRadius:'50%',background:C.accent+'18',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
+              <Icon n="users" size={30} color={C.accent}/>
+            </div>
+            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>신청 + 입금 한 곳에서</div>
+            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>신청폼 링크 하나 공유하면<br/>명단 받고 입금 확인까지 한 곳에서.</div>
           </div>
           <Btn onClick={()=>setSlide(1)}>다음 →</Btn>
         </div>
@@ -3516,16 +3515,33 @@ function FormOnboardingModal({onClose}){
       {slide===2&&(
         <div className="fade-up">
           <div style={{textAlign:'center',marginBottom:20}}>
-            <div style={{fontSize:44,marginBottom:10}}>📤</div>
-            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>엑셀 추출 + 이어서 정산</div>
-            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>신청자 정보를 엑셀로 추출 가능.<br/>행사 후 뒷풀이 등 이어서 정산도 가능.</div>
+            <div style={{width:64,height:64,borderRadius:'50%',background:'#F59E0B18',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
+              <Icon n="zap" size={30} color="#F59E0B"/>
+            </div>
+            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>통장 보면서 손체크? 안 해도 돼요</div>
+            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>거래내역서 엑셀 한 번 올리면 자동 매칭.<br/>미입금자만 골라 콕 찌르기도 가능해요.</div>
+          </div>
+          <div style={{display:'flex',gap:8}}>
+            <Btn variant="ghost" onClick={()=>setSlide(1)} style={{flex:1}}>이전</Btn>
+            <Btn onClick={()=>setSlide(3)} style={{flex:2}}>다음 →</Btn>
+          </div>
+        </div>
+      )}
+      {slide===3&&(
+        <div className="fade-up">
+          <div style={{textAlign:'center',marginBottom:20}}>
+            <div style={{width:64,height:64,borderRadius:'50%',background:'#10B98118',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
+              <Icon n="party-popper" size={30} color="#10B981"/>
+            </div>
+            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>행사 끝나고 뒷풀이도 같이</div>
+            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>신청자 명단을 소규모 정산으로 바로 연결.<br/>추가 정산도 여기서 이어서 할 수 있어요.</div>
           </div>
           <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
             <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:18,height:18,accentColor:C.accent,cursor:'pointer'}}/>
             <span style={{fontSize:13,color:C.textMid,fontWeight:600}}>다시 보지 않기</span>
           </label>
           <div style={{display:'flex',gap:8}}>
-            <Btn variant="ghost" onClick={()=>setSlide(1)} style={{flex:1}}>이전</Btn>
+            <Btn variant="ghost" onClick={()=>setSlide(2)} style={{flex:1}}>이전</Btn>
             <Btn onClick={finish} style={{flex:2}}>시작하기 →</Btn>
           </div>
         </div>
@@ -4541,7 +4557,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
     XLSX.utils.book_append_sheet(wb,ws,'신청 명단');
     XLSX.writeFile(wb,`${form.name}_신청명단.xlsx`);
   };
-  const unpaidXList=subs.filter(s=>s.paymentStatus==='unpaid_confirmed').map(s=>({name:s.name,amount:getUserAmount(form,s.name,s.data?.studentId)}));
+  const unpaidXList=subs.filter(s=>!s.paid&&!['matched','requested','unpaid_confirmed'].includes(s.paymentStatus)).map(s=>({name:s.name,amount:getUserAmount(form,s.name,s.data?.studentId)}));
   const [slide,setSlide]=useState(()=>subs.length===0?0:1);
   const stepDone=[true,subs.length>0];
 
@@ -4641,7 +4657,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
               </div>
               <div style={{display:'flex',marginBottom:4,gap:6}}>
                 <button onClick={()=>setShowVerify(true)} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="download" size={12} color={C.textMid}/>입금 자동 대조</button>
-                <button onClick={()=>{if(!form.account?.bank){showToast('계좌 정보를 먼저 등록해주세요',C.orange);return;}setDunningOpen(true);}} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="megaphone" size={12} color={C.textMid}/>콕 찌르기</button>
+                {unpaidXList.length>0&&form.account?.bank&&<button onClick={()=>setDunningOpen(true)} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="megaphone" size={12} color={C.textMid}/>미입금자 {unpaidXList.length}명 콕 찌르기</button>}
                 {subs.length>0&&<button onClick={downloadExcel} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="table" size={12} color={C.textMid}/>엑셀 추출</button>}
               </div>
               <div style={{fontSize:11,color:C.textDim,textAlign:'center',marginBottom:10}}>한 번에 자동 매칭. 통장 보면서 손체크 안 해도 돼요.</div>
