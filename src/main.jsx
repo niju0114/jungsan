@@ -4417,7 +4417,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
                 onSetSubPaid={handlers.setSubPaid}
                 onCardDunning={form.account?.bank?handleCardDunning:null}/>
               {createEvent&&subs.length>0&&(
-                <div style={{marginTop:16,paddingTop:14,borderTop:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <div style={{marginTop:16,paddingTop:14,borderTop:'2px solid #D1D5DB',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                   <span style={{fontSize:12,color:C.textMid}}>행사 후 추가 정산이 필요하면</span>
                   <button onClick={()=>setBridgeNameOpen(true)} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:C.accent,fontWeight:700,padding:'4px 0',display:'flex',alignItems:'center',gap:3}}><Icon n="clipboard-list" size={12} color={C.accent}/>이어서 정산하기 →</button>
                 </div>
