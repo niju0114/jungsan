@@ -2153,7 +2153,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   const mm=event.memberMap||{};
   const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
 
-  const [localAtt,setLocalAtt]=useState(()=>({...event.attendance}));
+  const [localAtt,setLocalAtt]=useState(()=>{const a={};event.members.forEach(k=>a[k]=false);return a;});
   const [attDirty,setAttDirty]=useState(false);
   const [attSavedAt,setAttSavedAt]=useState(null);
 
@@ -2227,6 +2227,20 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
   const attCount=event.members.filter(k=>localAtt[k]!==false).length;
   const fc=event.feeConfig;
+  const useGroupView=!attSearch&&(groups||[]).filter(g=>(g.members||[]).length>0).length>1;
+  const groupSections=React.useMemo(()=>{
+    if(!useGroupView) return null;
+    const assigned=new Set();
+    const sections=(groups||[]).map(g=>{
+      const gKeys=new Set((g.members||[]).map(m=>m.name+(m.sid?`_${m.sid}`:'')));
+      const keys=event.members.filter(k=>gKeys.has(k));
+      keys.forEach(k=>assigned.add(k));
+      return {name:g.name,keys};
+    }).filter(s=>s.keys.length>0);
+    const unassigned=event.members.filter(k=>!assigned.has(k));
+    if(unassigned.length>0) sections.push({name:'미분류',keys:unassigned});
+    return sections;
+  },[useGroupView,groups,event.members]);
 
   return(
     <div>
@@ -2250,19 +2264,38 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
           <button onClick={()=>{const a={};event.members.forEach(k=>a[k]=false);setLocalAtt(a);setAttDirty(true);}} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:C.textDim,fontWeight:600,whiteSpace:'nowrap',padding:0}}>전원 불참</button>
         </div>
         {/* 칩 리스트 */}
-        <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-          {event.members
-            .filter(k=>!attSearch||(mm[k]||k).includes(attSearch))
-            .map(k=>{
-              const isAbsent=localAtt[k]===false;
-              return(
-                <div key={k} onClick={()=>toggleAtt(k)} className="press" style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:isAbsent?'#F1EFE8':'#EEEDFE',border:`1px solid ${isAbsent?'#E0DDD5':'#D4D1F5'}`,transition:'all 0.15s'}}>
-                  {!isAbsent&&<Icon n="check" size={11} color="#3C3489"/>}
-                  <span style={{fontSize:13,fontWeight:600,color:isAbsent?'#888780':'#3C3489'}}>{mm[k]||k}</span>
-                </div>
-              );
-            })}
-        </div>
+        {useGroupView?(
+          groupSections.map(sec=>(
+            <div key={sec.name} style={{marginBottom:10}}>
+              <div style={{fontSize:11,fontWeight:700,color:C.textDim,marginBottom:5,letterSpacing:0.3}}>{sec.name} {sec.keys.length}명</div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                {sec.keys.map(k=>{
+                  const isAbsent=localAtt[k]===false;
+                  return(
+                    <div key={k} onClick={()=>toggleAtt(k)} className="press" style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:isAbsent?'#F1EFE8':'#EEEDFE',border:`1px solid ${isAbsent?'#E0DDD5':'#D4D1F5'}`,transition:'all 0.15s'}}>
+                      {!isAbsent&&<Icon n="check" size={11} color="#3C3489"/>}
+                      <span style={{fontSize:13,fontWeight:600,color:isAbsent?'#888780':'#3C3489'}}>{mm[k]||k}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))
+        ):(
+          <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+            {event.members
+              .filter(k=>!attSearch||(mm[k]||k).includes(attSearch))
+              .map(k=>{
+                const isAbsent=localAtt[k]===false;
+                return(
+                  <div key={k} onClick={()=>toggleAtt(k)} className="press" style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:isAbsent?'#F1EFE8':'#EEEDFE',border:`1px solid ${isAbsent?'#E0DDD5':'#D4D1F5'}`,transition:'all 0.15s'}}>
+                    {!isAbsent&&<Icon n="check" size={11} color="#3C3489"/>}
+                    <span style={{fontSize:13,fontWeight:600,color:isAbsent?'#888780':'#3C3489'}}>{mm[k]||k}</span>
+                  </div>
+                );
+              })}
+          </div>
+        )}
       </div>
 
       {/* 차수 카드들 */}
