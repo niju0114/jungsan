@@ -2628,7 +2628,6 @@ function StatusSection({event,updateEvent,groups,showToast}){
               <div style={{display:'flex',alignItems:'center',gap:6}}>
                 <span style={{fontWeight:600,color:rejected?C.textDim:C.text,fontSize:13}}>{displayName}</span>
                 {isExtra&&<span style={{fontSize:10,fontWeight:800,color:C.orange,background:C.orange+'20',borderRadius:6,padding:'1px 5px'}}>임시</span>}
-                {rejected&&<span style={{fontSize:10,fontWeight:800,color:C.red,background:C.redBg,borderRadius:6,padding:'1px 6px'}}>✕ 제외</span>}
               </div>
               {paid&&p?.time&&<div style={{fontSize:11,color:C.textDim}}>{fmtTime(p.time)}{p.by==='admin'?' · 관리자':p.by==='archive'?' · 종료처리':''}</div>}
               {requested&&p?.requestedAt&&<div style={{fontSize:11,color:C.textDim}}>{fmtRelTime(p.requestedAt)} · 입금 확인 필요</div>}
@@ -2636,6 +2635,13 @@ function StatusSection({event,updateEvent,groups,showToast}){
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
             <div style={{color:C.accent,fontWeight:900,fontSize:13}}>{fmtKRW(displayAmount)}</div>
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              {rejected
+                ?<span style={{fontSize:12,fontWeight:900,color:'#999'}}>✕</span>
+                :<div style={{width:9,height:9,borderRadius:'50%',background:paid?'#5DCAA5':requested?'#EF9F27':'#E24B4A'}}/>
+              }
+              <span style={{fontSize:12,color:C.textDim,fontWeight:500}}>{paid?'완료':requested?'확인 필요':rejected?'제외':'미입금'}</span>
+            </div>
             <PayStatusSlider payStatus={status} onChange={()=>toggle(k)}/>
           </div>
         </div>
@@ -3047,7 +3053,9 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
             const oxBg=paid?C.greenBg:req?C.yellowBg:C.cardBg;
             return(
               <div key={k} style={{background:oxBg,borderRadius:14,padding:'14px 6px',textAlign:'center',border:`2px solid ${isMe?C.accent+'80':paid?C.green+'40':req?C.yellow+'40':C.red+'30'}`,animation:(!paid&&!req)?'borderPulse 1.8s ease infinite':'none',transition:'background 0.3s'}}>
-                <div style={{fontSize:isMe&&!paid?28:22,fontWeight:900,color:oxColor,lineHeight:1,animation:(!paid&&!req)?'pulse 1.2s ease infinite':'none'}}>{paid?'O':req?'△':'X'}</div>
+                <div style={{display:'flex',justifyContent:'center',alignItems:'center',height:24}}>
+                  <div style={{width:isMe&&!paid?14:12,height:isMe&&!paid?14:12,borderRadius:'50%',background:oxColor,animation:(!paid&&!req)?'pulse 1.2s ease infinite':'none',transition:'all 0.2s'}}/>
+                </div>
                 <div style={{fontSize:11,color:isMe?C.accent:C.text,fontWeight:isMe?900:600,marginTop:6,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',padding:'0 4px'}}>{mm[k]||k}</div>
                 <div style={{fontSize:10,color:C.textDim,marginTop:3,minHeight:14}}></div>
               </div>
@@ -3206,7 +3214,7 @@ function HistoryScreen({nav,events,forms,deleteEvent,deleteForm}){
             return(
               <div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 0',borderBottom:`1px solid ${C.border}`}}>
                 <div style={{display:'flex',alignItems:'center',gap:10}}>
-                  <div style={{width:28,height:28,borderRadius:'50%',background:paid?C.green:C.redBg,border:paid?'none':`2px solid ${C.red}40`,display:'flex',alignItems:'center',justifyContent:'center',color:paid?'#fff':C.red,fontWeight:900,fontSize:13}}>{paid?'O':'X'}</div>
+                  <div style={{width:10,height:10,borderRadius:'50%',background:paid?'#5DCAA5':'#E24B4A',flexShrink:0}}/>
                   <span style={{color:C.text,fontSize:14}}>{mm[k]||k}</span>
                 </div>
                 <span style={{color:C.accent,fontSize:13,fontWeight:800}}>{fmtKRW(amounts[k]||0)}</span>
@@ -3383,9 +3391,9 @@ function SmallEventOnboardingModal({onClose}){
   const SLIDES=3;
   const finish=()=>{if(dontShow)localStorage.setItem('smallEventOnboardingDone','true');onClose();};
   const payStates=[
-    {mark:'X',color:C.red,bg:C.redBg,label:'미입금',desc:'송금 버튼 안 누름'},
-    {mark:'△',color:C.yellow,bg:C.yellowBg,label:'입금 확인 필요',desc:'송금 버튼 눌렀지만 미확인'},
-    {mark:'O',color:C.green,bg:C.greenBg,label:'입금 완료',desc:'거래내역 확인됨'},
+    {dot:'#E24B4A',label:'미입금',desc:'송금 안 한 사람. 콕 찌르기로 알림 가능.'},
+    {dot:'#EF9F27',label:'확인 필요',desc:'송금 시도한 사람. 통장 확인하고 슬라이더로 완료 처리.'},
+    {dot:'#5DCAA5',label:'완료',desc:'정산 끝.'},
   ];
   return(
     <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
@@ -3410,20 +3418,19 @@ function SmallEventOnboardingModal({onClose}){
       {slide===1&&(
         <div className="fade-up">
           <div style={{textAlign:'center',marginBottom:16}}>
-            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5}}>입금 상태 3가지로 관리</div>
+            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5}}>입금 상태는 신호등처럼 3단계</div>
           </div>
-          <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:20}}>
-            {payStates.map(({mark,color,bg,label,desc})=>(
-              <div key={label} style={{display:'flex',alignItems:'center',gap:12,background:bg,borderRadius:12,padding:'12px 14px'}}>
-                <div style={{width:36,height:36,borderRadius:18,background:color+'30',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                  <span style={{fontSize:17,fontWeight:900,color}}>{mark}</span>
-                </div>
+          <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:20}}>
+            {payStates.map(({dot,label,desc})=>(
+              <div key={label} style={{display:'flex',alignItems:'flex-start',gap:10}}>
+                <div style={{width:10,height:10,borderRadius:'50%',background:dot,flexShrink:0,marginTop:4}}/>
                 <div>
                   <div style={{fontWeight:800,color:C.text,fontSize:14}}>{label}</div>
-                  <div style={{fontSize:12,color:C.textMid,marginTop:1}}>{desc}</div>
+                  <div style={{fontSize:12,color:C.textMid,marginTop:2}}>{desc}</div>
                 </div>
               </div>
             ))}
+            <div style={{fontSize:11,color:C.textDim,marginTop:4}}>거래내역서 업로드하면 자동으로 표시돼요.</div>
           </div>
           <div style={{display:'flex',gap:8}}>
             <Btn variant="ghost" onClick={()=>setSlide(0)} style={{flex:1}}>이전</Btn>
@@ -3459,9 +3466,9 @@ function FormOnboardingModal({onClose}){
   const SLIDES=3;
   const finish=()=>{if(dontShow)localStorage.setItem('formOnboardingDone','true');onClose();};
   const payStates=[
-    {mark:'X',color:C.red,bg:C.redBg,label:'미입금',desc:'송금 버튼 안 누름'},
-    {mark:'△',color:C.yellow,bg:C.yellowBg,label:'입금 확인 필요',desc:'송금 버튼 눌렀지만 미확인'},
-    {mark:'O',color:C.green,bg:C.greenBg,label:'입금 완료',desc:'거래내역 확인됨'},
+    {dot:'#E24B4A',label:'미입금',desc:'송금 안 한 사람. 콕 찌르기로 알림 가능.'},
+    {dot:'#EF9F27',label:'확인 필요',desc:'송금 시도한 사람. 통장 확인하고 슬라이더로 완료 처리.'},
+    {dot:'#5DCAA5',label:'완료',desc:'정산 끝.'},
   ];
   return(
     <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
@@ -3486,20 +3493,19 @@ function FormOnboardingModal({onClose}){
       {slide===1&&(
         <div className="fade-up">
           <div style={{textAlign:'center',marginBottom:16}}>
-            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5}}>입금 상태 3가지로 관리</div>
+            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5}}>입금 상태는 신호등처럼 3단계</div>
           </div>
-          <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:20}}>
-            {payStates.map(({mark,color,bg,label,desc})=>(
-              <div key={label} style={{display:'flex',alignItems:'center',gap:12,background:bg,borderRadius:12,padding:'12px 14px'}}>
-                <div style={{width:36,height:36,borderRadius:18,background:color+'30',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                  <span style={{fontSize:17,fontWeight:900,color}}>{mark}</span>
-                </div>
+          <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:20}}>
+            {payStates.map(({dot,label,desc})=>(
+              <div key={label} style={{display:'flex',alignItems:'flex-start',gap:10}}>
+                <div style={{width:10,height:10,borderRadius:'50%',background:dot,flexShrink:0,marginTop:4}}/>
                 <div>
                   <div style={{fontWeight:800,color:C.text,fontSize:14}}>{label}</div>
-                  <div style={{fontSize:12,color:C.textMid,marginTop:1}}>{desc}</div>
+                  <div style={{fontSize:12,color:C.textMid,marginTop:2}}>{desc}</div>
                 </div>
               </div>
             ))}
+            <div style={{fontSize:11,color:C.textDim,marginTop:4}}>거래내역서 업로드하면 자동으로 표시돼요.</div>
           </div>
           <div style={{display:'flex',gap:8}}>
             <Btn variant="ghost" onClick={()=>setSlide(0)} style={{flex:1}}>이전</Btn>
@@ -3977,22 +3983,26 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
 const PaidSlider=({value,onChange})=>(
   <div onClick={e=>{e.stopPropagation();onChange(!value);}}
     style={{width:50,height:30,borderRadius:15,cursor:'pointer',flexShrink:0,
-      background:value?C.green:'#D1D5DB',position:'relative',transition:'background 0.2s'}}>
+      background:value?'#5DCAA5':'#D1D5DB',position:'relative',transition:'background 0.2s'}}>
     <div style={{position:'absolute',top:2,left:value?22:2,width:26,height:26,borderRadius:13,
       background:'#fff',boxShadow:'0 1px 4px rgba(0,0,0,0.22)',transition:'left 0.18s'}}/>
   </div>
 );
 
-// P2: 소규모 이벤트 3-state 슬라이더 (requested=회색/paid=초록/rejected=빨강)
+// P2: 소규모 이벤트 3-state 슬라이더 (신호등: 미입금=회색/확인필요=노랑/완료=초록/제외=회색+✕)
 const PayStatusSlider=({payStatus,onChange})=>{
   const on=payStatus==='paid';
-  const bg=payStatus==='paid'?C.green:payStatus==='rejected'?C.red:'#D1D5DB';
+  const rejected=payStatus==='rejected';
+  const bg=payStatus==='paid'?'#5DCAA5':payStatus==='requested'?'#EF9F27':'#D1D5DB';
   return(
     <div onClick={e=>{e.stopPropagation();onChange();}}
       style={{width:50,height:30,borderRadius:15,cursor:'pointer',flexShrink:0,
         background:bg,position:'relative',transition:'background 0.2s'}}>
       <div style={{position:'absolute',top:2,left:on?22:2,width:26,height:26,borderRadius:13,
-        background:'#fff',boxShadow:'0 1px 4px rgba(0,0,0,0.22)',transition:'left 0.18s'}}/>
+        background:'#fff',boxShadow:'0 1px 4px rgba(0,0,0,0.22)',transition:'left 0.18s',
+        display:'flex',alignItems:'center',justifyContent:'center'}}>
+        {rejected&&<span style={{fontSize:12,fontWeight:900,color:'#999',lineHeight:1}}>✕</span>}
+      </div>
     </div>
   );
 };
@@ -4056,6 +4066,10 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
             {amt>0&&<span style={{fontSize:13,fontWeight:700,color:C.textMid}}>{fmtKRW(amt)}</span>}
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              <div style={{width:9,height:9,borderRadius:'50%',background:sliderValue(s)?'#5DCAA5':'#E24B4A'}}/>
+              <span style={{fontSize:12,color:C.textDim,fontWeight:500}}>{sliderValue(s)?'완료':'미입금'}</span>
+            </div>
             <PaidSlider value={sliderValue(s)} onChange={v=>onSetSubPaid(s._idx,v)}/>
           </div>
         </div>
