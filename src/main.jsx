@@ -4420,17 +4420,18 @@ function DunningModal({eventName, account, link, unpaidList, showToast, onClose}
   const [editMode,setEditMode]=useState(false);
   const [editText,setEditText]=useState('');
 
+  const acctLine=account?.bank?`\n\n입금 계좌: ${account.bank} ${account.number}${account.holder?` (${account.holder})`:''}`:''
   const autoMsg=React.useMemo(()=>{
     if(withNames) return [
       `[${eventName}] 입금 안내`,'',
       '아직 입금 확인이 안 된 분들이에요:',
       ...unpaidList.map(u=>`• ${u.name}  ${fmtKRW(u.amount)}`),
-    ].join('\n');
+    ].join('\n')+acctLine;
     return [
       `[${eventName}] 입금 안내`,'',
       `아직 ${unpaidList.length}명의 입금 확인이 안 됐어요.`,
-    ].join('\n');
-  },[withNames,unpaidList,eventName]);
+    ].join('\n')+acctLine;
+  },[withNames,unpaidList,eventName,acctLine]);
 
   React.useEffect(()=>{setEditText('');setEditMode(false);},[autoMsg]);
 
