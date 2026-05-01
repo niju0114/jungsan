@@ -1310,8 +1310,8 @@ function ModeSelectModal({profile,nav,onClose}){
         <button onClick={onClose} style={{background:C.inputBg,border:'none',borderRadius:10,width:32,height:32,cursor:'pointer',color:C.textMid,display:'flex',alignItems:'center',justifyContent:'center'}}><Icon n="x" size={14} color={C.textMid}/></button>
       </div>
       {(!profile.account?.bank||!(profile.groups||[]).some(g=>(g.members||[]).length>0))&&(
-        <div style={{background:C.inputBg,borderRadius:16,padding:'18px 20px',marginBottom:20,border:`1px solid ${C.border}`}}>
-          <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:6,display:'flex',alignItems:'center',gap:6}}><Icon n="zap" size={15} color={C.textDim}/>먼저 설정을 완료해주세요</div>
+        <div style={{background:C.greenBg,borderRadius:16,padding:'18px 20px',marginBottom:20,border:`1px solid ${C.green}30`}}>
+          <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:6,display:'flex',alignItems:'center',gap:6}}><Icon n="zap" size={15} color={C.green}/>먼저 설정을 완료해주세요</div>
           <div style={{fontSize:13,color:C.textMid,lineHeight:1.7,marginBottom:14,whiteSpace:'pre-line'}}>
             {!profile.account?.bank&&'입금 계좌가 아직 등록되지 않았어요.\n'}
             {!(profile.groups||[]).some(g=>(g.members||[]).length>0)&&'명단을 등록하면 매번 이름 입력 없이 바로 선택할 수 있어요.'}
@@ -1321,14 +1321,14 @@ function ModeSelectModal({profile,nav,onClose}){
       )}
       <div style={{fontWeight:900,color:C.text,fontSize:20,marginBottom:6,textAlign:'center'}}>어떤 상황이세요?</div>
       <div style={{color:C.textMid,fontSize:13,marginBottom:24,textAlign:'center'}}>상황에 맞게 선택하세요</div>
-      <button onClick={()=>{onClose();nav.setView('formCreate');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,marginBottom:12,background:C.accentBg,border:`1px solid ${C.accent}20`,cursor:'pointer',textAlign:'left'}}>
+      <button onClick={()=>{onClose();nav.setView('formCreate');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,marginBottom:12,background:C.orangeBg,border:`1px solid ${C.orange}20`,cursor:'pointer',textAlign:'left'}}>
         <div style={{display:'flex',alignItems:'center',gap:14}}>
-          <div style={{width:48,height:48,borderRadius:14,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center'}}><Icon n="mail" size={24} color="#fff"/></div>
+          <div style={{width:48,height:48,borderRadius:14,background:C.orange,display:'flex',alignItems:'center',justifyContent:'center'}}><Icon n="mail" size={24} color="#fff"/></div>
           <div style={{flex:1}}>
             <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:4}}>신청 받을 일이 있어요</div>
-            <div style={{fontSize:11,color:C.accent,fontWeight:600}}>MT, 회비, 야식마차</div>
+            <div style={{fontSize:11,color:C.orange,fontWeight:600}}>MT, 회비, 야식마차</div>
           </div>
-          <span className="ms" style={{color:C.accent}}>chevron_right</span>
+          <span className="ms" style={{color:C.orange}}>chevron_right</span>
         </div>
       </button>
       <button onClick={()=>{onClose();nav.setView('create');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,background:C.accentBg,border:`1px solid ${C.accent}20`,cursor:'pointer',textAlign:'left'}}>
@@ -1505,7 +1505,7 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
                 <>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
                     <div style={{fontSize:13,fontWeight:700,color:C.textMid}}>{cur.name} 명단</div>
-                    {groups.length>1&&<button onClick={()=>delGroup(activeG)} style={{color:C.red,background:'none',border:'none',fontSize:12,cursor:'pointer',fontWeight:600}}>그룹 삭제</button>}
+                    {groups.length>1&&activeG!==0&&<button onClick={()=>delGroup(activeG)} style={{color:C.red,background:'none',border:'none',fontSize:12,cursor:'pointer',fontWeight:600}}>그룹 삭제</button>}
                   </div>
                   {!guideHidden&&(
                     <div style={{marginBottom:8,padding:'9px 12px',background:C.orangeBg,borderRadius:10,border:`1px solid ${C.orange}30`,fontSize:12,color:C.textMid,display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
@@ -1711,7 +1711,7 @@ function DeleteAccountBtn(){
 
 // ── CreateScreen ───────────────────────────────────────────
 function CreateScreen({nav,profile,events,createEvent,showToast}){
-  const [showOnboarding,setShowOnboarding]=useState(()=>!localStorage.getItem('smallEventOnboardingDone'));
+  const [showOnboarding,setShowOnboarding]=useState(()=>!localStorage.getItem('smallEventOnboarding_v2'));
   const [name,setName]=useState('');
   const [date,setDate]=useState(new Date().toISOString().slice(0,10));
 
@@ -3504,7 +3504,7 @@ function OnboardingModal({nav,onClose}){
 function SmallEventOnboardingModal({onClose}){
   const [slide,setSlide]=useState(0);
   const [dontShow,setDontShow]=useState(false);
-  const finish=()=>{if(dontShow)localStorage.setItem('smallEventOnboardingDone','true');onClose();};
+  const finish=()=>{if(dontShow)localStorage.setItem('smallEventOnboarding_v2','true');onClose();};
   const SLIDES=[
     {icon:'list-checks',body:'참가자 출석 체크 후\n1차·2차 금액을 입력하면\n인당 분담금이 자동으로 계산돼요.'},
     {icon:'file-spreadsheet',body:'은행 앱에서 거래내역서를 엑셀로 받아\n업로드하면 입금자를 자동으로 매칭해요.\n미입금자에게 콕 찌르기로 알림도 보낼 수 있어요.'},
@@ -3536,7 +3536,7 @@ function SmallEventOnboardingModal({onClose}){
 function FormOnboardingModal({onClose}){
   const [slide,setSlide]=useState(0);
   const [dontShow,setDontShow]=useState(false);
-  const finish=()=>{if(dontShow)localStorage.setItem('formOnboardingDone','true');onClose();};
+  const finish=()=>{if(dontShow)localStorage.setItem('formOnboarding_v2','true');onClose();};
   const SLIDES=[
     {icon:'share-2',body:'신청폼을 만들고 링크를 공유하면\n신청자 명단이 실시간으로 쌓여요.\n이름·학번·연락처 등 원하는 항목을 받을 수 있어요.'},
     {icon:'receipt',body:'거래내역서를 업로드하면\n정산과 동일하게 자동 매칭됩니다.\n행사 끝나면 신청자 명단 그대로 뒷풀이 정산도 이어갈 수 있어요.'},
@@ -3566,7 +3566,7 @@ function FormOnboardingModal({onClose}){
 
 // ── FormCreateScreen (대규모 신청폼 생성) ──────────────────
 function FormCreateScreen({nav,profile,createForm}){
-  const [showOnboarding,setShowOnboarding]=useState(()=>!localStorage.getItem('formOnboardingDone'));
+  const [showOnboarding,setShowOnboarding]=useState(()=>!localStorage.getItem('formOnboarding_v2'));
   const [name,setName]=useState('');
   const [date,setDate]=useState(new Date().toISOString().slice(0,10));
   const [amount,setAmount]=useState('');
