@@ -872,7 +872,7 @@ function App() {
       {user&&view==='help'&&<HelpScreen nav={nav}/>}
       {user&&view==='usage-guide'&&<UsageGuideScreen nav={nav}/>}
       {showGuide&&<GuideModal onClose={()=>setShowGuide(false)} onFeedback={()=>{setShowGuide(false);setShowFeedback(true);}}/>}
-      {showOnboarding&&<OnboardingModal onClose={()=>setShowOnboarding(false)}/>}
+      {showOnboarding&&<OnboardingModal nav={nav} onClose={()=>setShowOnboarding(false)}/>}
       <Toast msg={toast?.msg} color={toast?.color}/>
     </div>
   );
@@ -1310,25 +1310,25 @@ function ModeSelectModal({profile,nav,onClose}){
         <button onClick={onClose} style={{background:C.inputBg,border:'none',borderRadius:10,width:32,height:32,cursor:'pointer',color:C.textMid,display:'flex',alignItems:'center',justifyContent:'center'}}><Icon n="x" size={14} color={C.textMid}/></button>
       </div>
       {(!profile.account?.bank||!(profile.groups||[]).some(g=>(g.members||[]).length>0))&&(
-        <div style={{background:C.orangeBg,borderRadius:16,padding:'18px 20px',marginBottom:20,border:`1px solid ${C.orange}20`}}>
-          <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:6,display:'flex',alignItems:'center',gap:6}}><Icon n="zap" size={15} color={C.orange}/>먼저 설정을 완료해주세요</div>
-          <div style={{fontSize:13,color:C.textMid,lineHeight:1.7,marginBottom:14}}>
+        <div style={{background:C.inputBg,borderRadius:16,padding:'18px 20px',marginBottom:20,border:`1px solid ${C.border}`}}>
+          <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:6,display:'flex',alignItems:'center',gap:6}}><Icon n="zap" size={15} color={C.textDim}/>먼저 설정을 완료해주세요</div>
+          <div style={{fontSize:13,color:C.textMid,lineHeight:1.7,marginBottom:14,whiteSpace:'pre-line'}}>
             {!profile.account?.bank&&'입금 계좌가 아직 등록되지 않았어요.\n'}
             {!(profile.groups||[]).some(g=>(g.members||[]).length>0)&&'명단을 등록하면 매번 이름 입력 없이 바로 선택할 수 있어요.'}
           </div>
-          <Btn variant="orange" onClick={()=>{onClose();nav.setView('setup');}} small>명단·계좌 설정하러 가기</Btn>
+          <Btn onClick={()=>{onClose();nav.setView('setup');}} small>명단·계좌 설정하러 가기</Btn>
         </div>
       )}
       <div style={{fontWeight:900,color:C.text,fontSize:20,marginBottom:6,textAlign:'center'}}>어떤 상황이세요?</div>
       <div style={{color:C.textMid,fontSize:13,marginBottom:24,textAlign:'center'}}>상황에 맞게 선택하세요</div>
-      <button onClick={()=>{onClose();nav.setView('formCreate');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,marginBottom:12,background:C.orangeBg,border:`1px solid ${C.orange}20`,cursor:'pointer',textAlign:'left'}}>
+      <button onClick={()=>{onClose();nav.setView('formCreate');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,marginBottom:12,background:C.accentBg,border:`1px solid ${C.accent}20`,cursor:'pointer',textAlign:'left'}}>
         <div style={{display:'flex',alignItems:'center',gap:14}}>
-          <div style={{width:48,height:48,borderRadius:14,background:C.orange,display:'flex',alignItems:'center',justifyContent:'center'}}><Icon n="mail" size={24} color="#fff"/></div>
+          <div style={{width:48,height:48,borderRadius:14,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center'}}><Icon n="mail" size={24} color="#fff"/></div>
           <div style={{flex:1}}>
             <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:4}}>신청 받을 일이 있어요</div>
-            <div style={{fontSize:11,color:C.orange,fontWeight:600}}>MT, 회비, 야식마차</div>
+            <div style={{fontSize:11,color:C.accent,fontWeight:600}}>MT, 회비, 야식마차</div>
           </div>
-          <span className="ms" style={{color:C.orange}}>chevron_right</span>
+          <span className="ms" style={{color:C.accent}}>chevron_right</span>
         </div>
       </button>
       <button onClick={()=>{onClose();nav.setView('create');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,background:C.accentBg,border:`1px solid ${C.accent}20`,cursor:'pointer',textAlign:'left'}}>
@@ -3473,7 +3473,7 @@ function HistoryScreen({nav,events,forms,deleteEvent,deleteForm}){
 
 
 // ── OnboardingModal (가입 후 1회) ─────────────────────────
-function OnboardingModal({onClose}){
+function OnboardingModal({nav,onClose}){
   const finish=async()=>{
     try{
       const {data:{user}}=await api.getUser();
@@ -3483,6 +3483,7 @@ function OnboardingModal({onClose}){
       }
     }catch(e){console.error(e);}
     onClose();
+    nav.setView('setup');
   };
 
   return(
@@ -3490,8 +3491,8 @@ function OnboardingModal({onClose}){
       <div className="fade-up">
         <div style={{textAlign:'center',marginBottom:24}}>
           <div style={{fontSize:40,marginBottom:10}}>👋</div>
-          <div style={{fontWeight:900,color:C.text,fontSize:21,marginBottom:8,letterSpacing:-0.5,lineHeight:1.3}}>환영해요</div>
-          <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>총무 일이 좀 더 쉬워지길 바라요.</div>
+          <div style={{fontWeight:900,color:C.text,fontSize:21,marginBottom:8,letterSpacing:-0.5,lineHeight:1.3}}>총무 일, 이제 자동으로.</div>
+          <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>먼저 명단·계좌부터 설정해주세요.</div>
         </div>
         <Btn onClick={finish}>시작하기 →</Btn>
       </div>
@@ -3502,23 +3503,29 @@ function OnboardingModal({onClose}){
 // ── SmallEventOnboardingModal (소규모 첫 진입 1회) ──────────
 function SmallEventOnboardingModal({onClose}){
   const [slide,setSlide]=useState(0);
-  const finish=()=>{localStorage.setItem('smallEventOnboardingDone','true');onClose();};
+  const [dontShow,setDontShow]=useState(false);
+  const finish=()=>{if(dontShow)localStorage.setItem('smallEventOnboardingDone','true');onClose();};
   const SLIDES=[
-    {icon:'list-checks',title:'출석 체크하고 금액 입력',body:'참가자 출석 체크 후 1차·2차 금액 넣으면\n인당 분담금이 자동 계산돼요.'},
-    {icon:'file-spreadsheet',title:'은행 거래내역 업로드',body:'엑셀 파일 한 번 올리면 누가 입금했는지 자동으로 매칭됩니다.\n미입금자한테는 콕 찌르기로 알림 보낼 수 있어요.'},
+    {icon:'list-checks',body:'참가자 출석 체크 후\n1차·2차 금액을 입력하면\n인당 분담금이 자동으로 계산돼요.'},
+    {icon:'file-spreadsheet',body:'은행 앱에서 거래내역서를 엑셀로 받아\n업로드하면 입금자를 자동으로 매칭해요.\n미입금자에게 콕 찌르기로 알림도 보낼 수 있어요.'},
   ];
   const s=SLIDES[slide];
   return(
-    <Modal isOpen={true} onClose={finish} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
+    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
       <div className="fade-up" style={{padding:'8px 4px 4px'}}>
-        <div style={{textAlign:'center',marginBottom:28}}>
-          <div style={{marginBottom:18}}><Icon n={s.icon} size={88} color={C.accent}/></div>
-          <div style={{fontWeight:900,color:C.text,fontSize:19,letterSpacing:-0.5,marginBottom:12,lineHeight:1.3}}>{s.title}</div>
-          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8,whiteSpace:'pre-line'}}>{s.body}</div>
+        <div style={{textAlign:'center',marginBottom:24}}>
+          <div style={{marginBottom:14}}><Icon n={s.icon} size={60} color={C.accent}/></div>
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.9,whiteSpace:'pre-line'}}>{s.body}</div>
         </div>
         <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:20}}>
           {[0,1].map(i=><div key={i} style={{width:6,height:6,borderRadius:'50%',background:slide===i?C.accent:C.border}}/>)}
         </div>
+        {slide===1&&(
+          <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
+            <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:16,height:16,accentColor:C.accent,cursor:'pointer'}}/>
+            <span style={{fontSize:13,color:C.textMid,fontWeight:600}}>다시 보지 않기</span>
+          </label>
+        )}
         {slide===0?<Btn onClick={()=>setSlide(1)}>다음</Btn>:<Btn onClick={finish}>시작하기 →</Btn>}
       </div>
     </Modal>
@@ -3528,23 +3535,29 @@ function SmallEventOnboardingModal({onClose}){
 // ── FormOnboardingModal (신청폼 첫 진입 1회) ──────────────────
 function FormOnboardingModal({onClose}){
   const [slide,setSlide]=useState(0);
-  const finish=()=>{localStorage.setItem('formOnboardingDone','true');onClose();};
+  const [dontShow,setDontShow]=useState(false);
+  const finish=()=>{if(dontShow)localStorage.setItem('formOnboardingDone','true');onClose();};
   const SLIDES=[
-    {icon:'share-2',title:'링크 공유로 신청 받기',body:'신청폼 만들고 링크 공유하면 신청자 명단이 실시간으로 모입니다.\n이름·학번·연락처 등 필요한 정보를 받을 수 있어요.'},
-    {icon:'receipt',title:'은행 거래내역 업로드 + 뒷풀이 정산',body:'정산과 동일하게 거래내역 자동 매칭.\n행사 끝나면 신청자 명단 그대로 뒷풀이 정산으로 이어갈 수 있어요.'},
+    {icon:'share-2',body:'신청폼을 만들고 링크를 공유하면\n신청자 명단이 실시간으로 쌓여요.\n이름·학번·연락처 등 원하는 항목을 받을 수 있어요.'},
+    {icon:'receipt',body:'거래내역서를 업로드하면\n정산과 동일하게 자동 매칭됩니다.\n행사 끝나면 신청자 명단 그대로 뒷풀이 정산도 이어갈 수 있어요.'},
   ];
   const s=SLIDES[slide];
   return(
-    <Modal isOpen={true} onClose={finish} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
+    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
       <div className="fade-up" style={{padding:'8px 4px 4px'}}>
-        <div style={{textAlign:'center',marginBottom:28}}>
-          <div style={{marginBottom:18}}><Icon n={s.icon} size={88} color={C.accent}/></div>
-          <div style={{fontWeight:900,color:C.text,fontSize:19,letterSpacing:-0.5,marginBottom:12,lineHeight:1.3}}>{s.title}</div>
-          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8,whiteSpace:'pre-line'}}>{s.body}</div>
+        <div style={{textAlign:'center',marginBottom:24}}>
+          <div style={{marginBottom:14}}><Icon n={s.icon} size={60} color={C.accent}/></div>
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.9,whiteSpace:'pre-line'}}>{s.body}</div>
         </div>
         <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:20}}>
           {[0,1].map(i=><div key={i} style={{width:6,height:6,borderRadius:'50%',background:slide===i?C.accent:C.border}}/>)}
         </div>
+        {slide===1&&(
+          <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
+            <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:16,height:16,accentColor:C.accent,cursor:'pointer'}}/>
+            <span style={{fontSize:13,color:C.textMid,fontWeight:600}}>다시 보지 않기</span>
+          </label>
+        )}
         {slide===0?<Btn onClick={()=>setSlide(1)}>다음</Btn>:<Btn onClick={finish}>시작하기 →</Btn>}
       </div>
     </Modal>
