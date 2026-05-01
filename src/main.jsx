@@ -868,7 +868,7 @@ function App() {
       {user&&view==='help'&&<HelpScreen nav={nav}/>}
       {user&&view==='usage-guide'&&<UsageGuideScreen nav={nav}/>}
       {showGuide&&<GuideModal onClose={()=>setShowGuide(false)} onFeedback={()=>{setShowGuide(false);setShowFeedback(true);}}/>}
-      {showOnboarding&&<OnboardingModal onClose={()=>setShowOnboarding(false)} onSetup={()=>{setShowOnboarding(false);nav.setView('setup');}}/>}
+      {showOnboarding&&<OnboardingModal onClose={()=>setShowOnboarding(false)}/>}
       <Toast msg={toast?.msg} color={toast?.color}/>
     </div>
   );
@@ -3467,10 +3467,8 @@ function HistoryScreen({nav,events,forms,deleteEvent,deleteForm}){
 
 
 // ── OnboardingModal (가입 후 1회) ─────────────────────────
-function OnboardingModal({onClose,onSetup}){
-  const [dontShow,setDontShow]=useState(false);
-
-  const save=async()=>{
+function OnboardingModal({onClose}){
+  const finish=async()=>{
     try{
       const {data:{user}}=await api.getUser();
       if(user){
@@ -3478,33 +3476,18 @@ function OnboardingModal({onClose,onSetup}){
         localStorage.setItem('onboarding_done_'+user.id,'true');
       }
     }catch(e){console.error(e);}
-  };
-
-  const handleLater=async()=>{
-    if(dontShow) await save();
     onClose();
-  };
-  const handleSetup=async()=>{
-    await save();
-    if(onSetup) onSetup(); else onClose();
   };
 
   return(
-    <Modal isOpen={true} onClose={handleLater} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
+    <Modal isOpen={true} onClose={finish} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
       <div className="fade-up">
-        <div style={{textAlign:'center',marginBottom:20}}>
+        <div style={{textAlign:'center',marginBottom:24}}>
           <div style={{fontSize:40,marginBottom:10}}>👋</div>
           <div style={{fontWeight:900,color:C.text,fontSize:21,marginBottom:8,letterSpacing:-0.5,lineHeight:1.3}}>환영해요</div>
-          <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>총무 일이 좀 더 쉬워지길 바라요.<br/>먼저 명단·계좌부터 등록해주세요.</div>
+          <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>총무 일이 좀 더 쉬워지길 바라요.</div>
         </div>
-        <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
-          <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:18,height:18,accentColor:C.accent,cursor:'pointer'}}/>
-          <span style={{fontSize:13,color:C.textMid,fontWeight:600}}>다시 보지 않기</span>
-        </label>
-        <div style={{display:'flex',gap:8}}>
-          <Btn variant="ghost" onClick={handleLater} style={{flex:1}}>나중에</Btn>
-          <Btn onClick={handleSetup} style={{flex:2}}>명단·계좌 설정하러 가기 →</Btn>
-        </div>
+        <Btn onClick={finish}>시작하기 →</Btn>
       </div>
     </Modal>
   );
