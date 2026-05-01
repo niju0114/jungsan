@@ -1354,9 +1354,14 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
   const [bank,setBank]=useState(profile.account?.bank||'');
   const [number,setNumber]=useState(profile.account?.number||'');
   const [holder,setHolder]=useState(profile.account?.holder||'');
-  const _rawGroups=profile.groups?.length
-    ?profile.groups.map(g=>g.name==='전체'?{...g,name:'기본'}:g)
-    :[{id:'g1',name:'기본',rawText:'',members:[]}];
+  const _rawGroups=(()=>{
+    const base=profile.groups?.length
+      ?profile.groups.map(g=>g.name==='전체'?{...g,name:'기본'}:g)
+      :[];
+    if(!base.some(g=>g.name==='기본'))
+      return [{id:'g1',name:'기본',rawText:'',members:[]},...base];
+    return base;
+  })();
   const [groups,setGroups]=useState(_rawGroups);
   const [activeG,setActiveG]=useState(0);
   const [saving,setSaving]=useState(false);
@@ -4674,8 +4679,8 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
           <>
             <div style={{display:'flex',marginBottom:8,gap:6}}>
               {hasFee&&<button onClick={()=>setShowExcelModal(true)} disabled={formAnimating||uploading} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:(formAnimating||uploading)?'default':'pointer',background:C.cardBg,color:(formAnimating||uploading)?C.textDim:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>{formAnimating?<><Spinner size={11} color={C.textDim}/>&nbsp;처리 중...</>:uploading?<><Spinner size={11} color={C.textDim}/>&nbsp;분석 중...</>:<><Icon n="download" size={12} color={C.textMid}/>자동 대조</>}</button>}
-              {hasFee&&unpaidXList.length>0&&<button onClick={()=>setDunningOpen(true)} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="megaphone" size={12} color={C.textMid}/>미입금자 {unpaidXList.length}명 콕 찌르기</button>}
               {subs.length>0&&<button onClick={downloadExcel} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="table" size={12} color={C.textMid}/>엑셀 추출</button>}
+              {hasFee&&unpaidXList.length>0&&<button onClick={()=>setDunningOpen(true)} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="megaphone" size={12} color={C.textMid}/>미입금자 {unpaidXList.length}명 콕 찌르기</button>}
             </div>
             {hasFee&&formMatchSummary&&(
               <div style={{marginBottom:8,padding:'7px 10px',background:formMatchSummary.emptyResult?C.yellowBg:C.greenBg,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
