@@ -509,6 +509,10 @@ const ICONS={
   zap:'<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
   'party-popper':'<path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/>',
   eye:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+  'list-checks':'<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="m3 12 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+  'file-spreadsheet':'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/>',
+  'share-2':'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>',
+  receipt:'<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v1.25m0-10v1.25"/>',
 };
 const Icon=({n,size=18,color='currentColor',style={}})=>(
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:'inline-block',verticalAlign:'middle',flexShrink:0,...style}} dangerouslySetInnerHTML={{__html:ICONS[n]}}/>
@@ -3497,23 +3501,25 @@ function OnboardingModal({onClose}){
 
 // ── SmallEventOnboardingModal (소규모 첫 진입 1회) ──────────
 function SmallEventOnboardingModal({onClose}){
-  const [dontShow,setDontShow]=useState(false);
-  const finish=()=>{if(dontShow)localStorage.setItem('smallEventOnboardingDone','true');onClose();};
+  const [slide,setSlide]=useState(0);
+  const finish=()=>{localStorage.setItem('smallEventOnboardingDone','true');onClose();};
+  const SLIDES=[
+    {icon:'list-checks',title:'출석 체크하고 금액 입력',body:'참가자 출석 체크 후 1차·2차 금액 넣으면\n인당 분담금이 자동 계산돼요.'},
+    {icon:'file-spreadsheet',title:'은행 거래내역 업로드',body:'엑셀 파일 한 번 올리면 누가 입금했는지 자동으로 매칭됩니다.\n미입금자한테는 콕 찌르기로 알림 보낼 수 있어요.'},
+  ];
+  const s=SLIDES[slide];
   return(
-    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
-      <div className="fade-up">
-        <div style={{textAlign:'center',marginBottom:20}}>
-          <div style={{width:64,height:64,borderRadius:'50%',background:C.accent+'18',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
-            <Icon n="users" size={30} color={C.accent}/>
-          </div>
-          <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>행사 만들었어요</div>
-          <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>출석 체크하고 금액 입력하면 끝.<br/>거래내역서 업로드하면 자동 매칭됩니다.</div>
+    <Modal isOpen={true} onClose={finish} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
+      <div className="fade-up" style={{padding:'8px 4px 4px'}}>
+        <div style={{textAlign:'center',marginBottom:28}}>
+          <div style={{marginBottom:18}}><Icon n={s.icon} size={88} color={C.accent}/></div>
+          <div style={{fontWeight:900,color:C.text,fontSize:19,letterSpacing:-0.5,marginBottom:12,lineHeight:1.3}}>{s.title}</div>
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8,whiteSpace:'pre-line'}}>{s.body}</div>
         </div>
-        <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
-          <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:18,height:18,accentColor:C.accent,cursor:'pointer'}}/>
-          <span style={{fontSize:13,color:C.textMid,fontWeight:600}}>다시 보지 않기</span>
-        </label>
-        <Btn onClick={finish}>시작하기 →</Btn>
+        <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:20}}>
+          {[0,1].map(i=><div key={i} style={{width:6,height:6,borderRadius:'50%',background:slide===i?C.accent:C.border}}/>)}
+        </div>
+        {slide===0?<Btn onClick={()=>setSlide(1)}>다음</Btn>:<Btn onClick={finish}>시작하기 →</Btn>}
       </div>
     </Modal>
   );
@@ -3521,23 +3527,25 @@ function SmallEventOnboardingModal({onClose}){
 
 // ── FormOnboardingModal (신청폼 첫 진입 1회) ──────────────────
 function FormOnboardingModal({onClose}){
-  const [dontShow,setDontShow]=useState(false);
-  const finish=()=>{if(dontShow)localStorage.setItem('formOnboardingDone','true');onClose();};
+  const [slide,setSlide]=useState(0);
+  const finish=()=>{localStorage.setItem('formOnboardingDone','true');onClose();};
+  const SLIDES=[
+    {icon:'share-2',title:'링크 공유로 신청 받기',body:'신청폼 만들고 링크 공유하면 신청자 명단이 실시간으로 모입니다.\n이름·학번·연락처 등 필요한 정보를 받을 수 있어요.'},
+    {icon:'receipt',title:'은행 거래내역 업로드 + 뒷풀이 정산',body:'정산과 동일하게 거래내역 자동 매칭.\n행사 끝나면 신청자 명단 그대로 뒷풀이 정산으로 이어갈 수 있어요.'},
+  ];
+  const s=SLIDES[slide];
   return(
-    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
-      <div className="fade-up">
-        <div style={{textAlign:'center',marginBottom:20}}>
-          <div style={{width:64,height:64,borderRadius:'50%',background:C.accent+'18',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
-            <Icon n="users" size={30} color={C.accent}/>
-          </div>
-          <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>신청폼 만들었어요</div>
-          <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>신청폼 링크 공유하면 명단 받고 입금 확인까지 한 곳에서.<br/>행사 끝나면 뒷풀이 정산도 여기서 이어서 할 수 있어요.</div>
+    <Modal isOpen={true} onClose={finish} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
+      <div className="fade-up" style={{padding:'8px 4px 4px'}}>
+        <div style={{textAlign:'center',marginBottom:28}}>
+          <div style={{marginBottom:18}}><Icon n={s.icon} size={88} color={C.accent}/></div>
+          <div style={{fontWeight:900,color:C.text,fontSize:19,letterSpacing:-0.5,marginBottom:12,lineHeight:1.3}}>{s.title}</div>
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8,whiteSpace:'pre-line'}}>{s.body}</div>
         </div>
-        <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
-          <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:18,height:18,accentColor:C.accent,cursor:'pointer'}}/>
-          <span style={{fontSize:13,color:C.textMid,fontWeight:600}}>다시 보지 않기</span>
-        </label>
-        <Btn onClick={finish}>시작하기 →</Btn>
+        <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:20}}>
+          {[0,1].map(i=><div key={i} style={{width:6,height:6,borderRadius:'50%',background:slide===i?C.accent:C.border}}/>)}
+        </div>
+        {slide===0?<Btn onClick={()=>setSlide(1)}>다음</Btn>:<Btn onClick={finish}>시작하기 →</Btn>}
       </div>
     </Modal>
   );
