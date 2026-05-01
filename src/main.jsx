@@ -441,8 +441,7 @@ const LEGAL_TEXTS = {
   </div>),
   privacy: (<div>
     <p style={{fontWeight:700,color:'#191F28',marginBottom:8}}>1. 수집하는 개인정보 항목</p>
-    <p>필수: 아이디, 비밀번호, 이름, 소속(학교·단체), 학과·팀명, 전화번호</p>
-    <p>선택: 행사 규모, 행사 빈도, 기존 정산 방법</p>
+    <p>필수: 아이디, 비밀번호, 이름, 소속(학교·단체)</p>
     <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>2. 수집 목적</p>
     <p>서비스 제공 및 운영, 본인 확인, 서비스 개선, 고객 지원</p>
     <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>3. 보유 및 이용 기간</p>
@@ -915,16 +914,8 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
   const [mode,setMode]=useState('login');
   const [userId,setUserId]=useState('');
   const [pw,setPw]=useState('');
-  const [pw2,setPw2]=useState('');
   const [name,setName]=useState('');
   const [org,setOrg]=useState('');
-  const [dept,setDept]=useState('');
-  const [role,setRole]=useState('');
-  const [referral,setReferral]=useState('');
-  const [acctBank,setAcctBank]=useState('');
-  const [acctNumber,setAcctNumber]=useState('');
-  const [acctHolder,setAcctHolder]=useState('');
-  const [phone,setPhone]=useState('');
   const [marketing,setMarketing]=useState(false);
   const [privacyAgree,setPrivacyAgree]=useState(false);
   const [termsAgree,setTermsAgree]=useState(false);
@@ -960,7 +951,6 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
         if(!idChecked&&userId.trim().length>=3){await checkId();return;}
         setErr('사용 가능한 아이디를 입력해주세요');return;
       }
-      if(pw!==pw2){setErr('비밀번호가 일치하지 않아요');return;}
       if(pw.length<6){setErr('비밀번호는 6자 이상이어야 해요');return;}
       if(!name.trim()){setErr('이름을 입력해주세요');return;}
       if(!org.trim()){setErr('학교/단체명을 입력해주세요');return;}
@@ -1000,10 +990,7 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
           id:uid,
           name:name.trim(),
           school:org.trim(),
-          department:dept.trim(),
           username:userId.trim().toLowerCase(),
-          role,referral,phone:phone.trim(),
-          account:{bank:acctBank.trim(),number:acctNumber.trim(),holder:acctHolder.trim()},
           marketing_agree:marketing,
           updated_at:new Date().toISOString(),
         });
@@ -1043,12 +1030,6 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
           {!idChecking&&idChecked&&idAvail&&<div style={{color:C.green,fontSize:12,marginTop:-10,marginBottom:10,display:'flex',alignItems:'center',gap:4}}><Icon n="check" size={12} color={C.green}/>사용 가능한 아이디예요</div>}
           {!idChecking&&idChecked&&!idAvail&&err==='이미 사용 중인 아이디예요'&&<div style={{color:C.red,fontSize:12,marginTop:-10,marginBottom:10,display:'flex',alignItems:'center',gap:4}}><Icon n="x" size={12} color={C.red}/>사용 불가능한 아이디예요</div>}
           <Field label="비밀번호" value={pw} onChange={setPw} placeholder="6자 이상" type="password" onEnter={mode==='login'?submit:undefined}/>
-          {mode==='signup'&&(
-            <div style={{position:'relative'}}>
-              <Field label="비밀번호 확인" value={pw2} onChange={setPw2} placeholder="동일하게 입력" type="password"/>
-              {pw2.length>0&&<div style={{position:'absolute',right:14,top:36}}>{pw===pw2?<Icon n="check" size={16} color={C.green}/>:<Icon n="x" size={16} color={C.red}/>}</div>}
-            </div>
-          )}
         </Card>
 
         {mode==='signup'&&(
@@ -1056,20 +1037,7 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
             <Card>
               <div style={{fontWeight:700,color:C.textMid,fontSize:13,marginBottom:14}}>기본 정보</div>
               <Field label="이름 (실명) *" value={name} onChange={setName} placeholder="홍길동"/>
-              <div style={{display:'flex',gap:10}}>
-                <div style={{flex:1}}><Field label="학교·단체 *" value={org} onChange={setOrg} placeholder="OO대학교 / OO동아리"/></div>
-                <div style={{flex:1}}><Field label="학과·팀명 *" value={dept} onChange={setDept} placeholder="컴퓨터공학과 / 기획팀"/></div>
-              </div>
-              <Field label="전화번호 *" value={phone} onChange={v=>setPhone(v.replace(/[^0-9]/g,''))} placeholder="01012345678" inputMode="numeric"/>
-            </Card>
-            <Card>
-              <div style={{fontWeight:700,color:C.textMid,fontSize:13,marginBottom:4}}>입금 계좌</div>
-              <div style={{fontSize:11,color:C.textDim,marginBottom:14}}>행사 생성 시 자동으로 채워져요.</div>
-              <div style={{display:'flex',gap:10,marginBottom:0}}>
-                <div style={{flex:1}}><Field label="은행명" value={acctBank} onChange={setAcctBank} placeholder="카카오뱅크"/></div>
-                <div style={{flex:1}}><Field label="예금주" value={acctHolder} onChange={setAcctHolder} placeholder="홍길동"/></div>
-              </div>
-              <Field label="계좌번호" value={acctNumber} onChange={v=>setAcctNumber(v.replace(/[^0-9]/g,''))} placeholder="숫자만 입력" inputMode="numeric"/>
+              <Field label="학교·단체 *" value={org} onChange={setOrg} placeholder="OO대학교 / OO동아리"/>
             </Card>
             <Card>
               <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:14}}>약관 동의</div>
@@ -1082,7 +1050,7 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
               </div>
               {[
                 {key:'terms',state:termsAgree,set:setTermsAgree,label:'서비스 이용약관',required:true,desc:'서비스 이용에 관한 기본 규칙'},
-                {key:'privacy',state:privacyAgree,set:setPrivacyAgree,label:'개인정보 수집 및 이용 동의',required:true,desc:'이름, 소속, 연락처 수집 및 이용'},
+                {key:'privacy',state:privacyAgree,set:setPrivacyAgree,label:'개인정보 수집 및 이용 동의',required:true,desc:'이름, 소속 수집 및 이용'},
                 {key:'thirdParty',state:thirdPartyAgree,set:setThirdPartyAgree,label:'제3자 정보 제공 동의',required:true,desc:'서비스 운영에 필요한 외부 서비스 제공'},
                 {key:'marketing',state:marketing,set:setMarketing,label:'마케팅 수신 동의',required:false,desc:'유용한 소식 및 업데이트 안내'},
               ].map(item=>(
