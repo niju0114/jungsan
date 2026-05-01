@@ -3506,15 +3506,15 @@ function SmallEventOnboardingModal({onClose}){
   const [dontShow,setDontShow]=useState(false);
   const finish=()=>{if(dontShow)localStorage.setItem('smallEventOnboarding_v2','true');onClose();};
   const SLIDES=[
-    {icon:'list-checks',color:C.green,body:'참가자 출석 체크 후\n1차·2차 금액을 입력하면\n인당 분담금이 자동으로 계산돼요.'},
-    {icon:'file-spreadsheet',color:'#3B82F6',body:'은행 앱에서 거래내역서를 엑셀로 받아\n업로드하면 입금자를 자동으로 매칭해요.\n미입금자에게 콕 찌르기로 알림도 보낼 수 있어요.'},
+    {msIcon:'checklist',color:C.green,body:'참가자 출석 체크 후\n1차·2차 금액을 입력하면\n인당 분담금이 자동으로 계산돼요.'},
+    {msIcon:'upload_file',color:'#3B82F6',body:'은행 앱에서 거래내역서를 엑셀로 받아\n업로드하면 입금자를 자동으로 매칭해요.\n미입금자에게 콕 찌르기로 알림도 보낼 수 있어요.'},
   ];
   const s=SLIDES[slide];
   return(
     <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
       <div className="fade-up" style={{padding:'8px 4px 4px'}}>
         <div style={{textAlign:'center',marginBottom:24}}>
-          <div style={{marginBottom:14}}><Icon n={s.icon} size={60} color={s.color}/></div>
+          <div style={{marginBottom:14}}><span style={{fontFamily:'Material Symbols Rounded',fontSize:72,lineHeight:1,color:s.color,fontVariationSettings:"'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 48",display:'block'}}>{s.msIcon}</span></div>
           <div style={{fontSize:14,color:C.textMid,lineHeight:1.9,whiteSpace:'pre-line'}}>{s.body}</div>
         </div>
         <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:20}}>
@@ -3538,15 +3538,15 @@ function FormOnboardingModal({onClose}){
   const [dontShow,setDontShow]=useState(false);
   const finish=()=>{if(dontShow)localStorage.setItem('formOnboarding_v2','true');onClose();};
   const SLIDES=[
-    {icon:'share-2',color:C.orange,body:'신청폼을 만들고 링크를 공유하면\n신청자 명단이 실시간으로 쌓여요.\n이름·학번·연락처 등 원하는 항목을 받을 수 있어요.'},
-    {icon:'receipt',color:'#F59E0B',body:'거래내역서를 업로드하면\n정산과 동일하게 자동 매칭됩니다.\n행사 끝나면 신청자 명단 그대로 뒷풀이 정산도 이어갈 수 있어요.'},
+    {msIcon:'share',color:C.orange,body:'신청폼을 만들고 링크를 공유하면\n신청자 명단이 실시간으로 쌓여요.\n이름·학번·연락처 등 원하는 항목을 받을 수 있어요.'},
+    {msIcon:'receipt_long',color:'#F59E0B',body:'거래내역서를 업로드하면\n정산과 동일하게 자동 매칭됩니다.\n행사 끝나면 신청자 명단 그대로 뒷풀이 정산도 이어갈 수 있어요.'},
   ];
   const s=SLIDES[slide];
   return(
     <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
       <div className="fade-up" style={{padding:'8px 4px 4px'}}>
         <div style={{textAlign:'center',marginBottom:24}}>
-          <div style={{marginBottom:14}}><Icon n={s.icon} size={60} color={s.color}/></div>
+          <div style={{marginBottom:14}}><span style={{fontFamily:'Material Symbols Rounded',fontSize:72,lineHeight:1,color:s.color,fontVariationSettings:"'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 48",display:'block'}}>{s.msIcon}</span></div>
           <div style={{fontSize:14,color:C.textMid,lineHeight:1.9,whiteSpace:'pre-line'}}>{s.body}</div>
         </div>
         <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:20}}>
