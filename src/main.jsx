@@ -868,7 +868,7 @@ function App() {
       {user&&view==='help'&&<HelpScreen nav={nav}/>}
       {user&&view==='usage-guide'&&<UsageGuideScreen nav={nav}/>}
       {showGuide&&<GuideModal onClose={()=>setShowGuide(false)} onFeedback={()=>{setShowGuide(false);setShowFeedback(true);}}/>}
-      {showOnboarding&&<OnboardingModal onClose={()=>setShowOnboarding(false)}/>}
+      {showOnboarding&&<OnboardingModal onClose={()=>setShowOnboarding(false)} onSetup={()=>{setShowOnboarding(false);nav.setView('setup');}}/>}
       <Toast msg={toast?.msg} color={toast?.color}/>
     </div>
   );
@@ -3456,11 +3456,10 @@ function HistoryScreen({nav,events,forms,deleteEvent,deleteForm}){
 
 
 // ── OnboardingModal (가입 후 1회) ─────────────────────────
-function OnboardingModal({onClose}){
-  const [slide,setSlide]=useState(0);
-  const SLIDES=2;
+function OnboardingModal({onClose,onSetup}){
+  const [dontShow,setDontShow]=useState(false);
 
-  const finish=async()=>{
+  const save=async()=>{
     try{
       const {data:{user}}=await api.getUser();
       if(user){
@@ -3468,250 +3467,82 @@ function OnboardingModal({onClose}){
         localStorage.setItem('onboarding_done_'+user.id,'true');
       }
     }catch(e){console.error(e);}
+  };
+
+  const handleLater=async()=>{
+    if(dontShow) await save();
     onClose();
+  };
+  const handleSetup=async()=>{
+    await save();
+    if(onSetup) onSetup(); else onClose();
   };
 
   return(
-    <Modal isOpen={true} onClose={finish} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
-      {/* 진행 도트 */}
-      <div style={{display:'flex',gap:6,justifyContent:'center',marginBottom:22}}>
-        {Array.from({length:SLIDES}).map((_,i)=>(
-          <div key={i} style={{height:4,width:i===slide?28:8,borderRadius:4,background:i<=slide?C.accent:C.border,transition:'all 0.25s'}}/>
-        ))}
+    <Modal isOpen={true} onClose={handleLater} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
+      <div className="fade-up">
+        <div style={{textAlign:'center',marginBottom:20}}>
+          <div style={{fontSize:40,marginBottom:10}}>👋</div>
+          <div style={{fontWeight:900,color:C.text,fontSize:21,marginBottom:8,letterSpacing:-0.5,lineHeight:1.3}}>환영해요</div>
+          <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>총무 일이 좀 더 쉬워지길 바라요.<br/>먼저 명단·계좌부터 등록해주세요.</div>
+        </div>
+        <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
+          <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:18,height:18,accentColor:C.accent,cursor:'pointer'}}/>
+          <span style={{fontSize:13,color:C.textMid,fontWeight:600}}>다시 보지 않기</span>
+        </label>
+        <div style={{display:'flex',gap:8}}>
+          <Btn variant="ghost" onClick={handleLater} style={{flex:1}}>나중에</Btn>
+          <Btn onClick={handleSetup} style={{flex:2}}>명단·계좌 설정하러 가기 →</Btn>
+        </div>
       </div>
-
-      {slide===0&&(
-        <div className="fade-up">
-          <div style={{textAlign:'center',marginBottom:20}}>
-            <div style={{fontSize:44,marginBottom:10}}>🍻</div>
-            <div style={{fontWeight:900,color:C.text,fontSize:21,marginBottom:8,letterSpacing:-0.5,lineHeight:1.3}}>총무의 수기 정산,<br/>이제 끝내요</div>
-            <div style={{fontSize:13,color:C.textMid,lineHeight:1.7}}>통장 확인 → 엑셀 체크 → 카톡 독촉<br/>이 반복을 정산해가 대신합니다</div>
-          </div>
-          <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:24}}>
-            {[
-              {icon:'clipboard-list',color:C.orange,bg:C.orangeBg,title:'신청폼 만들기',desc:'MT·행사 신청 받고 입금 상태 한눈에'},
-              {icon:'calculator',color:C.accent,bg:C.accentBg,title:'정산',desc:'뒷풀이·회식 1/N 자동 계산 + O/X 보드'},
-              {icon:'bar-chart',color:C.green,bg:C.greenBg,title:'거래내역 자동 대조',desc:'은행 엑셀 한 번 넣으면 입금자 자동 매칭'},
-            ].map(({icon,color,bg,title,desc})=>(
-              <div key={title} style={{background:bg,borderRadius:14,padding:'13px 16px',display:'flex',gap:12,alignItems:'center'}}>
-                <div style={{width:36,height:36,borderRadius:18,background:color+'30',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon n={icon} size={18} color={color}/></div>
-                <div>
-                  <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:2}}>{title}</div>
-                  <div style={{fontSize:12,color:C.textMid,lineHeight:1.4}}>{desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <Btn onClick={()=>setSlide(1)}>다음 →</Btn>
-        </div>
-      )}
-
-      {slide===1&&(
-        <div className="fade-up">
-          <div style={{textAlign:'center',marginBottom:16}}>
-            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5}}>이렇게 달라져요</div>
-          </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:22}}>
-            {/* Before */}
-            <div style={{background:'#F3F4F6',borderRadius:14,padding:'14px 12px'}}>
-              <div style={{fontSize:10,fontWeight:800,color:'#9CA3AF',marginBottom:12,textAlign:'center',letterSpacing:1}}>BEFORE</div>
-              {['통장 캡처 보면서','이름 하나씩 체크','카톡으로 독촉','엑셀 정리 반복…'].map(t=>(
-                <div key={t} style={{display:'flex',alignItems:'flex-start',gap:5,marginBottom:7}}>
-                  <span style={{color:'#EF4444',flexShrink:0,fontSize:12,lineHeight:1.4}}>✕</span>
-                  <span style={{fontSize:11,color:'#6B7280',lineHeight:1.4}}>{t}</span>
-                </div>
-              ))}
-            </div>
-            {/* After */}
-            <div style={{background:'linear-gradient(135deg,#EEF0FF 0%,#F3E8FF 100%)',borderRadius:14,padding:'14px 12px',border:`1px solid ${C.accent}20`}}>
-              <div style={{fontSize:10,fontWeight:800,color:C.accent,marginBottom:12,textAlign:'center',letterSpacing:1}}>정산해</div>
-              {['엑셀 한 번 → 자동 매칭','링크 공유 → 실시간 O/X','미입금자 한 번에 콕','명단·입금 한 화면에서'].map(t=>(
-                <div key={t} style={{display:'flex',alignItems:'flex-start',gap:5,marginBottom:7}}>
-                  <span style={{color:C.accent,flexShrink:0,fontSize:12,lineHeight:1.4,fontWeight:900}}>O</span>
-                  <span style={{fontSize:11,color:C.text,fontWeight:600,lineHeight:1.4}}>{t}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{display:'flex',gap:8}}>
-            <Btn variant="ghost" onClick={()=>setSlide(0)} style={{flex:1}}>이전</Btn>
-            <Btn onClick={finish} style={{flex:2}}>시작하기 →</Btn>
-          </div>
-        </div>
-      )}
     </Modal>
   );
 }
 
 // ── SmallEventOnboardingModal (소규모 첫 진입 1회) ──────────
 function SmallEventOnboardingModal({onClose}){
-  const [slide,setSlide]=useState(0);
   const [dontShow,setDontShow]=useState(false);
-  const SLIDES=3;
   const finish=()=>{if(dontShow)localStorage.setItem('smallEventOnboardingDone','true');onClose();};
-  const payStates=[
-    {dot:'#E24B4A',label:'미입금',desc:'송금 안 한 사람. 콕 찌르기로 알림 가능.'},
-    {dot:'#EF9F27',label:'확인 필요',desc:'송금 시도한 사람. 통장 확인하고 슬라이더로 완료 처리.'},
-    {dot:'#5DCAA5',label:'완료',desc:'정산 끝.'},
-  ];
   return(
     <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-        <div style={{display:'flex',gap:6}}>
-          {Array.from({length:SLIDES}).map((_,i)=>(
-            <div key={i} style={{height:4,width:i===slide?28:8,borderRadius:4,background:i<=slide?C.accent:C.border,transition:'all 0.25s'}}/>
-          ))}
+      <div className="fade-up">
+        <div style={{textAlign:'center',marginBottom:20}}>
+          <div style={{width:64,height:64,borderRadius:'50%',background:C.accent+'18',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
+            <Icon n="users" size={30} color={C.accent}/>
+          </div>
+          <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>행사 만들었어요</div>
+          <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>출석 체크하고 금액 입력하면 끝.<br/>거래내역서 업로드하면 자동 매칭됩니다.</div>
         </div>
-        <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',color:C.textDim,fontSize:13,fontWeight:600}}>건너뛰기</button>
+        <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
+          <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:18,height:18,accentColor:C.accent,cursor:'pointer'}}/>
+          <span style={{fontSize:13,color:C.textMid,fontWeight:600}}>다시 보지 않기</span>
+        </label>
+        <Btn onClick={finish}>시작하기 →</Btn>
       </div>
-      {slide===0&&(
-        <div className="fade-up">
-          <div style={{textAlign:'center',marginBottom:20}}>
-            <div style={{width:64,height:64,borderRadius:'50%',background:C.accent+'18',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
-              <Icon n="users" size={30} color={C.accent}/>
-            </div>
-            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>수기로 하던 일, 한 번에</div>
-            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>출석 체크하고 금액 설정하면 끝.<br/>인원별 링크 공유로 입금 현황을 실시간으로.</div>
-          </div>
-          <Btn onClick={()=>setSlide(1)}>다음 →</Btn>
-        </div>
-      )}
-      {slide===1&&(
-        <div className="fade-up">
-          <div style={{textAlign:'center',marginBottom:16}}>
-            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5}}>입금 상태는 신호등처럼 3단계</div>
-          </div>
-          <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:20}}>
-            {payStates.map(({dot,label,desc})=>(
-              <div key={label} style={{display:'flex',alignItems:'flex-start',gap:10}}>
-                <div style={{width:10,height:10,borderRadius:'50%',background:dot,flexShrink:0,marginTop:4}}/>
-                <div>
-                  <div style={{fontWeight:800,color:C.text,fontSize:14}}>{label}</div>
-                  <div style={{fontSize:12,color:C.textMid,marginTop:2}}>{desc}</div>
-                </div>
-              </div>
-            ))}
-            <div style={{fontSize:11,color:C.textDim,marginTop:4}}>거래내역서 업로드하면 자동으로 표시돼요.</div>
-          </div>
-          <div style={{display:'flex',gap:8}}>
-            <Btn variant="ghost" onClick={()=>setSlide(0)} style={{flex:1}}>이전</Btn>
-            <Btn onClick={()=>setSlide(2)} style={{flex:2}}>다음 →</Btn>
-          </div>
-        </div>
-      )}
-      {slide===2&&(
-        <div className="fade-up">
-          <div style={{textAlign:'center',marginBottom:20}}>
-            <div style={{width:64,height:64,borderRadius:'50%',background:'#F59E0B18',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
-              <Icon n="zap" size={30} color="#F59E0B"/>
-            </div>
-            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>통장 보면서 손체크? 안 해도 돼요</div>
-            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>거래내역서 엑셀 한 번 올리면 자동 매칭.<br/>미입금자만 골라 콕 찌르기도 가능해요.</div>
-          </div>
-          <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
-            <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:18,height:18,accentColor:C.accent,cursor:'pointer'}}/>
-            <span style={{fontSize:13,color:C.textMid,fontWeight:600}}>다시 보지 않기</span>
-          </label>
-          <div style={{display:'flex',gap:8}}>
-            <Btn variant="ghost" onClick={()=>setSlide(1)} style={{flex:1}}>이전</Btn>
-            <Btn onClick={finish} style={{flex:2}}>시작하기 →</Btn>
-          </div>
-        </div>
-      )}
     </Modal>
   );
 }
 
 // ── FormOnboardingModal (신청폼 첫 진입 1회) ──────────────────
 function FormOnboardingModal({onClose}){
-  const [slide,setSlide]=useState(0);
   const [dontShow,setDontShow]=useState(false);
-  const SLIDES=4;
   const finish=()=>{if(dontShow)localStorage.setItem('formOnboardingDone','true');onClose();};
-  const payStates=[
-    {dot:'#E24B4A',label:'미입금',desc:'송금 안 한 사람. 콕 찌르기로 알림 가능.'},
-    {dot:'#EF9F27',label:'확인 필요',desc:'송금 시도한 사람. 통장 확인하고 슬라이더로 완료 처리.'},
-    {dot:'#5DCAA5',label:'완료',desc:'정산 끝.'},
-  ];
   return(
     <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-        <div style={{display:'flex',gap:6}}>
-          {Array.from({length:SLIDES}).map((_,i)=>(
-            <div key={i} style={{height:4,width:i===slide?28:8,borderRadius:4,background:i<=slide?C.accent:C.border,transition:'all 0.25s'}}/>
-          ))}
+      <div className="fade-up">
+        <div style={{textAlign:'center',marginBottom:20}}>
+          <div style={{width:64,height:64,borderRadius:'50%',background:C.accent+'18',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
+            <Icon n="users" size={30} color={C.accent}/>
+          </div>
+          <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>신청폼 만들었어요</div>
+          <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>신청폼 링크 공유하면 명단 받고 입금 확인까지 한 곳에서.<br/>행사 끝나면 뒷풀이 정산도 여기서 이어서 할 수 있어요.</div>
         </div>
-        <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',color:C.textDim,fontSize:13,fontWeight:600}}>건너뛰기</button>
+        <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
+          <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:18,height:18,accentColor:C.accent,cursor:'pointer'}}/>
+          <span style={{fontSize:13,color:C.textMid,fontWeight:600}}>다시 보지 않기</span>
+        </label>
+        <Btn onClick={finish}>시작하기 →</Btn>
       </div>
-      {slide===0&&(
-        <div className="fade-up">
-          <div style={{textAlign:'center',marginBottom:20}}>
-            <div style={{width:64,height:64,borderRadius:'50%',background:C.accent+'18',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
-              <Icon n="users" size={30} color={C.accent}/>
-            </div>
-            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>신청 + 입금 한 곳에서</div>
-            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>신청폼 링크 하나 공유하면<br/>명단 받고 입금 확인까지 한 곳에서.</div>
-          </div>
-          <Btn onClick={()=>setSlide(1)}>다음 →</Btn>
-        </div>
-      )}
-      {slide===1&&(
-        <div className="fade-up">
-          <div style={{textAlign:'center',marginBottom:16}}>
-            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5}}>입금 상태는 신호등처럼 3단계</div>
-          </div>
-          <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:20}}>
-            {payStates.map(({dot,label,desc})=>(
-              <div key={label} style={{display:'flex',alignItems:'flex-start',gap:10}}>
-                <div style={{width:10,height:10,borderRadius:'50%',background:dot,flexShrink:0,marginTop:4}}/>
-                <div>
-                  <div style={{fontWeight:800,color:C.text,fontSize:14}}>{label}</div>
-                  <div style={{fontSize:12,color:C.textMid,marginTop:2}}>{desc}</div>
-                </div>
-              </div>
-            ))}
-            <div style={{fontSize:11,color:C.textDim,marginTop:4}}>거래내역서 업로드하면 자동으로 표시돼요.</div>
-          </div>
-          <div style={{display:'flex',gap:8}}>
-            <Btn variant="ghost" onClick={()=>setSlide(0)} style={{flex:1}}>이전</Btn>
-            <Btn onClick={()=>setSlide(2)} style={{flex:2}}>다음 →</Btn>
-          </div>
-        </div>
-      )}
-      {slide===2&&(
-        <div className="fade-up">
-          <div style={{textAlign:'center',marginBottom:20}}>
-            <div style={{width:64,height:64,borderRadius:'50%',background:'#F59E0B18',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
-              <Icon n="zap" size={30} color="#F59E0B"/>
-            </div>
-            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>통장 보면서 손체크? 안 해도 돼요</div>
-            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>거래내역서 엑셀 한 번 올리면 자동 매칭.<br/>미입금자만 골라 콕 찌르기도 가능해요.</div>
-          </div>
-          <div style={{display:'flex',gap:8}}>
-            <Btn variant="ghost" onClick={()=>setSlide(1)} style={{flex:1}}>이전</Btn>
-            <Btn onClick={()=>setSlide(3)} style={{flex:2}}>다음 →</Btn>
-          </div>
-        </div>
-      )}
-      {slide===3&&(
-        <div className="fade-up">
-          <div style={{textAlign:'center',marginBottom:20}}>
-            <div style={{width:64,height:64,borderRadius:'50%',background:'#10B98118',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
-              <Icon n="party-popper" size={30} color="#10B981"/>
-            </div>
-            <div style={{fontWeight:900,color:C.text,fontSize:20,letterSpacing:-0.5,marginBottom:10,lineHeight:1.3}}>행사 끝나고 뒷풀이도 같이</div>
-            <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>신청자 명단을 정산으로 바로 연결.<br/>추가 정산도 여기서 이어서 할 수 있어요.</div>
-          </div>
-          <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
-            <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:18,height:18,accentColor:C.accent,cursor:'pointer'}}/>
-            <span style={{fontSize:13,color:C.textMid,fontWeight:600}}>다시 보지 않기</span>
-          </label>
-          <div style={{display:'flex',gap:8}}>
-            <Btn variant="ghost" onClick={()=>setSlide(2)} style={{flex:1}}>이전</Btn>
-            <Btn onClick={finish} style={{flex:2}}>시작하기 →</Btn>
-          </div>
-        </div>
-      )}
     </Modal>
   );
 }
