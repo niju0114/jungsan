@@ -4183,8 +4183,13 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
   };
 
   const sortedSubs=sortByTime
-    ?[...[...filteredSubs].filter(s=>s.paid||s.paymentStatus==='matched').sort((a,b)=>new Date(b.matchedAt||0)-new Date(a.matchedAt||0)),
-       ...[...filteredSubs].filter(s=>!s.paid&&s.paymentStatus!=='matched').sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'))]
+    ?[...[...filteredSubs].filter(s=>getSubStatus(s)==='paid').sort((a,b)=>new Date(b.matchedAt||0)-new Date(a.matchedAt||0)),
+       ...[...filteredSubs].filter(s=>getSubStatus(s)!=='paid').sort((a,b)=>{
+         const aR=a.requestedAt,bR=b.requestedAt;
+         if(aR&&bR) return new Date(bR)-new Date(aR);
+         if(aR) return -1; if(bR) return 1;
+         return (a.name||'').localeCompare(b.name||'','ko');
+       })]
     :filteredSubs;
   const groupedSections=showGroups&&(groups||[]).length>1?(()=>{
     const byGroup={};
@@ -4255,6 +4260,8 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
     );
   };
 
+  const paidCount=hasFee?subs.filter(s=>getSubStatus(s)==='paid').length:0;
+
   return(
     <div>
       {subs.length>=5&&(
@@ -4281,32 +4288,41 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
               )}
             </div>
           )}
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-            {(groups||[]).length>1?(
-              <div style={{display:'flex',alignItems:'center',gap:4}}>
-                <span style={{fontSize:11,color:C.textDim}}>그룹 묶기</span>
-                <button onClick={()=>setShowGroups(v=>!v)} style={{
-                  width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
-                  background:showGroups?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
-                }}>
-                  <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
-                    left:showGroups?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
-                </button>
-              </div>
-            ):<div/>}
-            <div style={{display:'flex',alignItems:'center',gap:4}}>
-              {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>시간순</span>}
-              <button onClick={()=>setSortByTime(v=>!v)} style={{
-                width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
-                background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
-              }}>
-                <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
-                  left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
-              </button>
-            </div>
-          </div>
         </>
       )}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+        {hasFee?(
+          <div style={{fontSize:12,fontWeight:600}}>
+            <span style={{color:C.red,display:'inline-flex',alignItems:'center',gap:3}}><span style={{width:8,height:8,borderRadius:'50%',background:C.red,display:'inline-block',flexShrink:0}}/>미입금 {subs.length-paidCount}</span>
+            <span style={{color:C.textDim,margin:'0 5px'}}>·</span>
+            <span style={{color:C.green,display:'inline-flex',alignItems:'center',gap:3}}><span style={{width:8,height:8,borderRadius:'50%',background:C.green,display:'inline-block',flexShrink:0}}/>입금확인 {paidCount}</span>
+          </div>
+        ):<div/>}
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          {(groups||[]).length>1&&(
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              <span style={{fontSize:11,color:C.textDim}}>그룹 묶기</span>
+              <button onClick={()=>setShowGroups(v=>!v)} style={{
+                width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
+                background:showGroups?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+              }}>
+                <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
+                  left:showGroups?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
+              </button>
+            </div>
+          )}
+          <div style={{display:'flex',alignItems:'center',gap:4}}>
+            {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>시간순</span>}
+            <button onClick={()=>setSortByTime(v=>!v)} style={{
+              width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
+              background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+            }}>
+              <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
+                left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
+            </button>
+          </div>
+        </div>
+      </div>
       {groupedSections?groupedSections.map(sec=>(
         <div key={sec.name} style={{marginBottom:4}}>
           <div style={{fontSize:11,fontWeight:700,color:C.textDim,padding:'8px 4px 4px',letterSpacing:0.5}}>
@@ -4315,6 +4331,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
           {sec.items.map(s=>renderCard(s))}
         </div>
       )):sortedSubs.map(s=>renderCard(s))}
+      {hasFee&&paidCount===subs.length&&subs.length>0&&<div style={{textAlign:'center',color:C.green,fontWeight:900,fontSize:15,padding:'16px 0',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Icon n="sparkles" size={16} color={C.green}/>전원 완료!</div>}
     {detailCrAt&&(()=>{
       const ds=filteredSubs.find(s=>s.createdAt===detailCrAt);
       if(!ds) return null;
