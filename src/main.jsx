@@ -2527,9 +2527,13 @@ function ExcelUploadModal({uploading,fileRef,onClose}){
       <div style={{marginBottom:14,padding:'9px 14px',background:C.accentBg,borderRadius:10,fontSize:12,color:C.textMid,display:'flex',alignItems:'center',gap:6}}>
         <Icon n="lock" size={13} color={C.accent}/><span>거래내역은 브라우저에서만 처리되며 서버에 저장되지 않아요.</span>
       </div>
-      <div style={{textAlign:'center',marginBottom:20}}>
+      <div style={{textAlign:'center',marginBottom:12}}>
         <Btn onClick={()=>fileRef.current?.click()} loading={uploading}>파일 선택하기</Btn>
         <div style={{marginTop:8,fontSize:12,color:C.textDim}}>지원: .xlsx, .xls, .csv</div>
+      </div>
+      <div style={{marginBottom:14,padding:'10px 14px',background:C.pageBg,borderRadius:10,fontSize:12,color:C.textMid,lineHeight:1.8}}>
+        업로드 후 카드 색상 &nbsp;·&nbsp; <span style={{color:'#5DCAA5',fontWeight:700}}>초록</span> 완료 &nbsp;·&nbsp; <span style={{color:'#EF9F27',fontWeight:700}}>노랑</span> 확인 필요 &nbsp;·&nbsp; <span style={{color:'#E24B4A',fontWeight:700}}>빨강</span> 미입금<br/>
+        <span style={{fontSize:11,color:C.textDim}}>노랑 = 금액 불일치 (부족·초과 포함). 카드 탭하면 차이 금액 확인 가능.</span>
       </div>
       <Card style={{padding:'16px'}}>
         <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:12,display:'flex',alignItems:'center',gap:6}}><Icon n="smartphone" size={14} color={C.text}/>은행별 다운로드 방법</div>
@@ -2733,6 +2737,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
   const [dunningOpen,setDunningOpen]=useState(false);
   const [openMenuKey,setOpenMenuKey]=useState(null);
   const [detailKey,setDetailKey]=useState(null);
+  const [matchTipSeen,setMatchTipSeen]=useState(()=>!!localStorage.getItem('matchResultTipSeen'));
   const [matchSummary,setMatchSummary]=useState(()=>{
     const byKey={};
     Object.entries(event.payments||{}).forEach(([k,p])=>{
@@ -2900,6 +2905,12 @@ function StatusSection({event,updateEvent,groups,showToast}){
             )}
           </div>
           <button onClick={()=>{setMatchSummary(null);updateEvent({...eventRef.current,lastMatchSummary:null});}} style={{fontSize:11,color:C.textDim,background:'none',border:`1px solid ${C.border}`,cursor:'pointer',padding:'2px 8px',borderRadius:6,fontFamily:'inherit',flexShrink:0}}>초기화</button>
+        </div>
+      )}
+      {matchSummary&&!matchSummary.emptyResult&&!matchTipSeen&&(
+        <div style={{marginBottom:8,padding:'7px 12px',background:C.inputBg,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+          <span style={{fontSize:11,color:C.textMid,lineHeight:1.6}}><span style={{color:'#EF9F27',fontWeight:700}}>노랑 카드</span>는 금액이 달라요. 카드 탭하면 부족·초과 금액 확인 가능.</span>
+          <button onClick={()=>{setMatchTipSeen(true);localStorage.setItem('matchResultTipSeen','true');}} style={{fontSize:11,color:C.textDim,background:'none',border:'none',cursor:'pointer',flexShrink:0,padding:'2px 0'}}>✕</button>
         </div>
       )}
       {showGroups&&groupSections?(
@@ -4499,6 +4510,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
   const toggleBankGuide=(id)=>setBankGuideOpen(prev=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;});
   const [uploadMode,setUploadMode]=useState('file');
   const fileRef=useRef(null);
+  const [formMatchTipSeen,setFormMatchTipSeen]=useState(()=>!!localStorage.getItem('matchResultTipSeen'));
   const [formMatchSummary,setFormMatchSummary]=useState(()=>{
     const byKey={};
     (form.submissions||[]).forEach(s=>{
@@ -4706,6 +4718,12 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
                   )}
                 </div>
                 <button onClick={()=>{setFormMatchSummary(null);updateForm({...formRef.current,lastMatchSummary:null});}} style={{fontSize:11,color:C.textDim,background:'none',border:`1px solid ${C.border}`,cursor:'pointer',padding:'2px 8px',borderRadius:6,fontFamily:'inherit',flexShrink:0}}>초기화</button>
+              </div>
+            )}
+            {hasFee&&formMatchSummary&&!formMatchSummary.emptyResult&&!formMatchTipSeen&&(
+              <div style={{marginBottom:8,padding:'7px 12px',background:C.inputBg,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+                <span style={{fontSize:11,color:C.textMid,lineHeight:1.6}}><span style={{color:'#EF9F27',fontWeight:700}}>노랑 카드</span>는 금액이 달라요. 카드 탭하면 부족·초과 금액 확인 가능.</span>
+                <button onClick={()=>{setFormMatchTipSeen(true);localStorage.setItem('matchResultTipSeen','true');}} style={{fontSize:11,color:C.textDim,background:'none',border:'none',cursor:'pointer',flexShrink:0,padding:'2px 0'}}>✕</button>
               </div>
             )}
             <SubmissionsTab form={form} filteredSubs={filteredSubs} subs={subs} groupCounts={groupCounts}
