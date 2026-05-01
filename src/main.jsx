@@ -1727,7 +1727,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
   const extraMembers=parseMembers(extraText).filter(m=>!allFromGroups.find(x=>x.name===m.name&&x.sid===m.sid));
   const allMembers=[...allFromGroups,...extraMembers];
   const memberMap={};
-  allMembers.forEach(m=>{memberMap[m.name+(m.sid?`_${m.sid}`:'')] = displayName(m);});
+  allMembers.forEach(m=>{memberMap[m.name+(m.sid?`_${m.sid}`:'')] = m.name;});
   const visibleMembers=activeG===-1?allMembers:(groups[activeG]?.members||[]);
 
   const dupBaseKeys=React.useMemo(()=>{
@@ -2646,8 +2646,9 @@ function StatusSection({event,updateEvent,groups,showToast}){
   const sortedMain=sortList(presentMembers,k=>mm[k]||k);
   const sortedExtra=sortList(allExtraEntries.map(e=>e.key),k=>allExtraEntries.find(e=>e.key===k)?.name||k);
 
+  const normMemberName=(raw,k)=>{if(!k.includes('_'))return raw;const sfx=k.split('_').slice(1).join('_');return raw.endsWith(` (${sfx})`)?raw.slice(0,-(sfx.length+3)):raw;};
   const nameCount={};
-  presentMembers.forEach(k=>{const n=mm[k]||k;nameCount[n]=(nameCount[n]||0)+1;});
+  presentMembers.forEach(k=>{const n=normMemberName(mm[k]||k,k);nameCount[n]=(nameCount[n]||0)+1;});
   allExtraEntries.forEach(e=>{nameCount[e.name]=(nameCount[e.name]||0)+1;});
 
   const MemberCard=({k,isExtra=false})=>{
@@ -2666,7 +2667,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
     const canDunning=status==='none'&&!matchInfo&&!!event.account?.bank&&!animating;
     const dunning=async e=>{
       e.stopPropagation();
-      const msg=buildDunningMsg({name:displayName,eventName:event.name,amount:displayAmount,account:event.account,link:directLink});
+      const msg=buildDunningMsg({name:baseDisplay,eventName:event.name,amount:displayAmount,account:event.account,link:directLink});
       const shared=await shareText(msg);
       if(!shared){await copyText(msg);showToast('콕 찌르기 복사됐어요');}
       else showToast('공유 완료');
@@ -2674,14 +2675,15 @@ function StatusSection({event,updateEvent,groups,showToast}){
     const effectiveStatus=effectivePaid?'paid':(matchInfo?'requested':status);
     const menuOpen=openMenuKey===k;
     const keySuffix=!isExtra&&k.includes('_')?k.split('_').slice(1).join('_'):null;
-    const showId=nameCount[displayName]>=2&&keySuffix?keySuffix:null;
+    const baseDisplay=keySuffix&&displayName.endsWith(` (${keySuffix})`)?displayName.slice(0,-(keySuffix.length+3)):displayName;
+    const showId=nameCount[baseDisplay]>=2&&keySuffix?keySuffix:null;
     return(
       <div style={{background:C.cardBg,borderRadius:12,marginBottom:6,boxShadow:C.shadow,overflow:'hidden',opacity:rejected&&!effectivePaid?0.5:1,pointerEvents:animating?'none':'auto'}}
         onClick={()=>menuOpen&&setOpenMenuKey(null)}>
         <div style={{padding:'11px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div style={{flex:1,minWidth:0,cursor:'pointer'}} onClick={e=>{e.stopPropagation();setOpenMenuKey(null);setDetailKey(k);}}>
             <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
-              <span style={{fontWeight:600,color:C.text,fontSize:13}}>{displayName}</span>
+              <span style={{fontWeight:600,color:C.text,fontSize:13}}>{baseDisplay}</span>
               {showId&&<span style={{fontSize:11,color:C.textDim}}>({showId})</span>}
               {isExtra&&<span style={{fontSize:10,fontWeight:800,color:C.orange,background:C.orange+'20',borderRadius:6,padding:'1px 5px'}}>임시</span>}
             </div>
@@ -4682,7 +4684,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
           <>
             <div style={{display:'flex',marginBottom:8,gap:6}}>
               {hasFee&&<button onClick={()=>setShowExcelModal(true)} disabled={formAnimating||uploading} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:(formAnimating||uploading)?'default':'pointer',background:C.cardBg,color:(formAnimating||uploading)?C.textDim:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>{formAnimating?<><Spinner size={11} color={C.textDim}/>&nbsp;처리 중...</>:uploading?<><Spinner size={11} color={C.textDim}/>&nbsp;분석 중...</>:<><Icon n="download" size={12} color={C.textMid}/>자동 대조</>}</button>}
-              {hasFee&&unpaidXList.length>0&&form.account?.bank&&<button onClick={()=>setDunningOpen(true)} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="megaphone" size={12} color={C.textMid}/>미입금자 {unpaidXList.length}명 콕 찌르기</button>}
+              {hasFee&&unpaidXList.length>0&&<button onClick={()=>setDunningOpen(true)} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="megaphone" size={12} color={C.textMid}/>미입금자 {unpaidXList.length}명 콕 찌르기</button>}
               {subs.length>0&&<button onClick={downloadExcel} style={{flex:1,padding:'6px 4px',borderRadius:12,fontSize:12,fontWeight:700,cursor:'pointer',background:C.cardBg,color:C.textMid,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><Icon n="table" size={12} color={C.textMid}/>엑셀 추출</button>}
             </div>
             {hasFee&&formMatchSummary&&(
@@ -4744,9 +4746,19 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
 
       {showExcelModal&&<ExcelUploadModal uploading={uploading} fileRef={fileRef} onClose={()=>setShowExcelModal(false)}/>}
       {shareOpen&&<FormShareModal form={form} showToast={showToast} onClose={()=>setShareOpen(false)} onShared={()=>{setShareOpen(false);setSlide(1);}}/>}
-      {dunningOpen&&form.account?.bank&&(
-        <DunningModal eventName={form.name} account={form.account} link={getLink(`form=${form.code}`)}
-          unpaidList={unpaidXList} showToast={showToast} onClose={()=>setDunningOpen(false)}/>
+      {dunningOpen&&(
+        form.account?.bank
+          ?<DunningModal eventName={form.name} account={form.account} link={getLink(`form=${form.code}`)}
+              unpaidList={unpaidXList} showToast={showToast} onClose={()=>setDunningOpen(false)}/>
+          :<Modal isOpen={true} onClose={()=>setDunningOpen(false)} title="콕 찌르기">
+              <div style={{textAlign:'center',padding:'8px 0 16px'}}>
+                <div style={{fontSize:13,color:C.textMid,lineHeight:1.8,marginBottom:20}}>콕 찌르기 메시지에 입금 계좌를 포함하려면<br/>먼저 계좌 정보를 등록해주세요.</div>
+                <div style={{display:'flex',gap:8}}>
+                  <Btn variant="ghost" onClick={()=>setDunningOpen(false)} style={{flex:1}}>취소</Btn>
+                  <Btn onClick={()=>{setDunningOpen(false);nav.setView('setup');}} style={{flex:2}}>명단·계좌 설정하러 가기 →</Btn>
+                </div>
+              </div>
+            </Modal>
       )}
       {closeConfirmOpen&&(
         <CloseFormModal onConfirm={async()=>{setCloseConfirmOpen(false);await handlers.closeForm();nav.setView('home');}} onClose={()=>setCloseConfirmOpen(false)}/>
