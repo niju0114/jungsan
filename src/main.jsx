@@ -4906,13 +4906,15 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
     }
 
     setLoading(true);
+    const now=new Date().toISOString();
     const submission={
       name:name,
       phone:values.phone||'',
       data:values,
-      paid:false,
-      paymentStatus:'pending',
-      createdAt:new Date().toISOString(),
+      paid:form.noFee?true:false,
+      paymentStatus:form.noFee?'matched':'pending',
+      ...(form.noFee?{matchedAt:now,matchedBy:'auto'}:{}),
+      createdAt:now,
     };
     try{
       const {data,error}=await api.appendFormSubmission(form.code,submission);
@@ -4936,6 +4938,33 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
     await api.requestFormPayment(form.code,mySubmission.createdAt);
     setMySubmission(s=>({...s,paymentStatus:'requested',requestedAt:new Date().toISOString()}));
   };
+
+  if(submitted&&mySubmission&&form.noFee){
+    return(
+      <div className="fade-up screen" style={{background:C.pageBg,padding:'48px 20px',textAlign:'center'}}>
+        <div style={{width:72,height:72,borderRadius:36,background:C.green+'20',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 20px'}}>
+          <Icon n="circle-check" size={36} color={C.green}/>
+        </div>
+        <div style={{fontSize:24,fontWeight:900,color:C.text,marginBottom:6}}>신청이 완료됐어요!</div>
+        <div style={{fontSize:14,color:C.textMid,marginBottom:28,lineHeight:1.7}}>현장에서 이름을 말씀해주세요</div>
+        <Card style={{textAlign:'left'}}>
+          <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:8}}>{form.name}</div>
+          {(form.date||form.place)&&(
+            <div style={{fontSize:13,color:C.textMid,marginBottom:12,display:'flex',flexDirection:'column',gap:4}}>
+              {form.date&&<span style={{display:'inline-flex',alignItems:'center',gap:4}}><Icon n="calendar" size={13} color={C.textDim}/>{(form.date||'').replace(/^\d{4}-(\d{2})-(\d{2})$/,(_,m,d)=>`${+m}월 ${+d}일`)}{form.time?` ${form.time}`:''}</span>}
+              {form.place&&<span style={{display:'inline-flex',alignItems:'center',gap:4}}><Icon n="map-pin" size={13} color={C.textDim}/>{form.place}</span>}
+            </div>
+          )}
+          <div style={{display:'flex',alignItems:'center',gap:8,padding:'12px 14px',background:C.greenBg,borderRadius:12}}>
+            <Icon n="user" size={16} color={C.green}/>
+            <span style={{fontSize:16,fontWeight:800,color:C.text}}>{mySubmission.name}</span>
+          </div>
+          <div style={{fontSize:11,color:C.textDim,marginTop:10,textAlign:'center'}}>{fmtRelTime(mySubmission.createdAt)} 신청</div>
+        </Card>
+        <div style={{fontSize:12,color:C.textDim,marginTop:20}}>이 탭을 닫아도 돼요</div>
+      </div>
+    );
+  }
 
   if(submitted&&mySubmission){
     const isConfirmed=mySubmission.paid||mySubmission.paymentStatus==='matched';
@@ -5049,7 +5078,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
         <div style={{fontSize:22,fontWeight:900,color:'#fff',marginBottom:6}}>{form.name}</div>
         <div style={{display:'flex',justifyContent:'center',gap:12,fontSize:13,color:'rgba(255,255,255,0.9)'}}>
           <span style={{display:'inline-flex',alignItems:'center',gap:4}}><Icon n="calendar" size={13} color="rgba(255,255,255,0.8)"/>{(form.date||'').replace(/^\d{4}-(\d{2})-(\d{2})$/,(_,m,d)=>`${+m}월 ${+d}일`)}{form.time?` ${form.time}`:''}</span>
-          <span style={{display:'inline-flex',alignItems:'center',gap:4}}><Icon n="wallet" size={13} color="rgba(255,255,255,0.8)"/>{form.amountPaid?`${fmtKRW(form.amount)} / ${fmtKRW(form.amountPaid)}`:fmtKRW(form.amount)}</span>
+          {!form.noFee&&<span style={{display:'inline-flex',alignItems:'center',gap:4}}><Icon n="wallet" size={13} color="rgba(255,255,255,0.8)"/>{form.amountPaid?`${fmtKRW(form.amount)} / ${fmtKRW(form.amountPaid)}`:fmtKRW(form.amount)}</span>}
         </div>
         {form.maxPeople&&(
           <div style={{marginTop:10,display:'inline-flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.2)',borderRadius:20,padding:'4px 14px'}}>
