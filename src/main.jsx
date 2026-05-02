@@ -3763,6 +3763,7 @@ function FormCreateScreen({nav,profile,createForm}){
                   <span style={{fontWeight:700,color:C.text,fontSize:14}}>{f.label}</span>
                   {f.required&&<span style={{fontSize:11,color:C.red,marginLeft:4}}>*</span>}
                   {f.type==='textarea'&&<span style={{fontSize:11,color:C.accent,marginLeft:6}}>서술형</span>}
+                  {f.id==='studentId'&&(noFee||feeMode==='twoTier')&&<span style={{fontSize:10,color:C.textDim,marginLeft:4}}>(삭제 시 학생회비 대조 불가)</span>}
                 </div>
                 <button onClick={()=>updateField(f.id,'required',!f.required)} disabled={f.id==='studentId'&&feeMode==='twoTier'} style={{background:f.required?C.redBg:'none',border:`1px solid ${f.required?C.red+'30':C.border}`,borderRadius:8,padding:'3px 8px',fontSize:10,fontWeight:700,color:f.required?C.red:C.textDim,cursor:f.id==='studentId'&&feeMode==='twoTier'?'default':'pointer',opacity:f.id==='studentId'&&feeMode==='twoTier'?0.5:1}}>
                   {f.required?'필수':'선택'}
