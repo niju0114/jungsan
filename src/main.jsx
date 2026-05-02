@@ -257,7 +257,7 @@ const calcAmounts = ev => {
   (ev.rounds||[]).forEach(r=>{
     const isFeeRound=r.id==='round_1'&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
     if(!isFeeRound&&!r.amount) return;
-    const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0);
+    const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0)+(r.includeOrganizer===true?1:0);
     if(!totalCount) return;
     if(isFeeRound){
       (r.members||[]).forEach(k=>{
@@ -275,7 +275,7 @@ const calcSurplus = ev => {
   let s=0;
   (ev.rounds||[]).forEach(r=>{
     if(!r.amount) return;
-    const n=(r.members?.length||0)+(r.extraMembers?.length||0);
+    const n=(r.members?.length||0)+(r.extraMembers?.length||0)+(r.includeOrganizer===true?1:0);
     if(!n) return;
     s+=Math.ceil(r.amount/n)*n-r.amount;
   });
@@ -1037,7 +1037,7 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
             <Card>
               <div style={{fontWeight:700,color:C.textMid,fontSize:13,marginBottom:14}}>기본 정보</div>
               <Field label="이름 (실명) *" value={name} onChange={setName} placeholder="홍길동"/>
-              <Field label="학교·단체 *" value={org} onChange={setOrg} placeholder="OO대학교 / OO동아리"/>
+              <Field label="학교·단체 *" value={org} onChange={setOrg} placeholder="00대 학과/동아리"/>
             </Card>
             <Card>
               <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:14}}>약관 동의</div>
@@ -1743,7 +1743,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
     const code=genCode();
     const paidFeeKeys=selected.filter(k=>groups.some(g=>(g.paidFeeMembers||[]).includes(k)));
     const fullMemberMap={...memberMap,...extraMemberMap};
-    const ev={code,name:name.trim(),date,pin:'',account:{bank,number,holder},members:selected,memberMap:fullMemberMap,rounds:[],payments:{},attendance:{},attendanceOpen:false,createdAt:new Date().toISOString(),paidFeeKeys,feeConfig:null,sourceFormCode:null};
+    const ev={code,name:name.trim(),date,pin:'',account:{bank,number,holder},members:selected,memberMap:fullMemberMap,rounds:[],payments:{},attendance:Object.fromEntries(selected.map(k=>[k,false])),attendanceOpen:false,createdAt:new Date().toISOString(),paidFeeKeys,feeConfig:null,sourceFormCode:null};
     const ok=await createEvent(ev);
     setLoading(false);
     if(ok){nav.setCurrentCode(ev.code);nav.setView('adminEvent');}
@@ -1912,7 +1912,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
         <div style={{padding:'16px 18px'}}>
           {slide===0&&(
             <div className="fade-up">
-              <RoundsSection event={event} updateEvent={update} onRoundAdded={()=>setSlide(1)} groups={profile?.groups} onAttDirtyChange={setAttDirty} saveAttFnRef={saveAttRef}/>
+              <RoundsSection event={event} updateEvent={update} onRoundAdded={()=>setSlide(1)} groups={profile?.groups} onAttDirtyChange={setAttDirty} saveAttFnRef={saveAttRef} profile={profile}/>
             </div>
           )}
           {slide===1&&(
@@ -2163,7 +2163,7 @@ function FeeConfigSection({event,updateEvent}){
 }
 
 // ── RoundsSection ──────────────────────────────────────────
-function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,saveAttFnRef}){
+function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,saveAttFnRef,profile}){
   const mm=event.memberMap||{};
   const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
 
@@ -2180,8 +2180,8 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   const roundSavedTimerRef=useRef(null);
 
   useEffect(()=>{
-    if(!event.rounds.some(r=>r.label==='1차')&&presentMembers.length>0){
-      updateEvent({...event,rounds:[{id:'round_1',label:'1차',amount:0,members:[...presentMembers]}]});
+    if(!event.rounds.some(r=>r.label==='1차')){
+      updateEvent({...event,rounds:[{id:'round_1',label:'1차',amount:0,members:[...presentMembers],includeOrganizer:true}]});
     }
   },[]);
 
@@ -2259,7 +2259,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   };
 
   const doAddRound=()=>{
-    const newRound={id:Date.now().toString(),label:`${event.rounds.length+1}차`,amount:0,members:[...presentMembers],extraMembers:[]};
+    const newRound={id:Date.now().toString(),label:`${event.rounds.length+1}차`,amount:0,members:[...presentMembers],extraMembers:[],includeOrganizer:true};
     updateEvent({...event,rounds:[...event.rounds,newRound]});
     setEditAmount('');setEditExtra([]);setExtraInput('');
     setEditingId(newRound.id);
@@ -2271,6 +2271,11 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
     const newRounds=event.rounds.filter(r=>r.id!==rid);
     updateEvent({...event,rounds:newRounds});
     setEditingId(newRounds[0]?.id||null);
+  };
+
+  const toggleOrganizer=rid=>{
+    const newRounds=event.rounds.map(r=>r.id===rid?{...r,includeOrganizer:r.includeOrganizer!==true}:r);
+    updateEvent({...event,rounds:newRounds});
   };
 
   const attCount=event.members.filter(k=>localAtt[k]!==false).length;
@@ -2316,7 +2321,10 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
         {useGroupView?(
           groupSections.map(sec=>(
             <div key={sec.name} style={{marginBottom:10}}>
-              <div style={{fontSize:11,fontWeight:700,color:C.textDim,marginBottom:5,letterSpacing:0.3}}>{sec.name} {sec.keys.length}명</div>
+              <div style={{fontSize:11,fontWeight:700,color:C.textDim,marginBottom:5,letterSpacing:0.3,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <span>{sec.name} {sec.keys.length}명</span>
+                <button onClick={()=>{const a={...localAtt};sec.keys.forEach(k=>a[k]=true);setLocalAtt(a);setAttDirty(true);saveAttWith(a);}} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전체 선택</button>
+              </div>
               <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
                 {sec.keys.map(k=>{
                   const isAbsent=localAtt[k]===false;
@@ -2355,7 +2363,8 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
         const amtNum=isEditing?(Number(editAmount.replace(/[^0-9]/g,''))||0):r.amount;
         const extraList=isEditing?editExtra:(r.extraMembers||[]);
         const rMembers=r.members||presentMembers;
-        const totalCount=rMembers.length+extraList.length;
+        const includeOrg=r.includeOrganizer===true;
+        const totalCount=rMembers.length+extraList.length+(includeOrg?1:0);
         const perPerson=amtNum>0&&totalCount>0?Math.ceil(amtNum/totalCount):0;
 
         return(
@@ -2417,6 +2426,12 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                 <Btn onClick={()=>doSaveRound(r.id)}>저장하고 닫기</Btn>
               </>
             )}
+            <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${C.border}`}}>
+              <div onClick={()=>toggleOrganizer(r.id)} className="press" style={{display:'inline-flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:includeOrg?'#EEEDFE':'#F1EFE8',border:`1px solid ${includeOrg?'#D4D1F5':'#E0DDD5'}`,transition:'all 0.15s'}}>
+                {includeOrg&&<Icon n="check" size={11} color="#3C3489"/>}
+                <span style={{fontSize:13,fontWeight:600,color:includeOrg?'#3C3489':'#888780'}}>총무 ({profile?.name||'이름'})</span>
+              </div>
+            </div>
           </div>
         );
       })}
@@ -2556,7 +2571,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
   const allExtraEntries=[]; // {key, name}
   (event.rounds||[]).forEach(r=>{
     if(!r.amount) return;
-    const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0);
+    const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0)+(r.includeOrganizer===true?1:0);
     if(!totalCount) return;
     const share=Math.ceil(r.amount/totalCount);
     (r.extraMembers||[]).forEach((em,ei)=>{
@@ -2603,7 +2618,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
     const localExtraEntries=[];
     (event.rounds||[]).forEach(r=>{
       if(!r.amount) return;
-      const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0);
+      const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0)+(r.includeOrganizer===true?1:0);
       if(!totalCount) return;
       (r.extraMembers||[]).forEach((em,ei)=>{
         const k=extraKey(r.id,em,ei);
@@ -3122,7 +3137,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
           {myRounds.length>0&&(
             <div style={{borderTop:`1.5px solid ${C.border}`,paddingTop:12,marginBottom:14}}>
               {myRounds.map(r=>{
-                const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0)||1;
+                const totalCount=((r.members?.length||0)+(r.extraMembers?.length||0)+(r.includeOrganizer===true?1:0))||1;
                 const share=Math.ceil(r.amount/totalCount);
                 const roundSurplus=share*totalCount-r.amount;
                 return(
@@ -4545,7 +4560,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
     const ev={
       code,name,date:form.date,pin:'',
       account:form.account||{},members,memberMap,
-      rounds:[],payments:{},attendance:{},attendanceOpen:false,
+      rounds:[],payments:{},attendance:Object.fromEntries(members.map(k=>[k,false])),attendanceOpen:false,
       createdAt:new Date().toISOString(),
       sourceFormCode:form.code,feeConfig:null,paidFeeKeys:[],
     };
