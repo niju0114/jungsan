@@ -1371,7 +1371,6 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
   const [pfmOpen,setPfmOpen]=useState(false);
   const [searchQ,setSearchQ]=useState('');
   const [sortBy,setSortBy]=useState('default');
-  const [guideHidden,setGuideHidden]=useState(()=>!!localStorage.getItem('memberPasteGuideSeen'));
 
   const updateRaw=(idx,text)=>{
     const members=parseMembers(text);
@@ -1432,10 +1431,8 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
         </Card>
         <Card>
           <div style={{fontWeight:800,color:C.text,marginBottom:4,fontSize:15,display:'flex',alignItems:'center',gap:6}}><Icon n="users" size={15} color={C.accent}/>명단 관리</div>
-          <div style={{color:C.textDim,fontSize:12,marginBottom:14,lineHeight:1.7}}>
-            학년·기수·팀 등 그룹별로 관리해요.<br/>
-            <span style={{color:C.accent,fontWeight:600}}>이름 한 줄에 하나씩</span> 입력하거나 엑셀에서 복붙하세요.<br/>
-            
+          <div style={{color:C.textDim,fontSize:12,marginBottom:14}}>
+            학년·기수·팀 등 그룹별로 관리해요.
           </div>
           <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:14}}>
             {groups.length>1&&(
@@ -1480,26 +1477,17 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
                     <div style={{fontSize:13,fontWeight:700,color:C.textMid}}>{cur.name} 명단</div>
                     {groups.length>1&&activeG!==0&&<button onClick={()=>delGroup(activeG)} style={{color:C.red,background:'none',border:'none',fontSize:12,cursor:'pointer',fontWeight:600}}>그룹 삭제</button>}
                   </div>
-                  {!guideHidden&&(
-                    <div style={{marginBottom:8,padding:'9px 12px',background:C.orangeBg,borderRadius:10,border:`1px solid ${C.orange}30`,fontSize:12,color:C.textMid,display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
-                      <span style={{display:'inline-flex',alignItems:'center',gap:4,lineHeight:1.6,flexWrap:'wrap'}}><Icon n="lightbulb" size={13} color={C.orange}/>이름 한 줄씩, 또는 엑셀에서 복붙. 이름·학번, 탭·쉼표·공백 모두 인식.</span>
-                      <button onClick={()=>{setGuideHidden(true);localStorage.setItem('memberPasteGuideSeen','1');}} style={{background:'none',border:'none',cursor:'pointer',color:C.textDim,fontSize:18,lineHeight:1,flexShrink:0,padding:0}}>×</button>
+                  {activeG!==0&&(
+                    <div style={{fontSize:12,fontWeight:700,color:C.accent,marginBottom:6,display:'flex',alignItems:'center',gap:4}}>
+                      <Icon n="users" size={12} color={C.accent}/>여기에 붙여넣으면 <span style={{textDecoration:'underline'}}>{cur.name}</span>에 추가됩니다
                     </div>
                   )}
-                  <div style={{fontSize:12,fontWeight:700,color:C.accent,marginBottom:6,display:'flex',alignItems:'center',gap:4}}>
-                    <Icon n="users" size={12} color={C.accent}/>여기에 붙여넣으면 <span style={{textDecoration:'underline'}}>{cur.name}</span>에 추가됩니다
-                  </div>
                   <textarea ref={textareaRef} value={cur.rawText} onChange={e=>updateRaw(activeG,e.target.value)}
-                    placeholder={`${cur.name} 명단 붙여넣기\n이름·학번, 탭·쉼표·공백 모두 인식`} rows={6}
+                    placeholder={`예시:\n김민준  202312345\n박지호  202412346\n이재훈\n\n이름·학번, 탭·쉼표·공백 모두 인식`} rows={6}
                     style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:14,outline:'none',resize:'vertical',lineHeight:1.75,marginBottom:10}}
                     onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
                     onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
                   />
-                  {displayMembers.length===0&&(
-                    <div style={{textAlign:'center',padding:'14px 0 6px',color:C.textDim,fontSize:12}}>
-                      아직 명단이 없어요. 위에 붙여넣으면 바로 표시돼요.
-                    </div>
-                  )}
                   {displayMembers.length>0&&(
                     <div>
                       <div style={{display:'flex',gap:6,marginBottom:8}}>
@@ -2523,10 +2511,6 @@ function ExcelUploadModal({uploading,fileRef,onClose}){
         <Btn onClick={()=>fileRef.current?.click()} loading={uploading}>파일 선택하기</Btn>
         <div style={{marginTop:8,fontSize:12,color:C.textDim}}>지원: .xlsx, .xls, .csv</div>
       </div>
-      <div style={{marginBottom:14,padding:'10px 14px',background:C.pageBg,borderRadius:10,fontSize:12,color:C.textMid,lineHeight:1.8}}>
-        업로드 후 카드 색상 &nbsp;·&nbsp; <span style={{color:'#5DCAA5',fontWeight:700}}>초록</span> 완료 &nbsp;·&nbsp; <span style={{color:'#EF9F27',fontWeight:700}}>노랑</span> 확인 필요 &nbsp;·&nbsp; <span style={{color:'#E24B4A',fontWeight:700}}>빨강</span> 미입금<br/>
-        <span style={{fontSize:11,color:C.textDim}}>노랑 = 금액 불일치 (부족·초과 포함). 카드 탭하면 차이 금액 확인 가능.</span>
-      </div>
       <Card style={{padding:'16px'}}>
         <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:12,display:'flex',alignItems:'center',gap:6}}><Icon n="smartphone" size={14} color={C.text}/>은행별 다운로드 방법</div>
         <div style={{borderRadius:12,overflow:'hidden',marginBottom:8,border:`1.5px solid ${bankOpen.has('toss')?C.accent+'40':C.pageBg}`}}>
@@ -2537,7 +2521,7 @@ function ExcelUploadModal({uploading,fileRef,onClose}){
           {bankOpen.has('toss')&&(
             <div style={{padding:'12px 14px',background:'#fff',fontSize:13,color:C.textMid,lineHeight:2}}>
               <div style={{fontWeight:700,color:C.text,marginBottom:6}}>토스 앱에서:</div>
-              1. 하단 <strong>전체</strong> 탭<br/>2. <strong>관리</strong> 메뉴<br/>3. <strong>증명서 발급</strong><br/>4. <strong>거래내역서</strong> 선택<br/>5. 기간 설정 → <strong>엑셀(xlsx) 다운로드</strong>
+              1. <strong>토스뱅크</strong> 클릭<br/>2. <strong>관리</strong> 메뉴<br/>3. <strong>증명서 발급</strong><br/>4. <strong>거래내역서</strong> 선택<br/>5. 기간 설정 → <strong>엑셀(xlsx) 다운로드</strong>
               <div style={{marginTop:8,padding:'8px 10px',background:C.accentBg,borderRadius:8,fontSize:12,display:'flex',alignItems:'center',gap:4}}><Icon n="lightbulb" size={12} color={C.accent}/>이메일로 받기도 가능해요</div>
             </div>
           )}
@@ -3764,7 +3748,6 @@ function FormCreateScreen({nav,profile,createForm}){
           {availPresets.length>0&&(
             <div style={{marginTop:12}}>
               <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:2}}>탭해서 항목 추가</div>
-              <div style={{fontSize:11,color:C.textDim,marginBottom:8}}>학번, 주민번호 등 자유 추가 가능 — 여행자보험·명단 작성용</div>
               <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
                 {availPresets.map(p=>(
                   <button key={p.label} onClick={()=>addPreset(p)} className="press" style={{
@@ -3920,8 +3903,10 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
       newSubs[idx]={...s,paid:true,paymentStatus:'matched',matchedBy:'manual',matchedAt:now};
     } else if(status==='requested'){
       newSubs[idx]={...s,paid:false,paymentStatus:'requested',matchedBy:null,matchedAt:null,requestedAt:s.requestedAt||now};
-    } else {
+    } else if(status==='unpaid_confirmed'){
       newSubs[idx]={...s,paid:false,paymentStatus:'unpaid_confirmed',matchedBy:null,matchedAt:null};
+    } else {
+      newSubs[idx]={...s,paid:false,paymentStatus:'none',matchedBy:null,matchedAt:null};
     }
     await updateForm({...form,submissions:newSubs});
   };
@@ -4108,7 +4093,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
         )}
         {isMenuOpen&&hasFee&&(
           <div style={{borderTop:`1px solid ${C.border}`,padding:'6px 14px'}}>
-            <button onClick={e=>{e.stopPropagation();onSetSubStatus(s._idx,'none');setMenuIdx(null);}}
+            <button onClick={e=>{e.stopPropagation();onSetSubStatus(s._idx,'unpaid_confirmed');setMenuIdx(null);}}
               style={{fontSize:12,color:C.red,background:'none',border:'none',cursor:'pointer',fontWeight:700,padding:'4px 0'}}>정산 대상에서 제외</button>
           </div>
         )}
@@ -4243,7 +4228,7 @@ function VerifyTab({form, uploading, bankGuideOpen, setBankGuideOpen, fileRef, o
           {bankGuideOpen.has('toss')&&(
             <div style={{padding:'12px 14px',background:'#fff',fontSize:13,color:C.textMid,lineHeight:2}}>
               <div style={{fontWeight:700,color:C.text,marginBottom:6}}>토스 앱에서:</div>
-              1. 하단 <strong>전체</strong> 탭<br/>2. <strong>관리</strong> 메뉴<br/>3. <strong>증명서 발급</strong><br/>4. <strong>거래내역서</strong> 선택<br/>5. 기간 설정 → <strong>엑셀(xlsx) 다운로드</strong>
+              1. <strong>토스뱅크</strong> 클릭<br/>2. <strong>관리</strong> 메뉴<br/>3. <strong>증명서 발급</strong><br/>4. <strong>거래내역서</strong> 선택<br/>5. 기간 설정 → <strong>엑셀(xlsx) 다운로드</strong>
               <div style={{marginTop:8,padding:'8px 10px',background:C.accentBg,borderRadius:8,fontSize:12,display:'flex',alignItems:'center',gap:4}}><Icon n="lightbulb" size={12} color={C.accent}/>이메일로 받기도 가능해요</div>
             </div>
           )}
