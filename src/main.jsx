@@ -149,6 +149,7 @@ const rowToForm = r => ({
   status:r.status||'open', createdAt:r.created_at,
   time:r.time||null, place:r.place||null,
   lastMatchSummary:r.last_match_summary||null,
+  noFee:r.no_fee||false,
 });
 const formToRow = (f, uid) => ({
   code:f.code, name:f.name, date:f.date, amount:f.amount,
@@ -158,6 +159,7 @@ const formToRow = (f, uid) => ({
   submissions:f.submissions, status:f.status,
   time:f.time||null, place:f.place||null,
   last_match_summary:f.lastMatchSummary||null,
+  no_fee:f.noFee||false,
   ...(uid?{user_id:uid}:{}),
 });
 
@@ -3580,6 +3582,7 @@ function FormCreateScreen({nav,profile,createForm}){
   const [customType,setCustomType]=useState('text');
   const [showCustom,setShowCustom]=useState(false);
   const [showPreview,setShowPreview]=useState(false);
+  const [noFee,setNoFee]=useState(false);
 
   const hasAccount=profile.account?.bank&&profile.account?.number;
 
@@ -3611,12 +3614,12 @@ function FormCreateScreen({nav,profile,createForm}){
   const create=async()=>{
     setErr('');
     if(!name.trim()){setErr('행사명을 입력해주세요');return;}
-    if(!amount||isNaN(Number(amount))){setErr('참가비를 입력해주세요');return;}
-    if(feeMode==='twoTier'&&(!amountPaid||isNaN(Number(amountPaid)))){setErr('납부자 가격을 입력해주세요');return;}
+    if(!noFee&&(!amount||isNaN(Number(amount)))){setErr('참가비를 입력해주세요');return;}
+    if(!noFee&&feeMode==='twoTier'&&(!amountPaid||isNaN(Number(amountPaid)))){setErr('납부자 가격을 입력해주세요');return;}
     const b=bank.trim()||profile.account?.bank||'';
     const n=number.trim()||profile.account?.number||'';
     const h=holder.trim()||profile.account?.holder||'';
-    if(!b||!n||!h){setErr('계좌 정보를 입력해주세요');return;}
+    if(!noFee&&(!b||!n||!h)){setErr('계좌 정보를 입력해주세요');return;}
 
     setLoading(true);
     const code=genCode();
@@ -3624,13 +3627,13 @@ function FormCreateScreen({nav,profile,createForm}){
     const finalFields=feeMode==='twoTier'&&!cleanFields.some(f=>f.id==='studentId')
       ?[...cleanFields,{id:'studentId',type:'text',label:'학번',required:true}]
       :cleanFields;
-    const memberList=feeMode==='twoTier'?buildMemberList(profile):[];
+    const memberList=(noFee||feeMode==='twoTier')?buildMemberList(profile):[];
     const form={
-      code,name:name.trim(),date,amount:Number(amount),
-      amountPaid:feeMode==='twoTier'?Number(amountPaid):null,
-      memberList,
+      code,name:name.trim(),date,amount:noFee?0:Number(amount),
+      amountPaid:!noFee&&feeMode==='twoTier'?Number(amountPaid):null,
+      memberList,noFee,
       maxPeople:useLimit&&maxPeople?Number(maxPeople):null,
-      account:{bank:b,number:n,holder:h},fields:finalFields,
+      account:noFee?{}:{bank:b,number:n,holder:h},fields:finalFields,
       submissions:[],status:'open',createdAt:new Date().toISOString(),
       time:time||null,place:place.trim()||null,
     };
@@ -3651,36 +3654,53 @@ function FormCreateScreen({nav,profile,createForm}){
           <Field label="행사명" value={name} onChange={setName} placeholder="5월 MT, 개강총회…"/>
           <Field label="행사 날짜·시간" value={date+(time?`T${time}`:'')} onChange={v=>{setDate(v.slice(0,10));setTime(v.length>10?v.slice(11,16):'');}} type="datetime-local"/>
           <div style={{marginBottom:14}}>
-            <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:8}}>금액 설정</div>
-            <div style={{display:'flex',background:C.inputBg,borderRadius:10,padding:3,marginBottom:10}}>
-              {[['single','단일 금액'],['twoTier','두 갈래 금액']].map(([mode,label])=>(
-                <button key={mode} onClick={()=>{
-                  if(mode==='twoTier'&&feeMode==='single'){
-                    setFeeMode('twoTier');
-                    setFields(fs=>fs.some(f=>f.id==='studentId')?fs:[...fs,{id:'studentId',type:'text',label:'학번',required:true}]);
-                  }
-                  else if(mode==='single'&&feeMode==='twoTier'){
-                    setAmountPaid('');setFeeMode('single');
-                    setFields(fs=>fs.filter(f=>f.id!=='studentId'));
-                  }
-                }} style={{flex:1,padding:'7px 0',borderRadius:8,fontSize:13,
-                  fontWeight:feeMode===mode?700:500,cursor:'pointer',border:'none',
-                  background:feeMode===mode?'#fff':'transparent',
-                  color:feeMode===mode?C.accent:C.textDim,
-                  boxShadow:feeMode===mode?'0 1px 3px rgba(0,0,0,0.12)':'none',transition:'all 0.15s'}}>
-                  {label}
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:700,color:C.text}}>금액 설정</div>
+                {noFee&&<div style={{fontSize:12,color:C.textDim,marginTop:2}}>출석 체크 모드 (입금 추적 없음)</div>}
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <span style={{fontSize:12,color:C.textDim}}>참가비 없음</span>
+                <button onClick={()=>setNoFee(v=>!v)} style={{
+                  width:44,height:26,borderRadius:13,border:'none',cursor:'pointer',padding:0,
+                  background:noFee?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+                }}>
+                  <div style={{width:20,height:20,borderRadius:10,background:'#fff',position:'absolute',top:3,
+                    left:noFee?21:3,transition:'left 0.2s',boxShadow:'0 1px 3px rgba(0,0,0,0.2)'}}/>
                 </button>
-              ))}
+              </div>
             </div>
-            {feeMode==='single'?(
-              <Field label="참가비 (원)" value={amount} onChange={v=>setAmount(v.replace(/[^0-9]/g,''))} placeholder="30,000" inputMode="numeric"/>
-            ):(
-              <>
-                <Field label="학생회비 미납자 가격 (원)" value={amount} onChange={v=>setAmount(v.replace(/[^0-9]/g,''))} placeholder="5,000" inputMode="numeric"/>
-                <Field label="학생회비 납부자 가격 (원)" value={amountPaid} onChange={v=>setAmountPaid(v.replace(/[^0-9]/g,''))} placeholder="4,000" inputMode="numeric"/>
-                <div style={{fontSize:12,color:C.textDim,marginTop:4}}>명단 등록 시 자동으로 학생회비 납부자/미납자 구분됩니다</div>
-              </>
-            )}
+            {!noFee&&<>
+              <div style={{display:'flex',background:C.inputBg,borderRadius:10,padding:3,marginBottom:10}}>
+                {[['single','단일 금액'],['twoTier','두 갈래 금액']].map(([mode,label])=>(
+                  <button key={mode} onClick={()=>{
+                    if(mode==='twoTier'&&feeMode==='single'){
+                      setFeeMode('twoTier');
+                      setFields(fs=>fs.some(f=>f.id==='studentId')?fs:[...fs,{id:'studentId',type:'text',label:'학번',required:true}]);
+                    }
+                    else if(mode==='single'&&feeMode==='twoTier'){
+                      setAmountPaid('');setFeeMode('single');
+                      setFields(fs=>fs.filter(f=>f.id!=='studentId'));
+                    }
+                  }} style={{flex:1,padding:'7px 0',borderRadius:8,fontSize:13,
+                    fontWeight:feeMode===mode?700:500,cursor:'pointer',border:'none',
+                    background:feeMode===mode?'#fff':'transparent',
+                    color:feeMode===mode?C.accent:C.textDim,
+                    boxShadow:feeMode===mode?'0 1px 3px rgba(0,0,0,0.12)':'none',transition:'all 0.15s'}}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {feeMode==='single'?(
+                <Field label="참가비 (원)" value={amount} onChange={v=>setAmount(v.replace(/[^0-9]/g,''))} placeholder="30,000" inputMode="numeric"/>
+              ):(
+                <>
+                  <Field label="학생회비 미납자 가격 (원)" value={amount} onChange={v=>setAmount(v.replace(/[^0-9]/g,''))} placeholder="5,000" inputMode="numeric"/>
+                  <Field label="학생회비 납부자 가격 (원)" value={amountPaid} onChange={v=>setAmountPaid(v.replace(/[^0-9]/g,''))} placeholder="4,000" inputMode="numeric"/>
+                  <div style={{fontSize:12,color:C.textDim,marginTop:4}}>명단 등록 시 자동으로 학생회비 납부자/미납자 구분됩니다</div>
+                </>
+              )}
+            </>}
           </div>
           <Field label="장소 (선택)" value={place} onChange={setPlace} placeholder="강남 OO식당, 동아리방…"/>
           <div style={{marginBottom:14}}>
@@ -3706,8 +3726,8 @@ function FormCreateScreen({nav,profile,createForm}){
           </div>
         </Card>
 
-        {/* 계좌 - 프로필에 있으면 자동 적용 */}
-        <Card>
+        {/* 계좌 - 프로필에 있으면 자동 적용, 참가비 없음이면 숨김 */}
+        {!noFee&&<Card>
           <div style={{fontWeight:800,color:C.text,marginBottom:12,fontSize:15,display:'flex',alignItems:'center',gap:6}}><Icon n="credit-card" size={15} color={C.accent}/>입금 계좌</div>
           {hasAccount?(
             <div style={{background:C.inputBg,borderRadius:14,padding:'14px 16px'}}>
@@ -3726,7 +3746,7 @@ function FormCreateScreen({nav,profile,createForm}){
               <Field label="예금주" value={holder} onChange={setHolder} placeholder="홍길동"/>
             </>
           )}
-        </Card>
+        </Card>}
 
         {/* 신청폼 항목 */}
         <Card>
@@ -3955,10 +3975,20 @@ function useFormAdmin(form, updateForm, profile, saveProfile, showToast){
     else showToast('공유 완료');
   };
 
+  const toggleAttended=async(idx)=>{
+    const newSubs=[...subs];
+    newSubs[idx]={...newSubs[idx],attended:!newSubs[idx].attended};
+    await updateForm({...form,submissions:newSubs});
+  };
+  const checkAllAttended=async()=>{
+    const newSubs=subs.map(s=>({...s,attended:true}));
+    await updateForm({...form,submissions:newSubs});
+  };
+
   return {
     subs, filteredSubs, groupCounts, unregisteredCount,
     searchQ, setSearchQ, groupFilter, setGroupFilter,
-    handlers:{setSubStatus, manualConfirm, copyNudge, handleDunning,
+    handlers:{setSubStatus, manualConfirm, copyNudge, handleDunning, toggleAttended, checkAllAttended,
       closeForm:async()=>{await updateForm({...form,status:'closed'}); showToast('신청이 마감됐어요');},
       copyLink:()=>{copyText(getLink(`form=${form.code}`)); showToast('링크가 복사됐어요!');},
     },
@@ -4024,11 +4054,13 @@ function MemberDetailModal({name,onClose,studentId,group,unregistered,phone,paid
 function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCount, groups,
                          searchQ, setSearchQ, groupFilter, setGroupFilter,
                          onSetSubStatus, onCardDunning,
-                         animatingPaidCrAts, formMatchSummary, formAnimating}){
+                         animatingPaidCrAts, formMatchSummary, formAnimating,
+                         onToggleAttended, onCheckAllAttended}){
   const [sortByTime,setSortByTime]=useState(true);
   const [showGroups,setShowGroups]=useState(false);
   const [menuIdx,setMenuIdx]=useState(null);
   const [detailCrAt,setDetailCrAt]=useState(null);
+  const [checkMode,setCheckMode]=useState(false);
 
   const nameCount={};
   subs.forEach(s=>{nameCount[s.name]=(nameCount[s.name]||0)+1;});
@@ -4047,7 +4079,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
     return 'none';
   };
 
-  const sortedSubs=sortByTime
+  const sortedSubs=form.noFee?filteredSubs:sortByTime
     ?[...[...filteredSubs].filter(s=>getSubStatus(s)==='paid').sort((a,b)=>new Date(b.matchedAt||0)-new Date(a.matchedAt||0)),
        ...[...filteredSubs].filter(s=>getSubStatus(s)!=='paid').sort((a,b)=>{
          const aR=a.requestedAt,bR=b.requestedAt;
@@ -4066,6 +4098,12 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
   })():null;
 
   const hasFee=(form.amount||0)>0;
+
+  const getCouncilFeePaid=name=>{
+    if(!form.noFee||!form.memberList?.length) return null;
+    const m=form.memberList.find(m=>matchEngine.compareName(m.name,name)!=='none');
+    return m!=null?m.isPaidFee:null;
+  };
 
   const renderCard=(s)=>{
     const amt=getUserAmount(form,s.name,s.data?.studentId);
@@ -4089,7 +4127,12 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
             {hasFee&&amt>0&&<span style={{fontSize:13,fontWeight:700,color:C.textMid}}>{fmtKRW(amt)}</span>}
             {hasFee
               ?<PaySegCtrl status={effectiveSubStatus} onChange={newSt=>onSetSubStatus(s._idx,newSt)}/>
-              :<span style={{fontSize:11,color:C.textDim}}>{fmtRelTime(s.createdAt)||''}</span>
+              :form.noFee
+                ?<div style={{display:'flex',alignItems:'center',gap:6}} onClick={e=>e.stopPropagation()}>
+                  {(()=>{const fp=getCouncilFeePaid(s.name);return fp!=null?<span style={{fontSize:11,fontWeight:700,color:'#fff',background:fp?C.green:C.red,borderRadius:6,padding:'3px 8px'}}>{fp?'납부':'미납부'}</span>:null;})()}
+                  {checkMode&&<button onClick={()=>onToggleAttended(s._idx)} style={{fontSize:11,fontWeight:700,color:s.attended?'#fff':C.textDim,background:s.attended?C.accent:'transparent',border:`1.5px solid ${s.attended?C.accent:C.border}`,borderRadius:6,padding:'3px 8px',cursor:'pointer'}}>{s.attended?'✓ 출석':'출석'}</button>}
+                </div>
+                :<span style={{fontSize:11,color:C.textDim}}>{fmtRelTime(s.createdAt)||''}</span>
             }
             {hasFee&&(
               <button onClick={e=>{e.stopPropagation();setMenuIdx(v=>v===s._idx?null:s._idx);}}
@@ -4162,6 +4205,11 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
             <span style={{color:C.textDim,margin:'0 5px'}}>·</span>
             <span style={{color:C.green,display:'inline-flex',alignItems:'center',gap:3}}><span style={{width:8,height:8,borderRadius:'50%',background:C.green,display:'inline-block',flexShrink:0}}/>입금확인 {paidCount}</span>
           </div>
+        ):form.noFee?(
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:12,fontWeight:600,color:C.textMid}}>출석 {subs.filter(s=>s.attended).length}/{subs.length}</span>
+            {checkMode&&<button onClick={onCheckAllAttended} style={{fontSize:11,fontWeight:700,color:C.accent,background:C.accent+'18',border:'none',borderRadius:8,padding:'4px 10px',cursor:'pointer'}}>전체 체크</button>}
+          </div>
         ):<div/>}
         <div style={{display:'flex',alignItems:'center',gap:10}}>
           {(groups||[]).length>1&&(
@@ -4176,22 +4224,35 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
               </button>
             </div>
           )}
-          <div style={{display:'flex',alignItems:'center',gap:4}}>
-            {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>시간순</span>}
-            <button onClick={()=>setSortByTime(v=>!v)} style={{
-              width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
-              background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
-            }}>
-              <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
-                left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
-            </button>
-          </div>
+          {form.noFee?(
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              <span style={{fontSize:11,color:C.textDim}}>출석 체크</span>
+              <button onClick={()=>setCheckMode(v=>!v)} style={{
+                width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
+                background:checkMode?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+              }}>
+                <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
+                  left:checkMode?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
+              </button>
+            </div>
+          ):(
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>시간순</span>}
+              <button onClick={()=>setSortByTime(v=>!v)} style={{
+                width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
+                background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+              }}>
+                <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
+                  left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
+              </button>
+            </div>
+          )}
         </div>
       </div>
       {groupedSections?groupedSections.map(sec=>(
         <div key={sec.name} style={{marginBottom:4}}>
           <div style={{fontSize:11,fontWeight:700,color:C.textDim,padding:'8px 4px 4px',letterSpacing:0.5}}>
-            {sec.name} ({sec.items.filter(s=>getSubStatus(s)==='paid').length}/{sec.items.length})
+            {sec.name} ({form.noFee?sec.items.filter(s=>s.attended).length:sec.items.filter(s=>getSubStatus(s)==='paid').length}/{sec.items.length})
           </div>
           {sec.items.map(s=>renderCard(s))}
         </div>
@@ -4730,7 +4791,8 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
                 searchQ={searchQ} setSearchQ={setSearchQ} groupFilter={groupFilter} setGroupFilter={setGroupFilter}
                 onSetSubStatus={handlers.setSubStatus}
                 onCardDunning={form.account?.bank?handleCardDunning:null}
-                animatingPaidCrAts={animatingPaidCrAts} formMatchSummary={formMatchSummary} formAnimating={formAnimating}/>
+                animatingPaidCrAts={animatingPaidCrAts} formMatchSummary={formMatchSummary} formAnimating={formAnimating}
+                onToggleAttended={handlers.toggleAttended} onCheckAllAttended={handlers.checkAllAttended}/>
             {hasFee&&formMatchSummary?.refund?.length>0&&(
               <div style={{marginTop:8,padding:'12px 14px',background:C.inputBg,borderRadius:12,border:`1px solid ${C.border}`}}>
                 <div style={{fontSize:12,fontWeight:700,color:C.textMid,marginBottom:6,display:'flex',alignItems:'center',gap:4}}>
