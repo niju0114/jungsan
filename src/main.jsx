@@ -100,6 +100,9 @@ const api = {
     } catch { return []; }
   },
 
+  // 회원 탈퇴 (Edge Function — service_role로 auth.users 삭제)
+  deleteUser: () => sb.functions.invoke('delete-user'),
+
   // Realtime
   subscribeEvent: (code, cb) => {
     const ch = sb.channel(`event:${code}`)
@@ -919,7 +922,6 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
   const [marketing,setMarketing]=useState(false);
   const [privacyAgree,setPrivacyAgree]=useState(false);
   const [termsAgree,setTermsAgree]=useState(false);
-  const [thirdPartyAgree,setThirdPartyAgree]=useState(false);
   const [legalModal,setLegalModal]=useState(null);
   const [loading,setLoading]=useState(false);
   const [idChecked,setIdChecked]=useState(false);
@@ -954,7 +956,7 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
       if(pw.length<6){setErr('비밀번호는 6자 이상이어야 해요');return;}
       if(!name.trim()){setErr('이름을 입력해주세요');return;}
       if(!org.trim()){setErr('학교/단체명을 입력해주세요');return;}
-      if(!privacyAgree||!termsAgree||!thirdPartyAgree){setErr('필수 약관에 모두 동의해주세요');return;}
+      if(!privacyAgree||!termsAgree){setErr('필수 약관에 모두 동의해주세요');return;}
     }
     setLoading(true);
     const email=toEmail(userId);
@@ -1042,34 +1044,30 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
             <Card>
               <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:14}}>약관 동의</div>
               {/* 전체 동의 */}
-              <div onClick={()=>{const allChecked=termsAgree&&privacyAgree&&thirdPartyAgree&&marketing;setTermsAgree(!allChecked);setPrivacyAgree(!allChecked);setThirdPartyAgree(!allChecked);setMarketing(!allChecked);}} style={{display:'flex',alignItems:'center',gap:12,cursor:'pointer',padding:'14px 16px',background:C.inputBg,borderRadius:14,marginBottom:14,border:`1.5px solid ${termsAgree&&privacyAgree&&thirdPartyAgree?C.accent:C.border}`}}>
-                <div style={{width:24,height:24,borderRadius:8,border:`2px solid ${termsAgree&&privacyAgree&&thirdPartyAgree&&marketing?C.accent:C.border}`,background:termsAgree&&privacyAgree&&thirdPartyAgree&&marketing?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                  {termsAgree&&privacyAgree&&thirdPartyAgree&&marketing&&<Icon n="check" size={14} color="#fff"/>}
+              <div onClick={()=>{const allChecked=termsAgree&&privacyAgree&&marketing;setTermsAgree(!allChecked);setPrivacyAgree(!allChecked);setMarketing(!allChecked);}} style={{display:'flex',alignItems:'center',gap:12,cursor:'pointer',padding:'14px 16px',background:C.inputBg,borderRadius:14,marginBottom:14,border:`1.5px solid ${termsAgree&&privacyAgree?C.accent:C.border}`}}>
+                <div style={{width:24,height:24,borderRadius:8,border:`2px solid ${termsAgree&&privacyAgree&&marketing?C.accent:C.border}`,background:termsAgree&&privacyAgree&&marketing?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  {termsAgree&&privacyAgree&&marketing&&<Icon n="check" size={14} color="#fff"/>}
                 </div>
-                <div style={{fontWeight:800,color:C.text,fontSize:14}}>전체 동의</div>
+                <div style={{fontWeight:800,color:C.text,fontSize:14}}>모두 동의</div>
               </div>
               {[
-                {key:'terms',state:termsAgree,set:setTermsAgree,label:'서비스 이용약관',required:true,desc:'서비스 이용에 관한 기본 규칙'},
-                {key:'privacy',state:privacyAgree,set:setPrivacyAgree,label:'개인정보 수집 및 이용 동의',required:true,desc:'이름, 소속 수집 및 이용'},
-                {key:'thirdParty',state:thirdPartyAgree,set:setThirdPartyAgree,label:'제3자 정보 제공 동의',required:true,desc:'서비스 운영에 필요한 외부 서비스 제공'},
-                {key:'marketing',state:marketing,set:setMarketing,label:'마케팅 수신 동의',required:false,desc:'유용한 소식 및 업데이트 안내'},
+                {key:'terms',state:termsAgree,set:setTermsAgree,label:'이용약관',required:true},
+                {key:'privacy',state:privacyAgree,set:setPrivacyAgree,label:'개인정보 수집·이용',required:true},
+                {key:'marketing',state:marketing,set:setMarketing,label:'마케팅 수신',required:false},
               ].map(item=>(
-                <div key={item.key} style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:12}}>
-                  <div onClick={()=>item.set(v=>!v)} style={{width:22,height:22,borderRadius:7,border:`2px solid ${item.state?C.accent:item.required?C.red+'80':C.border}`,background:item.state?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1,cursor:'pointer'}}>
+                <div key={item.key} style={{display:'flex',alignItems:'center',gap:12,marginBottom:10}}>
+                  <div onClick={()=>item.set(v=>!v)} style={{width:22,height:22,borderRadius:7,border:`2px solid ${item.state?C.accent:item.required?C.red+'80':C.border}`,background:item.state?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,cursor:'pointer'}}>
                     {item.state&&<Icon n="check" size={13} color="#fff"/>}
                   </div>
-                  <div style={{flex:1}}>
-                    <div style={{display:'flex',alignItems:'center',gap:6}}>
-                      <span onClick={()=>item.set(v=>!v)} style={{fontSize:13,fontWeight:700,color:C.text,cursor:'pointer'}}>[{item.required?'필수':'선택'}] {item.label}</span>
-                      <button onClick={()=>setLegalModal(item.key)} style={{background:'none',border:'none',color:C.textDim,fontSize:11,cursor:'pointer',textDecoration:'underline',padding:0}}>보기</button>
-                    </div>
-                    <div style={{fontSize:11,color:C.textDim,marginTop:2}}>{item.desc}</div>
-                  </div>
+                  <span onClick={()=>item.set(v=>!v)} style={{flex:1,fontSize:13,fontWeight:600,color:C.text,cursor:'pointer'}}>
+                    {item.label}{!item.required&&<span style={{fontSize:11,color:C.textDim,fontWeight:400}}> (선택)</span>}
+                  </span>
+                  <button onClick={()=>setLegalModal(item.key)} style={{background:'none',border:'none',color:C.textDim,fontSize:11,cursor:'pointer',textDecoration:'underline',padding:0,flexShrink:0}}>보기</button>
                 </div>
               ))}
             </Card>
             <Modal isOpen={!!legalModal} onClose={()=>setLegalModal(null)}
-              title={legalModal==='terms'?'서비스 이용약관':legalModal==='privacy'?'개인정보 처리방침':legalModal==='thirdParty'?'제3자 정보 제공 동의':'마케팅 수신 동의'}>
+              title={legalModal==='terms'?'서비스 이용약관':legalModal==='privacy'?'개인정보 처리방침':'마케팅 수신 동의'}>
               <div style={{fontSize:13,color:C.textMid,lineHeight:2}}>
                 {legalModal&&LEGAL_TEXTS[legalModal]}
               </div>
@@ -1628,43 +1626,67 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
         <Btn onClick={save} loading={saving} variant={saved?'green':'primary'}>{saved?<><Icon n="check" size={16} color="#fff" style={{marginRight:4}}/>저장됐어요!</>:'저장하기'}</Btn>
         
         <div style={{marginTop:32,paddingTop:20,borderTop:`1px solid ${C.border}`}}>
-          <DeleteAccountBtn/>
+          <DeleteAccountBtn showToast={showToast} nav={nav}/>
         </div>
       </div>
     </div>
   );
 }
 
-function DeleteAccountBtn(){
-  const [confirm,setConfirm]=useState(false);
+function DeleteAccountBtn({showToast,nav}){
+  const [open,setOpen]=useState(false);
   const [loading,setLoading]=useState(false);
-  
-  const deleteAccount=async()=>{
-    setLoading(true);
+  const [confirmText,setConfirmText]=useState('');
+  const [counts,setCounts]=useState(null);
+
+  const openCard=async()=>{
+    setOpen(true);
+    setConfirmText('');
     const {data:{user}}=await api.getUser();
-    if(user){
-      // events 삭제
-      await api.deleteEventsByUser(user.id);
-      // profile에 탈퇴 마킹 (삭제 대신 - auth user 삭제 불가)
-      await api.upsertProfile({id:user.id,deleted:true,updated_at:new Date().toISOString()});
-      await api.signOut();
-    }
-    setLoading(false);
+    if(!user) return;
+    const [{data:evs},{data:fms}]=await Promise.all([api.getEvents(user.id),api.getForms(user.id)]);
+    setCounts({events:(evs||[]).length,forms:(fms||[]).length});
   };
 
-  if(!confirm) return(
-    <button onClick={()=>setConfirm(true)} style={{color:C.textDim,background:'none',border:'none',fontSize:13,cursor:'pointer',textDecoration:'underline',width:'100%',textAlign:'center'}}>
+  const deleteAccount=async()=>{
+    setLoading(true);
+    const {error}=await api.deleteUser();
+    if(error){showToast('탈퇴 처리 중 오류가 발생했어요',C.red);setLoading(false);return;}
+    localStorage.clear();
+    nav.setView('home');
+  };
+
+  if(!open) return(
+    <button onClick={openCard} style={{color:C.textDim,background:'none',border:'none',fontSize:13,cursor:'pointer',textDecoration:'underline',width:'100%',textAlign:'center'}}>
       회원 탈퇴
     </button>
   );
 
   return(
     <Card style={{border:`2px solid ${C.red}30`,background:C.redBg}}>
-      <div style={{fontWeight:800,color:C.red,marginBottom:6}}>정말 탈퇴하시겠어요?</div>
-      <div style={{fontSize:13,color:C.textMid,marginBottom:14,lineHeight:1.7}}>모든 정산 데이터와 명단이 삭제돼요.<br/>이 작업은 되돌릴 수 없어요.</div>
+      <div style={{fontWeight:800,color:C.red,marginBottom:10,fontSize:15}}>정말 탈퇴하시겠어요?</div>
+      <div style={{fontSize:13,color:C.textMid,marginBottom:14,lineHeight:1.9}}>
+        다음 데이터가 모두 삭제됩니다:<br/>
+        {counts?(
+          <>
+            · 정산 {counts.events}건<br/>
+            · 신청폼 {counts.forms}건<br/>
+          </>
+        ):<span style={{color:C.textDim}}>· 불러오는 중…<br/></span>}
+        · 명단·계좌 정보<br/>
+        · 신청자 데이터<br/>
+        <br/>
+        <span style={{color:C.red,fontWeight:700}}>이 작업은 되돌릴 수 없습니다.</span>
+      </div>
+      <input
+        value={confirmText} onChange={e=>setConfirmText(e.target.value)}
+        placeholder="탈퇴"
+        style={{width:'100%',padding:'10px 14px',borderRadius:10,border:`1.5px solid ${confirmText==='탈퇴'?C.red:C.border}`,background:'#fff',fontSize:14,color:C.text,outline:'none',marginBottom:10}}
+      />
+      <div style={{fontSize:12,color:C.textDim,marginBottom:12,textAlign:'center'}}>확인을 위해 <strong>탈퇴</strong>를 입력해주세요</div>
       <div style={{display:'flex',gap:8}}>
-        <Btn variant="ghost" onClick={()=>setConfirm(false)} style={{flex:1}}>취소</Btn>
-        <Btn variant="danger" onClick={deleteAccount} loading={loading} style={{flex:1}}>탈퇴하기</Btn>
+        <Btn variant="ghost" onClick={()=>{setOpen(false);setCounts(null);}} style={{flex:1}}>취소</Btn>
+        <Btn variant="danger" onClick={deleteAccount} loading={loading} disabled={confirmText!=='탈퇴'} style={{flex:1}}>탈퇴하기</Btn>
       </div>
     </Card>
   );
