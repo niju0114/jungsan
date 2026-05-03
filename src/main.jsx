@@ -103,6 +103,7 @@ const api = {
   // 회원 탈퇴 (본인 데이터 직접 삭제)
   deleteUserEvents: (uid) => sb.from('events').delete().eq('user_id', uid),
   deleteUserForms: (uid) => sb.from('forms').delete().eq('user_id', uid),
+  deleteAuthUser: () => sb.functions.invoke('delete-user'),
 
   // Realtime
   subscribeEvent: (code, cb) => {
@@ -1659,7 +1660,8 @@ function DeleteAccountBtn({showToast,nav}){
       const {data:{user}}=await api.getUser();
       if(!user) throw new Error('no user');
       await Promise.all([api.deleteUserEvents(user.id),api.deleteUserForms(user.id)]);
-      await api.updateProfile(user.id,{deleted:true});
+      await api.updateProfile(user.id,{deleted:true,name:'',school:'',groups:[],account:{},username:null});
+      await api.deleteAuthUser().catch(()=>{});
       await api.signOut();
     }catch(e){
       showToast('탈퇴 처리 중 오류가 발생했어요',C.red);
