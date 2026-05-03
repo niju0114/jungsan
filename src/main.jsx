@@ -3545,7 +3545,7 @@ function SmallEventOnboardingModal({onClose}){
   const SLIDES=[
     {msIcon:'checklist',color:C.green,body:'참가자 출석 체크 후\n1차·2차 금액을 입력하면\n인당 분담금이 자동으로 계산돼요.'},
     {msIcon:'upload_file',color:'#3B82F6',body:'은행 앱에서 거래내역서를 엑셀로 받아\n업로드하면 입금자를 자동으로 매칭해요.\n미입금자에게 콕 찌르기로 알림도 보낼 수 있어요.'},
-    {msIcon:'hourglass_empty',color:'#F59E0B',body:'조급해하지 마세요.\n\n다 입금할 때까지 며칠 걸리기도 해요.\n콕 찌르기는 하루 이틀 기다린 후 사용하세요.'},
+    {msIcon:'hourglass_empty',color:'#F59E0B',body:'여유 있게 진행해도 괜찮아요.\n\n정산은 사람들이 모일 시간이 필요해요.\n콕 찌르기는 충분한 시간이 지난 후 사용하세요.'},
   ];
   const s=SLIDES[slide];
   const isLast=slide===SLIDES.length-1;
@@ -3588,7 +3588,7 @@ function FormOnboardingModal({onClose}){
   const SLIDES=[
     {msIcon:'share',color:C.orange,body:'신청폼을 만들고 링크를 공유하면\n신청자 명단이 실시간으로 쌓여요.\n이름·학번·연락처 등 원하는 항목을 받을 수 있어요.'},
     {msIcon:'receipt_long',color:'#F59E0B',body:'거래내역서를 업로드하면\n정산과 동일하게 자동 매칭됩니다.\n행사 끝나면 신청자 명단 그대로 뒷풀이 정산도 이어갈 수 있어요.'},
-    {msIcon:'hourglass_empty',color:'#F59E0B',body:'조급해하지 마세요.\n\n신청 마감 후 입금까지 시간이 걸려요.\n콕 찌르기는 충분히 기다린 후 사용하세요.'},
+    {msIcon:'hourglass_empty',color:'#F59E0B',body:'여유 있게 진행해도 괜찮아요.\n\n신청과 입금은 사람들이 결정할 시간이 필요해요.\n콕 찌르기는 충분한 시간이 지난 후 사용하세요.'},
   ];
   const s=SLIDES[slide];
   const isLast=slide===SLIDES.length-1;
