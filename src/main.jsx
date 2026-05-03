@@ -1712,9 +1712,8 @@ function DeleteAccountBtn({showToast,nav}){
 function CreateScreen({nav,profile,events,createEvent,showToast}){
   const [showOnboarding,setShowOnboarding]=useState(false);
   useEffect(()=>{
-    if(localStorage.getItem('smallEventOnboarding_v2')) return;
     api.getProfileFields(profile.id,'small_event_onboarding_done')
-      .then(({data})=>{if(data?.small_event_onboarding_done){localStorage.setItem('smallEventOnboarding_v2','true');}else{setShowOnboarding(true);}})
+      .then(({data})=>{if(!data?.small_event_onboarding_done) setShowOnboarding(true);})
       .catch(()=>setShowOnboarding(true));
   },[]);
   const [name,setName]=useState('');
@@ -3272,8 +3271,8 @@ function HelpScreen({nav}){
   const faqs=FAQS;
   return(
     <div className="fade-up screen" style={{background:C.pageBg}}>
-      {showSmallOnboarding&&<SmallEventOnboardingModal onClose={()=>setShowSmallOnboarding(false)}/>}
-      {showFormOnboarding&&<FormOnboardingModal onClose={()=>setShowFormOnboarding(false)}/>}
+      {showSmallOnboarding&&<SmallEventOnboardingModal onClose={()=>setShowSmallOnboarding(false)} showNeverShow={false}/>}
+      {showFormOnboarding&&<FormOnboardingModal onClose={()=>setShowFormOnboarding(false)} showNeverShow={false}/>}
       <Header title="도움말" onBack={()=>nav.setView('home')}/>
       <div style={{padding:'16px 16px 48px'}}>
         <button onClick={()=>nav.setView('usage-guide')} className="press"
@@ -3533,12 +3532,12 @@ function OnboardingModal({nav,onClose}){
 }
 
 // ── SmallEventOnboardingModal (소규모 첫 진입 1회) ──────────
-function SmallEventOnboardingModal({onClose}){
+function SmallEventOnboardingModal({onClose,showNeverShow=true}){
   const [slide,setSlide]=useState(0);
   const [neverShow,setNeverShow]=useState(false);
   const finish=async()=>{
-    if(neverShow){
-      try{const {data:{user}}=await api.getUser();if(user){await api.updateProfile(user.id,{small_event_onboarding_done:true});localStorage.setItem('smallEventOnboarding_v2','true');}}catch(e){}
+    if(neverShow&&showNeverShow){
+      try{const {data:{user}}=await api.getUser();if(user){await api.updateProfile(user.id,{small_event_onboarding_done:true});}}catch(e){}
     }
     onClose();
   };
@@ -3562,12 +3561,14 @@ function SmallEventOnboardingModal({onClose}){
         {isLast?(
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             <Btn style={{flex:1,width:'auto'}} onClick={finish}>시작하기 →</Btn>
-            <button onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',gap:5,background:'none',border:'none',cursor:'pointer',padding:'12px 4px',flexShrink:0}}>
-              <div style={{width:18,height:18,borderRadius:'50%',border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.15s'}}>
-                {neverShow&&<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-              </div>
-              <span style={{fontSize:11,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
-            </button>
+            {showNeverShow&&(
+              <button onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',gap:5,background:'none',border:'none',cursor:'pointer',padding:'12px 4px',flexShrink:0}}>
+                <div style={{width:18,height:18,borderRadius:'50%',border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.15s'}}>
+                  {neverShow&&<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                </div>
+                <span style={{fontSize:11,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
+              </button>
+            )}
           </div>
         ):<Btn onClick={()=>setSlide(v=>v+1)}>다음</Btn>}
       </div>
@@ -3576,12 +3577,12 @@ function SmallEventOnboardingModal({onClose}){
 }
 
 // ── FormOnboardingModal (신청폼 첫 진입 1회) ──────────────────
-function FormOnboardingModal({onClose}){
+function FormOnboardingModal({onClose,showNeverShow=true}){
   const [slide,setSlide]=useState(0);
   const [neverShow,setNeverShow]=useState(false);
   const finish=async()=>{
-    if(neverShow){
-      try{const {data:{user}}=await api.getUser();if(user){await api.updateProfile(user.id,{form_onboarding_done:true});localStorage.setItem('formOnboarding_v2','true');}}catch(e){}
+    if(neverShow&&showNeverShow){
+      try{const {data:{user}}=await api.getUser();if(user){await api.updateProfile(user.id,{form_onboarding_done:true});}}catch(e){}
     }
     onClose();
   };
@@ -3605,12 +3606,14 @@ function FormOnboardingModal({onClose}){
         {isLast?(
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             <Btn style={{flex:1,width:'auto'}} onClick={finish}>시작하기 →</Btn>
-            <button onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',gap:5,background:'none',border:'none',cursor:'pointer',padding:'12px 4px',flexShrink:0}}>
-              <div style={{width:18,height:18,borderRadius:'50%',border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.15s'}}>
-                {neverShow&&<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-              </div>
-              <span style={{fontSize:11,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
-            </button>
+            {showNeverShow&&(
+              <button onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',gap:5,background:'none',border:'none',cursor:'pointer',padding:'12px 4px',flexShrink:0}}>
+                <div style={{width:18,height:18,borderRadius:'50%',border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.15s'}}>
+                  {neverShow&&<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                </div>
+                <span style={{fontSize:11,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
+              </button>
+            )}
           </div>
         ):<Btn onClick={()=>setSlide(v=>v+1)}>다음</Btn>}
       </div>
@@ -3622,9 +3625,8 @@ function FormOnboardingModal({onClose}){
 function FormCreateScreen({nav,profile,createForm}){
   const [showOnboarding,setShowOnboarding]=useState(false);
   useEffect(()=>{
-    if(localStorage.getItem('formOnboarding_v2')) return;
     api.getProfileFields(profile.id,'form_onboarding_done')
-      .then(({data})=>{if(data?.form_onboarding_done){localStorage.setItem('formOnboarding_v2','true');}else{setShowOnboarding(true);}})
+      .then(({data})=>{if(!data?.form_onboarding_done) setShowOnboarding(true);})
       .catch(()=>setShowOnboarding(true));
   },[]);
   const [name,setName]=useState('');
