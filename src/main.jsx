@@ -4152,7 +4152,9 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
               :form.noFee
                 ?<div style={{display:'flex',alignItems:'center',gap:6}} onClick={e=>e.stopPropagation()}>
                   {(()=>{const fp=getCouncilFeePaid(s.name);return fp!=null?<span style={{fontSize:11,fontWeight:700,color:'#fff',background:fp?C.green:C.red,borderRadius:6,padding:'3px 8px'}}>{fp?'납부':'미납부'}</span>:null;})()}
-                  {checkMode&&<button onClick={()=>onToggleAttended(s._idx)} style={{fontSize:11,fontWeight:700,color:s.attended?'#fff':C.textDim,background:s.attended?C.accent:'transparent',border:`1.5px solid ${s.attended?C.accent:C.border}`,borderRadius:6,padding:'3px 8px',cursor:'pointer'}}>{s.attended?'✓ 출석':'출석'}</button>}
+                  {checkMode&&<div onClick={()=>onToggleAttended(s._idx)} style={{width:28,height:28,borderRadius:8,border:`2px solid ${s.attended?C.accent:C.border}`,background:s.attended?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,transition:'background 0.15s, border-color 0.15s'}}>
+                    {s.attended&&<svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M1.5 5.5L5.5 9.5L12.5 1.5" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  </div>}
                 </div>
                 :<span style={{fontSize:11,color:C.textDim}}>{fmtRelTime(s.createdAt)||''}</span>
             }
