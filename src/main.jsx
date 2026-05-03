@@ -1698,7 +1698,13 @@ function DeleteAccountBtn({showToast,nav}){
 
 // ── CreateScreen ───────────────────────────────────────────
 function CreateScreen({nav,profile,events,createEvent,showToast}){
-  const [showOnboarding,setShowOnboarding]=useState(()=>!localStorage.getItem('smallEventOnboarding_v2'));
+  const [showOnboarding,setShowOnboarding]=useState(false);
+  useEffect(()=>{
+    if(localStorage.getItem('smallEventOnboarding_v2')) return;
+    api.getProfileFields(profile.id,'small_event_onboarding_done')
+      .then(({data})=>{if(data?.small_event_onboarding_done){localStorage.setItem('smallEventOnboarding_v2','true');}else{setShowOnboarding(true);}})
+      .catch(()=>setShowOnboarding(true));
+  },[]);
   const [name,setName]=useState('');
   const [date,setDate]=useState(new Date().toISOString().slice(0,10));
 
@@ -3249,9 +3255,13 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
 function HelpScreen({nav}){
   const [faqOpen,setFaqOpen]=useState(false);
   const [openIdx,setOpenIdx]=useState(null);
+  const [showSmallOnboarding,setShowSmallOnboarding]=useState(false);
+  const [showFormOnboarding,setShowFormOnboarding]=useState(false);
   const faqs=FAQS;
   return(
     <div className="fade-up screen" style={{background:C.pageBg}}>
+      {showSmallOnboarding&&<SmallEventOnboardingModal onClose={()=>setShowSmallOnboarding(false)}/>}
+      {showFormOnboarding&&<FormOnboardingModal onClose={()=>setShowFormOnboarding(false)}/>}
       <Header title="도움말" onBack={()=>nav.setView('home')}/>
       <div style={{padding:'16px 16px 48px'}}>
         <button onClick={()=>nav.setView('usage-guide')} className="press"
@@ -3263,6 +3273,23 @@ function HelpScreen({nav}){
           </div>
           <span className="ms" style={{color:C.textDim}}>chevron_right</span>
         </button>
+        <div style={{borderRadius:16,background:C.cardBg,border:`1px solid ${C.border}`,overflow:'hidden',marginBottom:10}}>
+          <div style={{padding:'14px 20px',borderBottom:`1px solid ${C.border}`,display:'flex',alignItems:'center',gap:10}}>
+            <div style={{width:44,height:44,borderRadius:12,background:C.greenBg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon n="play-circle" size={22} color={C.green}/></div>
+            <div>
+              <div style={{fontWeight:800,color:C.text,fontSize:15}}>사용법 다시 보기</div>
+              <div style={{fontSize:12,color:C.textMid,marginTop:3}}>기능별 튜토리얼</div>
+            </div>
+          </div>
+          <button onClick={()=>setShowSmallOnboarding(true)} className="press" style={{width:'100%',padding:'14px 20px',background:'none',border:'none',borderBottom:`1px solid ${C.pageBg}`,cursor:'pointer',textAlign:'left',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontSize:14,fontWeight:600,color:C.text}}>소규모 정산 사용법</span>
+            <span className="ms" style={{color:C.textDim}}>chevron_right</span>
+          </button>
+          <button onClick={()=>setShowFormOnboarding(true)} className="press" style={{width:'100%',padding:'14px 20px',background:'none',border:'none',cursor:'pointer',textAlign:'left',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontSize:14,fontWeight:600,color:C.text}}>신청폼 사용법</span>
+            <span className="ms" style={{color:C.textDim}}>chevron_right</span>
+          </button>
+        </div>
         <div style={{borderRadius:16,background:C.cardBg,border:`1px solid ${C.border}`,overflow:'hidden'}}>
           <button onClick={()=>{setFaqOpen(v=>!v);setOpenIdx(null);}} className="press"
             style={{width:'100%',padding:'20px',background:'none',border:'none',cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:14}}>
@@ -3496,8 +3523,10 @@ function OnboardingModal({nav,onClose}){
 // ── SmallEventOnboardingModal (소규모 첫 진입 1회) ──────────
 function SmallEventOnboardingModal({onClose}){
   const [slide,setSlide]=useState(0);
-  const [dontShow,setDontShow]=useState(false);
-  const finish=()=>{if(dontShow)localStorage.setItem('smallEventOnboarding_v2','true');onClose();};
+  const finish=async()=>{
+    try{const {data:{user}}=await api.getUser();if(user){await api.updateProfile(user.id,{small_event_onboarding_done:true});localStorage.setItem('smallEventOnboarding_v2','true');}}catch(e){}
+    onClose();
+  };
   const SLIDES=[
     {msIcon:'checklist',color:C.green,body:'참가자 출석 체크 후\n1차·2차 금액을 입력하면\n인당 분담금이 자동으로 계산돼요.'},
     {msIcon:'upload_file',color:'#3B82F6',body:'은행 앱에서 거래내역서를 엑셀로 받아\n업로드하면 입금자를 자동으로 매칭해요.\n미입금자에게 콕 찌르기로 알림도 보낼 수 있어요.'},
@@ -3513,12 +3542,6 @@ function SmallEventOnboardingModal({onClose}){
         <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:20}}>
           {[0,1].map(i=><div key={i} style={{width:6,height:6,borderRadius:'50%',background:slide===i?C.accent:C.border}}/>)}
         </div>
-        {slide===1&&(
-          <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
-            <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:16,height:16,accentColor:C.accent,cursor:'pointer'}}/>
-            <span style={{fontSize:13,color:C.textMid,fontWeight:600}}>다시 보지 않기</span>
-          </label>
-        )}
         {slide===0?<Btn onClick={()=>setSlide(1)}>다음</Btn>:<Btn onClick={finish}>시작하기 →</Btn>}
       </div>
     </Modal>
@@ -3528,8 +3551,10 @@ function SmallEventOnboardingModal({onClose}){
 // ── FormOnboardingModal (신청폼 첫 진입 1회) ──────────────────
 function FormOnboardingModal({onClose}){
   const [slide,setSlide]=useState(0);
-  const [dontShow,setDontShow]=useState(false);
-  const finish=()=>{if(dontShow)localStorage.setItem('formOnboarding_v2','true');onClose();};
+  const finish=async()=>{
+    try{const {data:{user}}=await api.getUser();if(user){await api.updateProfile(user.id,{form_onboarding_done:true});localStorage.setItem('formOnboarding_v2','true');}}catch(e){}
+    onClose();
+  };
   const SLIDES=[
     {msIcon:'share',color:C.orange,body:'신청폼을 만들고 링크를 공유하면\n신청자 명단이 실시간으로 쌓여요.\n이름·학번·연락처 등 원하는 항목을 받을 수 있어요.'},
     {msIcon:'receipt_long',color:'#F59E0B',body:'거래내역서를 업로드하면\n정산과 동일하게 자동 매칭됩니다.\n행사 끝나면 신청자 명단 그대로 뒷풀이 정산도 이어갈 수 있어요.'},
@@ -3545,12 +3570,6 @@ function FormOnboardingModal({onClose}){
         <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:20}}>
           {[0,1].map(i=><div key={i} style={{width:6,height:6,borderRadius:'50%',background:slide===i?C.accent:C.border}}/>)}
         </div>
-        {slide===1&&(
-          <label style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,cursor:'pointer',padding:'12px 14px',background:C.inputBg,borderRadius:12}}>
-            <input type="checkbox" checked={dontShow} onChange={e=>setDontShow(e.target.checked)} style={{width:16,height:16,accentColor:C.accent,cursor:'pointer'}}/>
-            <span style={{fontSize:13,color:C.textMid,fontWeight:600}}>다시 보지 않기</span>
-          </label>
-        )}
         {slide===0?<Btn onClick={()=>setSlide(1)}>다음</Btn>:<Btn onClick={finish}>시작하기 →</Btn>}
       </div>
     </Modal>
@@ -3559,7 +3578,13 @@ function FormOnboardingModal({onClose}){
 
 // ── FormCreateScreen (대규모 신청폼 생성) ──────────────────
 function FormCreateScreen({nav,profile,createForm}){
-  const [showOnboarding,setShowOnboarding]=useState(()=>!localStorage.getItem('formOnboarding_v2'));
+  const [showOnboarding,setShowOnboarding]=useState(false);
+  useEffect(()=>{
+    if(localStorage.getItem('formOnboarding_v2')) return;
+    api.getProfileFields(profile.id,'form_onboarding_done')
+      .then(({data})=>{if(data?.form_onboarding_done){localStorage.setItem('formOnboarding_v2','true');}else{setShowOnboarding(true);}})
+      .catch(()=>setShowOnboarding(true));
+  },[]);
   const [name,setName]=useState('');
   const [date,setDate]=useState(new Date().toISOString().slice(0,10));
   const [amount,setAmount]=useState('');
