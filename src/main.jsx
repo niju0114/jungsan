@@ -3535,15 +3535,20 @@ function OnboardingModal({nav,onClose}){
 // ── SmallEventOnboardingModal (소규모 첫 진입 1회) ──────────
 function SmallEventOnboardingModal({onClose}){
   const [slide,setSlide]=useState(0);
+  const [neverShow,setNeverShow]=useState(false);
   const finish=async()=>{
-    try{const {data:{user}}=await api.getUser();if(user){await api.updateProfile(user.id,{small_event_onboarding_done:true});localStorage.setItem('smallEventOnboarding_v2','true');}}catch(e){}
+    if(neverShow){
+      try{const {data:{user}}=await api.getUser();if(user){await api.updateProfile(user.id,{small_event_onboarding_done:true});localStorage.setItem('smallEventOnboarding_v2','true');}}catch(e){}
+    }
     onClose();
   };
   const SLIDES=[
     {msIcon:'checklist',color:C.green,body:'참가자 출석 체크 후\n1차·2차 금액을 입력하면\n인당 분담금이 자동으로 계산돼요.'},
     {msIcon:'upload_file',color:'#3B82F6',body:'은행 앱에서 거래내역서를 엑셀로 받아\n업로드하면 입금자를 자동으로 매칭해요.\n미입금자에게 콕 찌르기로 알림도 보낼 수 있어요.'},
+    {msIcon:'hourglass_empty',color:'#F59E0B',body:'조급해하지 마세요.\n\n다 입금할 때까지 며칠 걸리기도 해요.\n콕 찌르기는 하루 이틀 기다린 후 사용하세요.'},
   ];
   const s=SLIDES[slide];
+  const isLast=slide===SLIDES.length-1;
   return(
     <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
       <div className="fade-up" style={{padding:'8px 4px 4px'}}>
@@ -3552,9 +3557,19 @@ function SmallEventOnboardingModal({onClose}){
           <div style={{fontSize:14,color:C.textMid,lineHeight:1.9,whiteSpace:'pre-line'}}>{s.body}</div>
         </div>
         <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:20}}>
-          {[0,1].map(i=><div key={i} style={{width:6,height:6,borderRadius:'50%',background:slide===i?C.accent:C.border}}/>)}
+          {SLIDES.map((_,i)=><div key={i} style={{width:i===slide?18:6,height:6,borderRadius:3,background:slide===i?C.accent:C.border,transition:'all 0.25s'}}/>)}
         </div>
-        {slide===0?<Btn onClick={()=>setSlide(1)}>다음</Btn>:<Btn onClick={finish}>시작하기 →</Btn>}
+        {isLast?(
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <Btn style={{flex:1,width:'auto'}} onClick={finish}>시작하기 →</Btn>
+            <button onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',gap:5,background:'none',border:'none',cursor:'pointer',padding:'12px 4px',flexShrink:0}}>
+              <div style={{width:18,height:18,borderRadius:'50%',border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.15s'}}>
+                {neverShow&&<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              </div>
+              <span style={{fontSize:11,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
+            </button>
+          </div>
+        ):<Btn onClick={()=>setSlide(v=>v+1)}>다음</Btn>}
       </div>
     </Modal>
   );
@@ -3563,15 +3578,20 @@ function SmallEventOnboardingModal({onClose}){
 // ── FormOnboardingModal (신청폼 첫 진입 1회) ──────────────────
 function FormOnboardingModal({onClose}){
   const [slide,setSlide]=useState(0);
+  const [neverShow,setNeverShow]=useState(false);
   const finish=async()=>{
-    try{const {data:{user}}=await api.getUser();if(user){await api.updateProfile(user.id,{form_onboarding_done:true});localStorage.setItem('formOnboarding_v2','true');}}catch(e){}
+    if(neverShow){
+      try{const {data:{user}}=await api.getUser();if(user){await api.updateProfile(user.id,{form_onboarding_done:true});localStorage.setItem('formOnboarding_v2','true');}}catch(e){}
+    }
     onClose();
   };
   const SLIDES=[
     {msIcon:'share',color:C.orange,body:'신청폼을 만들고 링크를 공유하면\n신청자 명단이 실시간으로 쌓여요.\n이름·학번·연락처 등 원하는 항목을 받을 수 있어요.'},
     {msIcon:'receipt_long',color:'#F59E0B',body:'거래내역서를 업로드하면\n정산과 동일하게 자동 매칭됩니다.\n행사 끝나면 신청자 명단 그대로 뒷풀이 정산도 이어갈 수 있어요.'},
+    {msIcon:'hourglass_empty',color:'#F59E0B',body:'조급해하지 마세요.\n\n신청 마감 후 입금까지 시간이 걸려요.\n콕 찌르기는 충분히 기다린 후 사용하세요.'},
   ];
   const s=SLIDES[slide];
+  const isLast=slide===SLIDES.length-1;
   return(
     <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
       <div className="fade-up" style={{padding:'8px 4px 4px'}}>
@@ -3580,9 +3600,19 @@ function FormOnboardingModal({onClose}){
           <div style={{fontSize:14,color:C.textMid,lineHeight:1.9,whiteSpace:'pre-line'}}>{s.body}</div>
         </div>
         <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:20}}>
-          {[0,1].map(i=><div key={i} style={{width:6,height:6,borderRadius:'50%',background:slide===i?C.accent:C.border}}/>)}
+          {SLIDES.map((_,i)=><div key={i} style={{width:i===slide?18:6,height:6,borderRadius:3,background:slide===i?C.accent:C.border,transition:'all 0.25s'}}/>)}
         </div>
-        {slide===0?<Btn onClick={()=>setSlide(1)}>다음</Btn>:<Btn onClick={finish}>시작하기 →</Btn>}
+        {isLast?(
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <Btn style={{flex:1,width:'auto'}} onClick={finish}>시작하기 →</Btn>
+            <button onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',gap:5,background:'none',border:'none',cursor:'pointer',padding:'12px 4px',flexShrink:0}}>
+              <div style={{width:18,height:18,borderRadius:'50%',border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.15s'}}>
+                {neverShow&&<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              </div>
+              <span style={{fontSize:11,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
+            </button>
+          </div>
+        ):<Btn onClick={()=>setSlide(v=>v+1)}>다음</Btn>}
       </div>
     </Modal>
   );
@@ -4151,8 +4181,8 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
               ?<PaySegCtrl status={effectiveSubStatus} onChange={newSt=>onSetSubStatus(s._idx,newSt)}/>
               :form.noFee
                 ?<div style={{display:'flex',alignItems:'center',gap:6}} onClick={e=>e.stopPropagation()}>
-                  {(()=>{const fp=getCouncilFeePaid(s.name);return fp!=null?<span style={{fontSize:11,fontWeight:700,color:'#fff',background:fp?C.green:C.red,borderRadius:6,padding:'3px 8px'}}>{fp?'납부':'미납부'}</span>:null;})()}
-                  {checkMode&&<div onClick={()=>onToggleAttended(s._idx)} style={{width:28,height:28,borderRadius:8,border:`2px solid ${s.attended?C.accent:C.border}`,background:s.attended?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,transition:'background 0.15s, border-color 0.15s'}}>
+                  {(()=>{const fp=getCouncilFeePaid(s.name);return fp!=null?<span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:11,fontWeight:600,color:fp?C.green:C.red}}><span style={{width:7,height:7,borderRadius:'50%',background:fp?C.green:C.red,flexShrink:0,display:'inline-block'}}/>{ fp?'납부':'미납'}</span>:null;})()}
+                  {checkMode&&<div onClick={()=>onToggleAttended(s._idx)} style={{width:28,height:28,borderRadius:14,border:`2px solid ${s.attended?C.accent:C.border}`,background:s.attended?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,transition:'background 0.15s, border-color 0.15s'}}>
                     {s.attended&&<svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M1.5 5.5L5.5 9.5L12.5 1.5" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                   </div>}
                 </div>
