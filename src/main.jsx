@@ -4228,9 +4228,12 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
             <span style={{color:C.green,display:'inline-flex',alignItems:'center',gap:3}}><span style={{width:8,height:8,borderRadius:'50%',background:C.green,display:'inline-block',flexShrink:0}}/>입금확인 {paidCount}</span>
           </div>
         ):form.noFee?(
-          <div style={{display:'flex',alignItems:'center',gap:8}}>
-            <span style={{fontSize:12,fontWeight:600,color:C.textMid}}>출석 {subs.filter(s=>s.attended).length}/{subs.length}</span>
-            {checkMode&&<button onClick={onCheckAllAttended} style={{fontSize:11,fontWeight:700,color:C.accent,background:C.accent+'18',border:'none',borderRadius:8,padding:'4px 10px',cursor:'pointer'}}>전체 체크</button>}
+          <div style={{display:'flex',flexDirection:'column',gap:4}}>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:12,fontWeight:600,color:C.textMid}}>출석 {subs.filter(s=>s.attended).length}/{subs.length}</span>
+              {checkMode&&<button onClick={onCheckAllAttended} style={{fontSize:11,fontWeight:700,color:C.accent,background:C.accent+'18',border:'none',borderRadius:8,padding:'4px 10px',cursor:'pointer'}}>전체 체크</button>}
+            </div>
+            {(form.memberList||[]).length>0&&<span style={{fontSize:11,color:C.textDim}}>초록·빨강 배지는 학생회비 납부 여부예요</span>}
           </div>
         ):<div/>}
         <div style={{display:'flex',alignItems:'center',gap:10}}>
