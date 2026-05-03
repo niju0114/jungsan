@@ -100,8 +100,9 @@ const api = {
     } catch { return []; }
   },
 
-  // 회원 탈퇴 (Edge Function — service_role로 auth.users 삭제)
-  deleteUser: () => sb.functions.invoke('delete-user'),
+  // 회원 탈퇴 (본인 데이터 직접 삭제)
+  deleteUserEvents: (uid) => sb.from('events').delete().eq('user_id', uid),
+  deleteUserForms: (uid) => sb.from('forms').delete().eq('user_id', uid),
 
   // Realtime
   subscribeEvent: (code, cb) => {
@@ -1654,8 +1655,17 @@ function DeleteAccountBtn({showToast,nav}){
 
   const deleteAccount=async()=>{
     setLoading(true);
-    const {error}=await api.deleteUser();
-    if(error){showToast('탈퇴 처리 중 오류가 발생했어요',C.red);setLoading(false);return;}
+    try{
+      const {data:{user}}=await api.getUser();
+      if(!user) throw new Error('no user');
+      await Promise.all([api.deleteUserEvents(user.id),api.deleteUserForms(user.id)]);
+      await api.updateProfile(user.id,{deleted:true});
+      await api.signOut();
+    }catch(e){
+      showToast('탈퇴 처리 중 오류가 발생했어요',C.red);
+      setLoading(false);
+      return;
+    }
     localStorage.clear();
     nav.setView('home');
   };
