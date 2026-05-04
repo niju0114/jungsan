@@ -1103,6 +1103,8 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
   const [feedbackText,setFeedbackText]=useState('');
   const [feedbackLoading,setFeedbackLoading]=useState(false);
   const [modeSelect,setModeSelect]=useState(false);
+  const [completedEvent,setCompletedEvent]=useState(null);
+  const prevActiveCodesRef=useRef(null);
 
   // FAQ에서 건의 버튼 눌렀을 때
   useEffect(()=>{
@@ -1114,6 +1116,19 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
   // 진행 중인 정산만 (완료 안 된 것)
   const activeEventsRaw=events.filter(ev=>!isEventDone(ev));
   const activeEvents=[...activeEventsRaw].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+
+  // 정산 완료 감지 (active → done 전환)
+  useEffect(()=>{
+    if(prevActiveCodesRef.current===null){
+      prevActiveCodesRef.current=new Set(activeEventsRaw.map(e=>e.code));
+      return;
+    }
+    const prevCodes=prevActiveCodesRef.current;
+    const currentActiveCodes=new Set(activeEventsRaw.map(e=>e.code));
+    const newlyDone=events.filter(ev=>prevCodes.has(ev.code)&&!currentActiveCodes.has(ev.code)&&isEventDone(ev));
+    if(newlyDone.length>0) setCompletedEvent(newlyDone[0]);
+    prevActiveCodesRef.current=currentActiveCodes;
+  },[events]);
   const activeForms=(forms||[]).filter(f=>f.status==='open');
 
   const submitFeedback=async()=>{
@@ -1198,7 +1213,8 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
           <div style={{textAlign:'center',padding:'40px 0'}}>
             <div style={{width:64,height:64,borderRadius:32,background:C.textDim+'18',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}><Icon n="clipboard-list" size={32} color={C.textDim}/></div>
             <div style={{color:C.textMid,fontSize:14,fontWeight:600,marginBottom:6}}>진행 중인 정산이 없어요</div>
-            <div style={{color:C.textDim,fontSize:13}}>새 정산을 만들어보세요</div>
+            <div style={{color:C.textDim,fontSize:13,marginBottom:20}}>아래 버튼으로 새 정산을 만들어보세요</div>
+            <Btn onClick={()=>setModeSelect(true)} style={{maxWidth:200,margin:'0 auto'}}>＋ 새로 만들기</Btn>
           </div>
         ):(
           <>
@@ -1245,6 +1261,22 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
       )}
       {modeSelect&&(
         <ModeSelectModal profile={profile} nav={nav} onClose={()=>setModeSelect(false)}/>
+      )}
+      {completedEvent&&(
+        <Modal isOpen={true} onClose={()=>setCompletedEvent(null)} showCloseButton={false} closeOnBackdrop={false}>
+          <div style={{textAlign:'center',padding:'8px 0 4px'}}>
+            <div style={{fontSize:52,marginBottom:12}}>🎉</div>
+            <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:-0.5,marginBottom:6}}>전원 입금 완료!</div>
+            <div style={{fontSize:14,color:C.textMid,marginBottom:4,fontWeight:700}}>{completedEvent.name}</div>
+            <div style={{fontSize:13,color:C.textDim,marginBottom:24}}>
+              {completedEvent.members.filter(k=>completedEvent.attendance[k]!==false).length}명 전원 입금이 확인됐어요
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              <Btn onClick={()=>{setCompletedEvent(null);nav.setView('history');}}>내역 보기</Btn>
+              <Btn variant="ghost" onClick={()=>setCompletedEvent(null)}>닫기</Btn>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
@@ -1898,6 +1930,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
   const [attDirty,setAttDirty]=useState(false);
   const saveAttRef=useRef(null);
   const [savePrompt,setSavePrompt]=useState(null);
+  const [archiveConfirm,setArchiveConfirm]=useState(false);
 
   useEffect(()=>setEvent(initEvent),[initEvent]);
   useRealtimeEvent(event.code,ev=>setEvent(ev));
@@ -1914,7 +1947,6 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
   };
 
   const archiveEvent=async()=>{
-    if(!window.confirm('정산을 종료하고 내역으로 이동할까요?')) return;
     const payments={...event.payments};
     event.members.forEach(k=>{if(getPayStatus(payments[k])!=='paid') payments[k]={payStatus:'paid',hasBeenConfirmed:true,time:new Date().toISOString(),by:'archive'};});
     await update({...event,payments});
@@ -1933,7 +1965,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
             {viewCount>0&&<span style={{color:C.accent,display:'inline-flex',alignItems:'center',gap:3}}><Icon n="eye" size={12} color={C.accent}/>{viewCount}</span>}
           </div>
         </div>
-        <button onClick={archiveEvent} style={{background:C.inputBg,border:'none',borderRadius:12,color:C.textMid,cursor:'pointer',padding:'8px 14px',fontSize:13,fontWeight:700}}>종료</button>
+        <button onClick={()=>setArchiveConfirm(true)} style={{background:C.inputBg,border:'none',borderRadius:12,color:C.textMid,cursor:'pointer',padding:'8px 14px',fontSize:13,fontWeight:700}}>종료</button>
       </div>
 
       <FlowStepper steps={steps} current={slide} done={stepDone} onStepClick={i=>safeNavigate(()=>setSlide(i))}/>
@@ -1975,6 +2007,15 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
             <Btn onClick={async()=>{await saveAttRef.current?.();savePrompt.navigateFn();setSavePrompt(null);}}>저장 후 닫기</Btn>
             <Btn variant="secondary" onClick={()=>{savePrompt.navigateFn();setSavePrompt(null);}}>저장 안 하고 닫기</Btn>
             <Btn variant="ghost" onClick={()=>setSavePrompt(null)}>취소</Btn>
+          </div>
+        </Modal>
+      )}
+      {archiveConfirm&&(
+        <Modal isOpen={true} onClose={()=>setArchiveConfirm(false)} title="정산 종료" closeOnBackdrop={false} showCloseButton={false}>
+          <div style={{fontSize:14,color:C.textMid,marginBottom:20,lineHeight:1.7}}>미입금 인원을 모두 입금 처리하고 내역으로 이동해요. 계속할까요?</div>
+          <div style={{display:'flex',gap:10}}>
+            <Btn variant="ghost" onClick={()=>setArchiveConfirm(false)} style={{flex:1}}>취소</Btn>
+            <Btn onClick={()=>{setArchiveConfirm(false);archiveEvent();}} style={{flex:2}}>종료하기</Btn>
           </div>
         </Modal>
       )}
@@ -2209,6 +2250,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   const [attSearch,setAttSearch]=useState('');
   const [roundSaved,setRoundSaved]=useState(false);
   const roundSavedTimerRef=useRef(null);
+  const [deleteRoundConfirm,setDeleteRoundConfirm]=useState(null);
 
   useEffect(()=>{
     if(!event.rounds.some(r=>r.label==='1차')){
@@ -2297,11 +2339,13 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   };
 
   const deleteRound=rid=>{
-    const r=event.rounds.find(r=>r.id===rid);
-    if(!window.confirm(`${r?.label||'이 차수'}을 삭제할까요?`)) return;
+    setDeleteRoundConfirm(rid);
+  };
+  const confirmDeleteRound=rid=>{
     const newRounds=event.rounds.filter(r=>r.id!==rid);
     updateEvent({...event,rounds:newRounds});
     setEditingId(newRounds[0]?.id||null);
+    setDeleteRoundConfirm(null);
   };
 
   const toggleOrganizer=rid=>{
@@ -2476,6 +2520,19 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
           합계 <span style={{color:C.text,fontWeight:900}}>{fmtKRW(event.rounds.reduce((s,r)=>s+r.amount,0))}</span>
         </div>
       )}
+
+      {deleteRoundConfirm&&(()=>{
+        const r=event.rounds.find(r=>r.id===deleteRoundConfirm);
+        return(
+          <Modal isOpen={true} onClose={()=>setDeleteRoundConfirm(null)} title="차수 삭제" closeOnBackdrop={false} showCloseButton={false}>
+            <div style={{fontSize:14,color:C.textMid,marginBottom:20}}><strong style={{color:C.text}}>{r?.label||'이 차수'}</strong>를 삭제할까요? 되돌릴 수 없어요.</div>
+            <div style={{display:'flex',gap:10}}>
+              <Btn variant="ghost" onClick={()=>setDeleteRoundConfirm(null)} style={{flex:1}}>취소</Btn>
+              <Btn onClick={()=>confirmDeleteRound(deleteRoundConfirm)} style={{flex:2,background:C.red}}>삭제</Btn>
+            </div>
+          </Modal>
+        );
+      })()}
     </div>
   );
 }
@@ -4911,6 +4968,10 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
   const [loading,setLoading]=useState(false);
   const [submitted,setSubmitted]=useState(false);
   const [mySubmission,setMySubmission]=useState(null);
+  const [showLookup,setShowLookup]=useState(false);
+  const [lookupName,setLookupName]=useState('');
+  const [lookupId,setLookupId]=useState('');
+  const [lookupErr,setLookupErr]=useState('');
   const [splashDone,setSplashDone]=useState(()=>!!localStorage.getItem('splash_form_'+form.code));
   const isClosed=form.status==='closed';
   const isFull=form.maxPeople&&(form.submissions||[]).length>=form.maxPeople;
@@ -5218,6 +5279,61 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
         </div>
 
         <Btn onClick={submit} loading={loading} variant="orange">신청하기 →</Btn>
+
+        {/* 재방문 신청 확인 */}
+        {!isPreview&&(()=>{
+          const hasStudentId=form.fields.some(f=>f.id==='studentId');
+          const hasPhone=form.fields.some(f=>f.id==='phone');
+          const idLabel=hasStudentId?'학번':hasPhone?'전화번호 뒤 4자리':null;
+
+          const doLookup=()=>{
+            setLookupErr('');
+            const name=lookupName.trim();
+            if(!name){setLookupErr('이름을 입력해주세요');return;}
+            const subs=form.submissions||[];
+            let match=null;
+            if(hasStudentId&&lookupId.trim()){
+              match=subs.find(s=>s.name.trim()===name&&(s.data?.studentId||'').replace(/\s/g,'')===lookupId.trim().replace(/\s/g,''));
+            } else if(hasPhone&&lookupId.trim()){
+              const last4=lookupId.replace(/[^0-9]/g,'').slice(-4);
+              match=subs.find(s=>s.name.trim()===name&&(s.phone||'').replace(/[^0-9]/g,'').endsWith(last4));
+            } else {
+              const matches=subs.filter(s=>s.name.trim()===name);
+              if(matches.length===1) match=matches[0];
+              else if(matches.length>1){setLookupErr('동명이인이 있어요. '+idLabel+'도 입력해주세요');return;}
+            }
+            if(match){
+              setMySubmission(match);setSubmitted(true);
+              localStorage.setItem('form_sub_'+form.code,match.createdAt);
+            } else {
+              setLookupErr('신청 내역을 찾을 수 없어요');
+            }
+          };
+
+          return(
+            <div style={{marginTop:20,textAlign:'center'}}>
+              {!showLookup?(
+                <button onClick={()=>setShowLookup(true)} style={{background:'none',border:'none',color:C.textDim,fontSize:13,cursor:'pointer',textDecoration:'underline'}}>이미 신청했어요</button>
+              ):(
+                <div style={{background:'#fff',borderRadius:16,padding:'20px',boxShadow:C.shadow,textAlign:'left'}}>
+                  <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:14}}>내 신청 확인</div>
+                  <input value={lookupName} onChange={e=>{setLookupName(e.target.value);setLookupErr('');}}
+                    placeholder="신청 시 입력한 이름"
+                    style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,background:C.inputBg,outline:'none',marginBottom:8}}
+                  />
+                  {idLabel&&(
+                    <input value={lookupId} onChange={e=>{setLookupId(e.target.value);setLookupErr('');}}
+                      placeholder={idLabel}
+                      style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,background:C.inputBg,outline:'none',marginBottom:8}}
+                    />
+                  )}
+                  {lookupErr&&<div style={{color:C.red,fontSize:12,marginBottom:8}}>{lookupErr}</div>}
+                  <Btn onClick={doLookup} variant="orange">확인하기</Btn>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
