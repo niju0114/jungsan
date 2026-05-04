@@ -3600,15 +3600,15 @@ function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
         </div>
         {isLast?(
           <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <Btn style={{flex:1,width:'auto'}} onClick={finish}>시작하기 →</Btn>
             {showNeverShow&&(
-              <button onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',gap:5,background:'none',border:'none',cursor:'pointer',padding:'12px 4px',flexShrink:0}}>
-                <div style={{width:18,height:18,borderRadius:'50%',border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.15s'}}>
+              <button onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',cursor:'pointer',padding:'8px 4px',flexShrink:0}}>
+                <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.15s'}}>
                   {neverShow&&<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                 </div>
-                <span style={{fontSize:11,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
+                <span style={{fontSize:12,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
               </button>
             )}
+            <Btn style={{flex:1,width:'auto'}} onClick={finish}>확인</Btn>
           </div>
         ):<Btn onClick={()=>setSlide(v=>v+1)}>다음</Btn>}
       </div>
@@ -3646,15 +3646,15 @@ function FormOnboardingModal({onClose,showNeverShow=true,userId=null}){
         </div>
         {isLast?(
           <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <Btn style={{flex:1,width:'auto'}} onClick={finish}>시작하기 →</Btn>
             {showNeverShow&&(
-              <button onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',gap:5,background:'none',border:'none',cursor:'pointer',padding:'12px 4px',flexShrink:0}}>
-                <div style={{width:18,height:18,borderRadius:'50%',border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.15s'}}>
+              <button onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',cursor:'pointer',padding:'8px 4px',flexShrink:0}}>
+                <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.15s'}}>
                   {neverShow&&<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                 </div>
-                <span style={{fontSize:11,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
+                <span style={{fontSize:12,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
               </button>
             )}
+            <Btn style={{flex:1,width:'auto'}} onClick={finish}>확인</Btn>
           </div>
         ):<Btn onClick={()=>setSlide(v=>v+1)}>다음</Btn>}
       </div>
