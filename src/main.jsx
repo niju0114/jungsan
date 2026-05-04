@@ -686,7 +686,7 @@ function useRealtimeEvent(code, onUpdate) {
 function App() {
   const [ready,setReady]=useState(false);
   const [user,setUser]=useState(null);
-  const [profile,setProfile]=useState({account:{bank:'',number:'',holder:''},groups:[],name:''});
+  const [profile,setProfile]=useState({id:null,account:{bank:'',number:'',holder:''},groups:[],name:''});
   const [events,setEvents]=useState([]);
   const [forms,setForms]=useState([]);
   const [view,setView]=useState('home');
@@ -713,7 +713,7 @@ function App() {
     const {data:{subscription}}=api.onAuthChange((_evt,session)=>{
       if(!session){
         setUser(null);setEvents([]);setForms([]);
-        setProfile({account:{bank:'',number:'',holder:''},groups:[],name:''});
+        setProfile({id:null,account:{bank:'',number:'',holder:''},groups:[],name:''});
         // 참여자 화면이면 유지
         setView(v=>['participantEvent','formSubmit'].includes(v)?v:'home');
         // 참여자 경로면 form/event 로딩이 setReady 담당
@@ -779,6 +779,7 @@ function App() {
     if(evData) setEvents(evData.map(rowToEv));
     if(formData) setForms(formData.map(rowToForm));
     if(profData) setProfile({
+      id:profData.id,
       account:profData.account||{bank:'',number:'',holder:''},
       groups:profData.groups||[],
       name:profData.name||profData.username||'',
@@ -1726,11 +1727,12 @@ function DeleteAccountBtn({showToast,nav}){
 function CreateScreen({nav,profile,events,createEvent,showToast}){
   const [showOnboarding,setShowOnboarding]=useState(false);
   useEffect(()=>{
+    if(!profile?.id) return;
     if(localStorage.getItem('small_onb_done_'+profile.id)) return;
     api.getProfileFields(profile.id,'small_event_onboarding_done')
       .then(({data})=>{if(!data?.small_event_onboarding_done) setShowOnboarding(true);})
       .catch(()=>setShowOnboarding(true));
-  },[]);
+  },[profile?.id]);
   const [name,setName]=useState('');
   const [date,setDate]=useState(new Date().toISOString().slice(0,10));
 
@@ -3574,12 +3576,10 @@ function OnboardingModal({nav,onClose}){
 function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
   const [slide,setSlide]=useState(0);
   const [neverShow,setNeverShow]=useState(false);
-  const finish=async()=>{
-    console.log('[SmallOnb] finish called',{neverShow,showNeverShow,userId});
+  const finish=()=>{
     if(neverShow&&showNeverShow&&userId){
       localStorage.setItem('small_onb_done_'+userId,'1');
-      const r=await api.updateProfile(userId,{small_event_onboarding_done:true});
-      console.log('[SmallOnb] updateProfile result',r);
+      api.updateProfile(userId,{small_event_onboarding_done:true});
     }
     onClose();
   };
@@ -3668,11 +3668,12 @@ function FormOnboardingModal({onClose,showNeverShow=true,userId=null}){
 function FormCreateScreen({nav,profile,createForm}){
   const [showOnboarding,setShowOnboarding]=useState(false);
   useEffect(()=>{
+    if(!profile?.id) return;
     if(localStorage.getItem('form_onb_done_'+profile.id)) return;
     api.getProfileFields(profile.id,'form_onboarding_done')
       .then(({data})=>{if(!data?.form_onboarding_done) setShowOnboarding(true);})
       .catch(()=>setShowOnboarding(true));
-  },[]);
+  },[profile?.id]);
   const [name,setName]=useState('');
   const [date,setDate]=useState(new Date().toISOString().slice(0,10));
   const [amount,setAmount]=useState('');
