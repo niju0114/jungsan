@@ -3574,10 +3574,12 @@ function OnboardingModal({nav,onClose}){
 function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
   const [slide,setSlide]=useState(0);
   const [neverShow,setNeverShow]=useState(false);
-  const finish=()=>{
+  const finish=async()=>{
+    console.log('[SmallOnb] finish called',{neverShow,showNeverShow,userId});
     if(neverShow&&showNeverShow&&userId){
       localStorage.setItem('small_onb_done_'+userId,'1');
-      api.updateProfile(userId,{small_event_onboarding_done:true});
+      const r=await api.updateProfile(userId,{small_event_onboarding_done:true});
+      console.log('[SmallOnb] updateProfile result',r);
     }
     onClose();
   };
