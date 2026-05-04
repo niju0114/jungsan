@@ -1799,7 +1799,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
 
   return(
     <div className="fade-up screen" style={{background:C.pageBg}}>
-      {showOnboarding&&<SmallEventOnboardingModal onClose={()=>setShowOnboarding(false)}/>}
+      {showOnboarding&&<SmallEventOnboardingModal onClose={()=>setShowOnboarding(false)} userId={profile.id}/>}
       <Header title="새 정산 만들기" onBack={()=>nav.setView('home')}/>
       <div style={{padding:'6px 16px 0',fontSize:12,color:C.textDim,fontWeight:500}}>친구·동아리 모임에 적합. 명단 직접 입력</div>
       <div style={{padding:'16px 16px 24px'}}>
@@ -3571,18 +3571,13 @@ function OnboardingModal({nav,onClose}){
 }
 
 // ── SmallEventOnboardingModal (소규모 첫 진입 1회) ──────────
-function SmallEventOnboardingModal({onClose,showNeverShow=true}){
+function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
   const [slide,setSlide]=useState(0);
   const [neverShow,setNeverShow]=useState(false);
-  const finish=async()=>{
-    if(neverShow&&showNeverShow){
-      try{
-        const {data:{user}}=await api.getUser();
-        if(user){
-          localStorage.setItem('small_onb_done_'+user.id,'1');
-          api.updateProfile(user.id,{small_event_onboarding_done:true});
-        }
-      }catch(e){}
+  const finish=()=>{
+    if(neverShow&&showNeverShow&&userId){
+      localStorage.setItem('small_onb_done_'+userId,'1');
+      api.updateProfile(userId,{small_event_onboarding_done:true});
     }
     onClose();
   };
@@ -3622,18 +3617,13 @@ function SmallEventOnboardingModal({onClose,showNeverShow=true}){
 }
 
 // ── FormOnboardingModal (신청폼 첫 진입 1회) ──────────────────
-function FormOnboardingModal({onClose,showNeverShow=true}){
+function FormOnboardingModal({onClose,showNeverShow=true,userId=null}){
   const [slide,setSlide]=useState(0);
   const [neverShow,setNeverShow]=useState(false);
-  const finish=async()=>{
-    if(neverShow&&showNeverShow){
-      try{
-        const {data:{user}}=await api.getUser();
-        if(user){
-          localStorage.setItem('form_onb_done_'+user.id,'1');
-          api.updateProfile(user.id,{form_onboarding_done:true});
-        }
-      }catch(e){}
+  const finish=()=>{
+    if(neverShow&&showNeverShow&&userId){
+      localStorage.setItem('form_onb_done_'+userId,'1');
+      api.updateProfile(userId,{form_onboarding_done:true});
     }
     onClose();
   };
@@ -3765,7 +3755,7 @@ function FormCreateScreen({nav,profile,createForm}){
 
   return(
     <div className="fade-up screen" style={{background:C.pageBg,display:'flex',flexDirection:'column'}}>
-      {showOnboarding&&<FormOnboardingModal onClose={()=>setShowOnboarding(false)}/>}
+      {showOnboarding&&<FormOnboardingModal onClose={()=>setShowOnboarding(false)} userId={profile.id}/>}
       <Header title="신청폼 만들기" onBack={()=>nav.setView('home')}/>
       <FlowStepper steps={['폼 생성+공유','대조']} current={0} done={[]}/>
       <div style={{flex:1,padding:'8px 16px 16px',overflow:'auto'}}>
