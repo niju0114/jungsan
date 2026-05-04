@@ -1103,7 +1103,6 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
   const [feedbackText,setFeedbackText]=useState('');
   const [feedbackLoading,setFeedbackLoading]=useState(false);
   const [modeSelect,setModeSelect]=useState(false);
-  const [completedEvent,setCompletedEvent]=useState(null);
   const prevActiveCodesRef=useRef(null);
 
   // FAQ에서 건의 버튼 눌렀을 때
@@ -1126,7 +1125,7 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
     const prevCodes=prevActiveCodesRef.current;
     const currentActiveCodes=new Set(activeEventsRaw.map(e=>e.code));
     const newlyDone=events.filter(ev=>prevCodes.has(ev.code)&&!currentActiveCodes.has(ev.code)&&isEventDone(ev));
-    if(newlyDone.length>0) setCompletedEvent(newlyDone[0]);
+    if(newlyDone.length>0) showToast('🎉 '+newlyDone[0].name+' 전원 입금 완료!',C.green);
     prevActiveCodesRef.current=currentActiveCodes;
   },[events]);
   const activeForms=(forms||[]).filter(f=>f.status==='open');
@@ -1213,8 +1212,7 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
           <div style={{textAlign:'center',padding:'40px 0'}}>
             <div style={{width:64,height:64,borderRadius:32,background:C.textDim+'18',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}><Icon n="clipboard-list" size={32} color={C.textDim}/></div>
             <div style={{color:C.textMid,fontSize:14,fontWeight:600,marginBottom:6}}>진행 중인 정산이 없어요</div>
-            <div style={{color:C.textDim,fontSize:13,marginBottom:20}}>아래 버튼으로 새 정산을 만들어보세요</div>
-            <Btn onClick={()=>setModeSelect(true)} style={{maxWidth:200,margin:'0 auto'}}>＋ 새로 만들기</Btn>
+            <div style={{color:C.textDim,fontSize:13}}>위 버튼으로 새 정산을 만들어보세요</div>
           </div>
         ):(
           <>
@@ -1261,22 +1259,6 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
       )}
       {modeSelect&&(
         <ModeSelectModal profile={profile} nav={nav} onClose={()=>setModeSelect(false)}/>
-      )}
-      {completedEvent&&(
-        <Modal isOpen={true} onClose={()=>setCompletedEvent(null)} showCloseButton={false} closeOnBackdrop={false}>
-          <div style={{textAlign:'center',padding:'8px 0 4px'}}>
-            <div style={{fontSize:52,marginBottom:12}}>🎉</div>
-            <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:-0.5,marginBottom:6}}>전원 입금 완료!</div>
-            <div style={{fontSize:14,color:C.textMid,marginBottom:4,fontWeight:700}}>{completedEvent.name}</div>
-            <div style={{fontSize:13,color:C.textDim,marginBottom:24}}>
-              {completedEvent.members.filter(k=>completedEvent.attendance[k]!==false).length}명 전원 입금이 확인됐어요
-            </div>
-            <div style={{display:'flex',flexDirection:'column',gap:8}}>
-              <Btn onClick={()=>{setCompletedEvent(null);nav.setView('history');}}>내역 보기</Btn>
-              <Btn variant="ghost" onClick={()=>setCompletedEvent(null)}>닫기</Btn>
-            </div>
-          </div>
-        </Modal>
       )}
     </div>
   );
@@ -1744,6 +1726,7 @@ function DeleteAccountBtn({showToast,nav}){
 function CreateScreen({nav,profile,events,createEvent,showToast}){
   const [showOnboarding,setShowOnboarding]=useState(false);
   useEffect(()=>{
+    if(localStorage.getItem('small_onb_done_'+profile.id)) return;
     api.getProfileFields(profile.id,'small_event_onboarding_done')
       .then(({data})=>{if(!data?.small_event_onboarding_done) setShowOnboarding(true);})
       .catch(()=>setShowOnboarding(true));
@@ -2589,7 +2572,6 @@ function ShareSection({event,showToast}){
         <Btn onClick={()=>copy(directLink,'링크')} variant="secondary" small style={{flex:1}}><Icon n="link" size={14} color={C.textMid} style={{marginRight:4}}/>링크</Btn>
       </div>
       <Btn onClick={()=>copy(getMsg(),'메시지')} variant="ghost" small style={{marginBottom:16}}><Icon n="clipboard-list" size={14} color={C.textDim} style={{marginRight:4}}/>메시지 복사</Btn>
-      {unpaid.length===0&&<div style={{textAlign:'center',color:C.green,fontWeight:900,fontSize:15,padding:'8px 0',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Icon n="sparkles" size={16} color={C.green}/>모두 완료!</div>}
     </div>
   );
 }
@@ -3594,7 +3576,13 @@ function SmallEventOnboardingModal({onClose,showNeverShow=true}){
   const [neverShow,setNeverShow]=useState(false);
   const finish=async()=>{
     if(neverShow&&showNeverShow){
-      try{const {data:{user}}=await api.getUser();if(user){await api.updateProfile(user.id,{small_event_onboarding_done:true});}}catch(e){}
+      try{
+        const {data:{user}}=await api.getUser();
+        if(user){
+          localStorage.setItem('small_onb_done_'+user.id,'1');
+          api.updateProfile(user.id,{small_event_onboarding_done:true});
+        }
+      }catch(e){}
     }
     onClose();
   };
@@ -3639,7 +3627,13 @@ function FormOnboardingModal({onClose,showNeverShow=true}){
   const [neverShow,setNeverShow]=useState(false);
   const finish=async()=>{
     if(neverShow&&showNeverShow){
-      try{const {data:{user}}=await api.getUser();if(user){await api.updateProfile(user.id,{form_onboarding_done:true});}}catch(e){}
+      try{
+        const {data:{user}}=await api.getUser();
+        if(user){
+          localStorage.setItem('form_onb_done_'+user.id,'1');
+          api.updateProfile(user.id,{form_onboarding_done:true});
+        }
+      }catch(e){}
     }
     onClose();
   };
@@ -3682,6 +3676,7 @@ function FormOnboardingModal({onClose,showNeverShow=true}){
 function FormCreateScreen({nav,profile,createForm}){
   const [showOnboarding,setShowOnboarding]=useState(false);
   useEffect(()=>{
+    if(localStorage.getItem('form_onb_done_'+profile.id)) return;
     api.getProfileFields(profile.id,'form_onboarding_done')
       .then(({data})=>{if(!data?.form_onboarding_done) setShowOnboarding(true);})
       .catch(()=>setShowOnboarding(true));
