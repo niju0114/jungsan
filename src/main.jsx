@@ -1956,6 +1956,9 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
           <div style={{fontSize:18,fontWeight:800,color:C.text,letterSpacing:-0.5}}>{event.name}</div>
           <div style={{fontSize:12,color:C.textDim,marginTop:2,display:'flex',alignItems:'center',gap:8}}>
             {steps[slide]}
+            <span style={{display:'inline-flex',alignItems:'center',gap:3,color:C.textDim,fontSize:11}}>
+              <span style={{width:5,height:5,borderRadius:'50%',background:C.green,display:'inline-block',flexShrink:0}}/>자동 저장
+            </span>
             {viewCount>0&&<span style={{color:C.accent,display:'inline-flex',alignItems:'center',gap:3}}><Icon n="eye" size={12} color={C.accent}/>{viewCount}</span>}
           </div>
         </div>
@@ -2329,19 +2332,6 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
     });
   };
 
-  const doSaveRound=async rid=>{
-    clearTimeout(roundTimersRef.current[rid]);
-    const fc=event.feeConfig;
-    const isFirstRound=event.rounds[0]?.id===rid;
-    const useFc=isFirstRound&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
-    const amt=roundAmounts[rid]||'';
-    const extra=roundExtras[rid]||[];
-    const amtNum=Number(amt.replace(/[^0-9]/g,''))||0;
-    const roundPatch=useFc?{extraMembers:[...extra]}:{amount:amtNum,extraMembers:[...extra]};
-    const newRounds=event.rounds.map(r=>r.id===rid?{...r,...roundPatch}:r);
-    await updateEvent({...event,rounds:newRounds});
-    setClosedRoundIds(s=>{const n=new Set(s);n.add(rid);return n;});
-  };
 
   const doAddRound=()=>{
     const newRound={id:Date.now().toString(),label:`${event.rounds.length+1}차`,amount:0,members:[...presentMembers],extraMembers:[],includeOrganizer:true};
@@ -2384,6 +2374,21 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
   const fc=event.feeConfig;
 
+  const groupSections=React.useMemo(()=>{
+    const validGroups=(groups||[]).filter(g=>(g.members||[]).length>0);
+    if(validGroups.length<2) return null;
+    const assigned=new Set();
+    const sections=validGroups.map(g=>{
+      const gKeys=new Set((g.members||[]).map(m=>m.name+(m.sid?`_${m.sid}`:'')));
+      const keys=event.members.filter(k=>gKeys.has(k));
+      keys.forEach(k=>assigned.add(k));
+      return {name:g.name,keys};
+    }).filter(s=>s.keys.length>0);
+    const unassigned=event.members.filter(k=>!assigned.has(k));
+    if(unassigned.length>0) sections.push({name:'미분류',keys:unassigned});
+    return sections;
+  },[groups,event.members]);
+
   if(event.rounds.length===0) return null;
 
   return(
@@ -2402,7 +2407,6 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
         const includeOrg=r.includeOrganizer===true;
         const totalCount=rMembers.length+extraList.length+(includeOrg?1:0);
         const perPerson=amtNum>0&&totalCount>0?Math.ceil(amtNum/totalCount):0;
-        const canSave=useFc||(amtNum>0);
 
         return(
           <div key={r.id} style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${!isClosed?C.accent+'50':C.border}`}}>
@@ -2443,7 +2447,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
                 {/* 출석 체크 (차수별) */}
                 <div style={{marginBottom:12}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
                     <div style={{fontSize:12,color:C.textMid,fontWeight:700}}>
                       출석 <span style={{fontWeight:400,color:C.textDim}}>{rMembers.length+(includeOrg?1:0)}명</span>
                     </div>
@@ -2452,24 +2456,65 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                       <button onClick={()=>{const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:[],includeOrganizer:false}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,false])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.textDim,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전원 불참</button>
                     </div>
                   </div>
-                  <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                    {event.members.map(k=>{
-                      const isIn=rMembers.includes(k);
-                      return(
-                        <div key={k} onClick={()=>toggleMemberInRound(r.id,k)} className="press"
-                          style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:isIn?'#EEEDFE':'#F1EFE8',border:`1px solid ${isIn?'#D4D1F5':'#E0DDD5'}`,transition:'all 0.15s'}}>
-                          {isIn&&<Icon n="check" size={11} color="#3C3489"/>}
-                          <span style={{fontSize:13,fontWeight:600,color:isIn?'#3C3489':'#888780'}}>{mm[k]||k}</span>
+                  {groupSections?(
+                    <>
+                      {groupSections.map(sec=>{
+                        const secIn=sec.keys.filter(k=>rMembers.includes(k)).length;
+                        return(
+                          <div key={sec.name} style={{marginBottom:10}}>
+                            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:5}}>
+                              <span style={{fontSize:11,fontWeight:700,color:C.textDim,letterSpacing:0.3}}>{sec.name} {secIn}/{sec.keys.length}명</span>
+                              <button onClick={()=>{const newM=[...new Set([...rMembers,...sec.keys])];const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:newM}:r2);const newAtt=isFirst?{...event.attendance,...Object.fromEntries(sec.keys.map(k=>[k,true]))}:event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전체 선택</button>
+                            </div>
+                            <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                              {sec.keys.map(k=>{
+                                const isIn=rMembers.includes(k);
+                                return(
+                                  <div key={k} onClick={()=>toggleMemberInRound(r.id,k)} className="press"
+                                    style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:isIn?'#EEEDFE':'#F1EFE8',border:`1px solid ${isIn?'#D4D1F5':'#E0DDD5'}`,transition:'all 0.15s'}}>
+                                    {isIn&&<Icon n="check" size={11} color="#3C3489"/>}
+                                    <span style={{fontSize:13,fontWeight:600,color:isIn?'#3C3489':'#888780'}}>{mm[k]||k}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {/* 본인 그룹 */}
+                      <div>
+                        <div style={{marginBottom:5}}>
+                          <span style={{fontSize:11,fontWeight:700,color:C.textDim,letterSpacing:0.3}}>본인</span>
                         </div>
-                      );
-                    })}
-                    {/* 총무 칩 */}
-                    <div onClick={()=>toggleOrganizer(r.id)} className="press"
-                      style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:includeOrg?'#EEEDFE':'#F1EFE8',border:`1px solid ${includeOrg?'#D4D1F5':'#E0DDD5'}`,transition:'all 0.15s'}}>
-                      {includeOrg&&<Icon n="check" size={11} color="#3C3489"/>}
-                      <span style={{fontSize:13,fontWeight:600,color:includeOrg?'#3C3489':'#888780'}}>{profile?.name||'이름'} <span style={{fontSize:11,fontWeight:400,opacity:0.7}}>(본인)</span></span>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                          <div onClick={()=>toggleOrganizer(r.id)} className="press"
+                            style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:includeOrg?'#EEEDFE':'#F1EFE8',border:`1px solid ${includeOrg?'#D4D1F5':'#E0DDD5'}`,transition:'all 0.15s'}}>
+                            {includeOrg&&<Icon n="check" size={11} color="#3C3489"/>}
+                            <span style={{fontSize:13,fontWeight:600,color:includeOrg?'#3C3489':'#888780'}}>{profile?.name||'이름'} <span style={{fontSize:11,fontWeight:400,opacity:0.7}}>(본인)</span></span>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ):(
+                    <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                      {event.members.map(k=>{
+                        const isIn=rMembers.includes(k);
+                        return(
+                          <div key={k} onClick={()=>toggleMemberInRound(r.id,k)} className="press"
+                            style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:isIn?'#EEEDFE':'#F1EFE8',border:`1px solid ${isIn?'#D4D1F5':'#E0DDD5'}`,transition:'all 0.15s'}}>
+                            {isIn&&<Icon n="check" size={11} color="#3C3489"/>}
+                            <span style={{fontSize:13,fontWeight:600,color:isIn?'#3C3489':'#888780'}}>{mm[k]||k}</span>
+                          </div>
+                        );
+                      })}
+                      {/* 총무 칩 */}
+                      <div onClick={()=>toggleOrganizer(r.id)} className="press"
+                        style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:includeOrg?'#EEEDFE':'#F1EFE8',border:`1px solid ${includeOrg?'#D4D1F5':'#E0DDD5'}`,transition:'all 0.15s'}}>
+                        {includeOrg&&<Icon n="check" size={11} color="#3C3489"/>}
+                        <span style={{fontSize:13,fontWeight:600,color:includeOrg?'#3C3489':'#888780'}}>{profile?.name||'이름'} <span style={{fontSize:11,fontWeight:400,opacity:0.7}}>(본인)</span></span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* 임시 인원 */}
@@ -2502,12 +2547,6 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                   </div>
                 )}
 
-                {/* 저장하고 닫기 */}
-                <Btn onClick={()=>doSaveRound(r.id)} disabled={!canSave}
-                  style={!canSave?{background:C.textDim,cursor:'not-allowed',opacity:0.55}:{}}>
-                  저장하고 닫기
-                </Btn>
-                {!canSave&&<div style={{fontSize:12,color:C.textDim,textAlign:'center',marginTop:6}}>금액을 입력하면 저장할 수 있어요</div>}
               </>
             )}
           </div>
