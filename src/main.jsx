@@ -1890,7 +1890,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
             <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:6}}>총무</div>
             <div style={{display:'inline-flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,background:'#EEEDFE',border:'1px solid #D4D1F5'}}>
               <Icon n="check" size={11} color="#3C3489"/>
-              <span style={{fontSize:13,fontWeight:600,color:'#3C3489'}}>총무 ({profile?.name||'이름'})</span>
+              <span style={{fontSize:13,fontWeight:600,color:'#3C3489'}}>{profile?.name||'이름'} <span style={{fontSize:11,fontWeight:400,color:'#9E9B8E'}}>(본인)</span></span>
             </div>
           </div>
         </Card>
@@ -2467,7 +2467,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                     <div onClick={()=>toggleOrganizer(r.id)} className="press"
                       style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:includeOrg?'#EEEDFE':'#F1EFE8',border:`1px solid ${includeOrg?'#D4D1F5':'#E0DDD5'}`,transition:'all 0.15s'}}>
                       {includeOrg&&<Icon n="check" size={11} color="#3C3489"/>}
-                      <span style={{fontSize:13,fontWeight:600,color:includeOrg?'#3C3489':'#888780'}}>총무 ({profile?.name||'이름'})</span>
+                      <span style={{fontSize:13,fontWeight:600,color:includeOrg?'#3C3489':'#888780'}}>{profile?.name||'이름'} <span style={{fontSize:11,fontWeight:400,opacity:0.7}}>(본인)</span></span>
                     </div>
                   </div>
                 </div>
