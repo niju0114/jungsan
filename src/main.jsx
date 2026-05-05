@@ -1956,9 +1956,6 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
           <div style={{fontSize:18,fontWeight:800,color:C.text,letterSpacing:-0.5}}>{event.name}</div>
           <div style={{fontSize:12,color:C.textDim,marginTop:2,display:'flex',alignItems:'center',gap:8}}>
             {steps[slide]}
-            <span style={{display:'inline-flex',alignItems:'center',gap:3,color:C.textDim,fontSize:11}}>
-              <span style={{width:5,height:5,borderRadius:'50%',background:C.green,display:'inline-block',flexShrink:0}}/>자동 저장
-            </span>
             {viewCount>0&&<span style={{color:C.accent,display:'inline-flex',alignItems:'center',gap:3}}><Icon n="eye" size={12} color={C.accent}/>{viewCount}</span>}
           </div>
         </div>
@@ -2415,7 +2412,10 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
               onClick={()=>setClosedRoundIds(s=>{const n=new Set(s);isClosed?n.delete(r.id):n.add(r.id);return n;})}>
               <div style={{fontWeight:800,fontSize:15,color:C.text}}>
                 {r.label}
-                {!isClosed&&roundSavedId===r.id&&<span style={{fontSize:11,color:C.textDim,fontWeight:400,marginLeft:6}}>방금 저장됨</span>}
+                {!isClosed&&(roundSavedId===r.id
+                  ?<span style={{fontSize:11,color:C.textDim,fontWeight:400,marginLeft:6}}>방금 저장됨</span>
+                  :<span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:11,color:C.textDim,fontWeight:400,marginLeft:6}}><span style={{width:5,height:5,borderRadius:'50%',background:C.green,display:'inline-block',flexShrink:0}}/>자동 저장</span>
+                )}
               </div>
               <div style={{display:'flex',alignItems:'center',gap:8}}>
                 {isClosed&&<div style={{fontSize:13,color:r.amount>0?C.textMid:C.textDim}}>{r.amount>0?fmtKRW(r.amount):'금액 미입력'}</div>}
