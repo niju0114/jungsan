@@ -2233,112 +2233,128 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   const mm=event.memberMap||{};
   const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
 
-  const [localAtt,setLocalAtt]=useState(()=>{const a={};event.members.forEach(k=>a[k]=event.attendance[k]!==false);return a;});
-  const [attDirty,setAttDirty]=useState(false);
-  const [attSavedAt,setAttSavedAt]=useState(null);
+  // 닫힌 차수 ID 세트 (기본: 빈 세트 = 모두 열림)
+  const [closedRoundIds,setClosedRoundIds]=useState(()=>new Set());
 
-  const [editingId,setEditingId]=useState(()=>event.rounds[0]?.amount===0?(event.rounds[0]?.id||null):null);
-  const [editAmount,setEditAmount]=useState(()=>event.rounds[0]?.amount>0?String(event.rounds[0].amount):'');
-  const [editExtra,setEditExtra]=useState(()=>[...(event.rounds[0]?.extraMembers||[])]);
-  const [extraInput,setExtraInput]=useState('');
-  const [attSearch,setAttSearch]=useState('');
-  const [roundSaved,setRoundSaved]=useState(false);
+  // 차수별 편집 상태 맵
+  const [roundAmounts,setRoundAmounts]=useState(()=>{
+    const m={};event.rounds.forEach(r=>{m[r.id]=r.amount>0?String(r.amount):'';});return m;
+  });
+  const [roundExtras,setRoundExtras]=useState(()=>{
+    const m={};event.rounds.forEach(r=>{m[r.id]=[...(r.extraMembers||[])];});return m;
+  });
+  const [extraInputs,setExtraInputs]=useState({});
+  const [roundSavedId,setRoundSavedId]=useState(null);
   const roundSavedTimerRef=useRef(null);
   const [deleteRoundConfirm,setDeleteRoundConfirm]=useState(null);
 
+  const roundTimersRef=useRef({});
+  const roundAmountsRef=useRef(roundAmounts);
+  const roundExtrasRef=useRef(roundExtras);
+  const eventRef=useRef(event);
+  const updateEventRef=useRef(updateEvent);
+  roundAmountsRef.current=roundAmounts;
+  roundExtrasRef.current=roundExtras;
+  eventRef.current=event;
+  updateEventRef.current=updateEvent;
+
   useEffect(()=>{
     if(!event.rounds.some(r=>r.label==='1차')){
-      updateEvent({...event,rounds:[{id:'round_1',label:'1차',amount:0,members:[...presentMembers],includeOrganizer:true}]});
+      const r0={id:'round_1',label:'1차',amount:0,members:[...presentMembers],includeOrganizer:true};
+      updateEvent({...event,rounds:[r0]});
+      setRoundAmounts({'round_1':''});
+      setRoundExtras({'round_1':[]});
     }
   },[]);
 
-  const saveAttWith=async(newAtt)=>{
-    const presKeys=event.members.filter(k=>newAtt[k]!==false);
-    await updateEvent({...event,attendance:{...newAtt},rounds:event.rounds.map((r,i)=>i===0?{...r,members:presKeys}:r)});
-    setAttDirty(false);setAttSavedAt(new Date());
-  };
+  // 새 차수 추가 시 상태 맵 확장
+  useEffect(()=>{
+    setRoundAmounts(prev=>{
+      const next={...prev};
+      event.rounds.forEach(r=>{if(!(r.id in next))next[r.id]=r.amount>0?String(r.amount):'';});
+      return next;
+    });
+    setRoundExtras(prev=>{
+      const next={...prev};
+      event.rounds.forEach(r=>{if(!(r.id in next))next[r.id]=[...(r.extraMembers||[])];});
+      return next;
+    });
+  },[event.rounds.length]);
 
-  const doSaveAtt=()=>saveAttWith(localAtt);
-
-  useEffect(()=>{onAttDirtyChange?.(attDirty);},[attDirty]);
-  useEffect(()=>{if(saveAttFnRef) saveAttFnRef.current=doSaveAtt;});
-
-  const toggleAtt=k=>{
-    const newAtt={...localAtt,[k]:localAtt[k]===false?true:false};
-    setLocalAtt(newAtt);
-    setAttDirty(true);
-    saveAttWith(newAtt);
-  };
-
-  const roundTimerRef=useRef(null);
-  const pendingRoundRef=useRef({editingId:null,editAmount:'',editExtra:[]});
-  const eventRef=useRef(event);
-  const updateEventRef=useRef(updateEvent);
-  pendingRoundRef.current={editingId,editAmount,editExtra};
-  eventRef.current=event;
-  updateEventRef.current=updateEvent;
+  // 언마운트 시 디바운스 타이머 즉시 플러시
+  useEffect(()=>()=>{
+    const ev=eventRef.current;
+    const fc=ev.feeConfig;
+    const newRounds=ev.rounds.map(r=>{
+      clearTimeout(roundTimersRef.current[r.id]);
+      const roundAmt=roundAmountsRef.current[r.id]||'';
+      const extra=roundExtrasRef.current[r.id]||[];
+      const isFirst=ev.rounds[0]?.id===r.id;
+      const useFc=isFirst&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
+      const amtNum=Number(roundAmt.replace(/[^0-9]/g,''))||0;
+      return useFc?{...r,extraMembers:[...extra]}:{...r,amount:amtNum,extraMembers:[...extra]};
+    });
+    updateEventRef.current({...ev,rounds:newRounds});
+  },[]);
 
   const saveRoundNow=(rid,amt,extra,ev)=>{
     const fc=ev.feeConfig;
     const isFirstRound=ev.rounds[0]?.id===rid;
     const useFc=isFirstRound&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
-    const amtNum=Number(amt.replace(/[^0-9]/g,''))||0;
+    const amtNum=Number((amt||'').replace(/[^0-9]/g,''))||0;
     const roundPatch=useFc?{extraMembers:[...extra]}:{amount:amtNum,extraMembers:[...extra]};
     const newRounds=ev.rounds.map(r=>r.id===rid?{...r,...roundPatch}:r);
     updateEventRef.current({...ev,rounds:newRounds});
     if(roundSavedTimerRef.current) clearTimeout(roundSavedTimerRef.current);
-    setRoundSaved(true);
-    roundSavedTimerRef.current=setTimeout(()=>setRoundSaved(false),1500);
+    setRoundSavedId(rid);
+    roundSavedTimerRef.current=setTimeout(()=>setRoundSavedId(null),1500);
   };
 
-  // 700ms 디바운스 자동저장 (편집 중일 때만)
-  useEffect(()=>{
-    if(!editingId) return;
-    clearTimeout(roundTimerRef.current);
-    roundTimerRef.current=setTimeout(()=>saveRoundNow(editingId,editAmount,editExtra,eventRef.current),700);
-    return()=>clearTimeout(roundTimerRef.current);
-  },[editAmount,editExtra]);
+  const setRoundAmount=(rid,val)=>{
+    setRoundAmounts(p=>({...p,[rid]:val}));
+    clearTimeout(roundTimersRef.current[rid]);
+    roundTimersRef.current[rid]=setTimeout(()=>{
+      saveRoundNow(rid,val,roundExtrasRef.current[rid]||[],eventRef.current);
+    },700);
+  };
 
-  // 슬라이드 이동/언마운트 시 즉시 저장
-  useEffect(()=>()=>{
-    clearTimeout(roundTimerRef.current);
-    const {editingId:rid,editAmount:amt,editExtra:extra}=pendingRoundRef.current;
-    if(rid) saveRoundNow(rid,amt,extra,eventRef.current);
-  },[]);
-
-  const openRound=r=>{
-    setEditingId(r.id);
-    setEditAmount(r.amount>0?String(r.amount):'');
-    setEditExtra([...(r.extraMembers||[])]);
-    setExtraInput('');
+  const setRoundExtra=(rid,updater)=>{
+    setRoundExtras(p=>{
+      const next={...p,[rid]:updater(p[rid]||[])};
+      clearTimeout(roundTimersRef.current[rid]);
+      roundTimersRef.current[rid]=setTimeout(()=>{
+        saveRoundNow(rid,roundAmountsRef.current[rid]||'',next[rid]||[],eventRef.current);
+      },700);
+      return next;
+    });
   };
 
   const doSaveRound=async rid=>{
-    clearTimeout(roundTimerRef.current);
+    clearTimeout(roundTimersRef.current[rid]);
     const fc=event.feeConfig;
     const isFirstRound=event.rounds[0]?.id===rid;
     const useFc=isFirstRound&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
-    const amtNum=Number(editAmount.replace(/[^0-9]/g,''))||0;
-    const roundPatch=useFc?{extraMembers:[...editExtra]}:{amount:amtNum,extraMembers:[...editExtra]};
+    const amt=roundAmounts[rid]||'';
+    const extra=roundExtras[rid]||[];
+    const amtNum=Number(amt.replace(/[^0-9]/g,''))||0;
+    const roundPatch=useFc?{extraMembers:[...extra]}:{amount:amtNum,extraMembers:[...extra]};
     const newRounds=event.rounds.map(r=>r.id===rid?{...r,...roundPatch}:r);
     await updateEvent({...event,rounds:newRounds});
-    setEditingId(null);
+    setClosedRoundIds(s=>{const n=new Set(s);n.add(rid);return n;});
   };
 
   const doAddRound=()=>{
     const newRound={id:Date.now().toString(),label:`${event.rounds.length+1}차`,amount:0,members:[...presentMembers],extraMembers:[],includeOrganizer:true};
     updateEvent({...event,rounds:[...event.rounds,newRound]});
-    setEditAmount('');setEditExtra([]);setExtraInput('');
-    setEditingId(newRound.id);
+    setRoundAmounts(p=>({...p,[newRound.id]:''}));
+    setRoundExtras(p=>({...p,[newRound.id]:[]}));
+    setClosedRoundIds(s=>{const n=new Set(s);n.delete(newRound.id);return n;});
   };
 
-  const deleteRound=rid=>{
-    setDeleteRoundConfirm(rid);
-  };
   const confirmDeleteRound=rid=>{
     const newRounds=event.rounds.filter(r=>r.id!==rid);
     updateEvent({...event,rounds:newRounds});
-    setEditingId(newRounds[0]?.id||null);
+    setClosedRoundIds(s=>{const n=new Set(s);n.delete(rid);return n;});
     setDeleteRoundConfirm(null);
   };
 
@@ -2347,22 +2363,26 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
     updateEvent({...event,rounds:newRounds});
   };
 
-  const attCount=event.members.filter(k=>localAtt[k]!==false).length;
+  // 차수별 멤버 출석 토글 (rounds[i].members 직접 수정, 1차는 attendance 동기화)
+  const toggleMemberInRound=(rid,key)=>{
+    const r=event.rounds.find(r=>r.id===rid);
+    if(!r) return;
+    const members=r.members||[];
+    const newMembers=members.includes(key)?members.filter(k=>k!==key):[...members,key];
+    const newRounds=event.rounds.map(r=>r.id===rid?{...r,members:newMembers}:r);
+    if(event.rounds[0]?.id===rid){
+      const newAtt={...event.attendance};
+      event.members.forEach(k=>{newAtt[k]=newMembers.includes(k);});
+      updateEvent({...event,rounds:newRounds,attendance:newAtt});
+    } else {
+      updateEvent({...event,rounds:newRounds});
+    }
+  };
+
+  // onAttDirtyChange는 더 이상 dirty 상태 없으므로 false 전달
+  useEffect(()=>{onAttDirtyChange?.(false);},[]);
+
   const fc=event.feeConfig;
-  const useGroupView=!attSearch&&(groups||[]).filter(g=>(g.members||[]).length>0).length>1;
-  const groupSections=React.useMemo(()=>{
-    if(!useGroupView) return null;
-    const assigned=new Set();
-    const sections=(groups||[]).map(g=>{
-      const gKeys=new Set((g.members||[]).map(m=>m.name+(m.sid?`_${m.sid}`:'')));
-      const keys=event.members.filter(k=>gKeys.has(k));
-      keys.forEach(k=>assigned.add(k));
-      return {name:g.name,keys};
-    }).filter(s=>s.keys.length>0);
-    const unassigned=event.members.filter(k=>!assigned.has(k));
-    if(unassigned.length>0) sections.push({name:'미분류',keys:unassigned});
-    return sections;
-  },[useGroupView,groups,event.members]);
 
   if(event.rounds.length===0) return null;
 
@@ -2370,84 +2390,38 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
     <div>
       <FeeConfigSection event={event} updateEvent={updateEvent}/>
 
-      {/* 출석 카드 */}
-      <div style={{background:C.pageBg,borderRadius:12,padding:'10px 12px',marginBottom:10,border:`1px solid ${C.border}`}}>
-        {/* 헤더: 카운터 + 저장 */}
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-          <span style={{fontSize:13,fontWeight:700,color:C.text}}>
-            출석 {attCount}/{event.members.length}명
-            {attSavedAt&&!attDirty&&<span style={{fontSize:11,color:C.textDim,fontWeight:400,marginLeft:6}}>방금 저장됨</span>}
-          </span>
-        </div>
-        {/* 검색 + 일괄 버튼 */}
-        <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:10}}>
-          <input value={attSearch} onChange={e=>setAttSearch(e.target.value)} placeholder="이름 검색"
-            style={{flex:1,padding:'5px 9px',borderRadius:8,border:`1px solid ${C.border}`,background:C.cardBg,fontSize:12,color:C.text,outline:'none'}}/>
-          <button onClick={()=>{const a={};event.members.forEach(k=>a[k]=true);setLocalAtt(a);setAttDirty(true);saveAttWith(a);}} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:C.accent,fontWeight:600,whiteSpace:'nowrap',padding:0}}>전원 참석</button>
-          <button onClick={()=>{const a={};event.members.forEach(k=>a[k]=false);setLocalAtt(a);setAttDirty(true);saveAttWith(a);}} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:C.textDim,fontWeight:600,whiteSpace:'nowrap',padding:0}}>전원 불참</button>
-        </div>
-        {/* 칩 리스트 */}
-        {useGroupView?(
-          groupSections.map(sec=>(
-            <div key={sec.name} style={{marginBottom:10}}>
-              <div style={{fontSize:11,fontWeight:700,color:C.textDim,marginBottom:5,letterSpacing:0.3,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <span>{sec.name} {sec.keys.length}명</span>
-                <button onClick={()=>{const a={...localAtt};sec.keys.forEach(k=>a[k]=true);setLocalAtt(a);setAttDirty(true);saveAttWith(a);}} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전체 선택</button>
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {sec.keys.map(k=>{
-                  const isAbsent=localAtt[k]===false;
-                  return(
-                    <div key={k} onClick={()=>toggleAtt(k)} className="press" style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:isAbsent?'#F1EFE8':'#EEEDFE',border:`1px solid ${isAbsent?'#E0DDD5':'#D4D1F5'}`,transition:'all 0.15s'}}>
-                      {!isAbsent&&<Icon n="check" size={11} color="#3C3489"/>}
-                      <span style={{fontSize:13,fontWeight:600,color:isAbsent?'#888780':'#3C3489'}}>{mm[k]||k}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))
-        ):(
-          <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-            {event.members
-              .filter(k=>!attSearch||(mm[k]||k).includes(attSearch))
-              .map(k=>{
-                const isAbsent=localAtt[k]===false;
-                return(
-                  <div key={k} onClick={()=>toggleAtt(k)} className="press" style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:isAbsent?'#F1EFE8':'#EEEDFE',border:`1px solid ${isAbsent?'#E0DDD5':'#D4D1F5'}`,transition:'all 0.15s'}}>
-                    {!isAbsent&&<Icon n="check" size={11} color="#3C3489"/>}
-                    <span style={{fontSize:13,fontWeight:600,color:isAbsent?'#888780':'#3C3489'}}>{mm[k]||k}</span>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-      </div>
-
       {/* 차수 카드들 */}
       {event.rounds.map((r,ridx)=>{
-        const isEditing=editingId===r.id;
+        const isClosed=closedRoundIds.has(r.id);
         const isFirst=ridx===0;
         const useFc=isFirst&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
-        const amtNum=isEditing?(Number(editAmount.replace(/[^0-9]/g,''))||0):r.amount;
-        const extraList=isEditing?editExtra:(r.extraMembers||[]);
+        const amt=roundAmounts[r.id]||'';
+        const amtNum=Number(amt.replace(/[^0-9]/g,''))||0;
+        const extraList=roundExtras[r.id]||[];
         const rMembers=r.members||presentMembers;
         const includeOrg=r.includeOrganizer===true;
         const totalCount=rMembers.length+extraList.length+(includeOrg?1:0);
         const perPerson=amtNum>0&&totalCount>0?Math.ceil(amtNum/totalCount):0;
+        const canSave=useFc||(amtNum>0);
 
         return(
-          <div key={r.id} style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${isEditing?C.accent+'50':C.border}`}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:isEditing?12:0,cursor:isEditing?'default':'pointer'}} onClick={()=>{if(!isEditing)openRound(r);}}>
-              <div style={{fontWeight:800,fontSize:15,color:C.text}}>{r.label}{isEditing&&roundSaved&&<span style={{fontSize:11,color:C.textDim,fontWeight:400,marginLeft:6}}>방금 저장됨</span>}</div>
-              {!isEditing&&(
-                <div style={{fontSize:13,color:C.textMid}}>
-                  {r.amount>0?fmtKRW(r.amount):<span style={{color:C.textDim}}>금액 미입력</span>}
-                </div>
-              )}
+          <div key={r.id} style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${!isClosed?C.accent+'50':C.border}`}}>
+            {/* 차수 헤더 (클릭으로 접기/펼치기) */}
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',marginBottom:isClosed?0:12}}
+              onClick={()=>setClosedRoundIds(s=>{const n=new Set(s);isClosed?n.delete(r.id):n.add(r.id);return n;})}>
+              <div style={{fontWeight:800,fontSize:15,color:C.text}}>
+                {r.label}
+                {!isClosed&&roundSavedId===r.id&&<span style={{fontSize:11,color:C.textDim,fontWeight:400,marginLeft:6}}>방금 저장됨</span>}
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                {isClosed&&<div style={{fontSize:13,color:r.amount>0?C.textMid:C.textDim}}>{r.amount>0?fmtKRW(r.amount):'금액 미입력'}</div>}
+                <span className="ms" style={{fontSize:20,color:C.textDim}}>{isClosed?'expand_more':'expand_less'}</span>
+              </div>
             </div>
-            {isEditing&&(
+
+            {!isClosed&&(
               <>
+                {/* 금액 입력 */}
                 {useFc?(
                   <div style={{fontSize:12,color:C.textMid,background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
                     금액은 위 정산 방식 설정에서 관리됩니다<br/>
@@ -2455,7 +2429,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                   </div>
                 ):(
                   <>
-                    <Field label="총 금액 (원)" value={editAmount} onChange={v=>setEditAmount(v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="150000"/>
+                    <Field label="총 금액 (원)" value={amt} onChange={v=>setRoundAmount(r.id,v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="150000"/>
                     {perPerson>0&&(
                       <div style={{background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
                         <div style={{display:'flex',justifyContent:'space-between'}}>
@@ -2466,41 +2440,76 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                     )}
                   </>
                 )}
+
+                {/* 출석 체크 (차수별) */}
                 <div style={{marginBottom:12}}>
-                  <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:6}}>임시 인원 ({editExtra.length}명) <span style={{fontWeight:400,color:C.orange,fontSize:11}}>링크 공유 제외</span></div>
-                  {editExtra.length>0&&(
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                    <div style={{fontSize:12,color:C.textMid,fontWeight:700}}>
+                      출석 <span style={{fontWeight:400,color:C.textDim}}>{rMembers.length+(includeOrg?1:0)}명</span>
+                    </div>
+                    <div style={{display:'flex',gap:8}}>
+                      <button onClick={()=>{const newM=[...event.members];const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:newM,includeOrganizer:true}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,true])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전원 참석</button>
+                      <button onClick={()=>{const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:[],includeOrganizer:false}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,false])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.textDim,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전원 불참</button>
+                    </div>
+                  </div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                    {event.members.map(k=>{
+                      const isIn=rMembers.includes(k);
+                      return(
+                        <div key={k} onClick={()=>toggleMemberInRound(r.id,k)} className="press"
+                          style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:isIn?'#EEEDFE':'#F1EFE8',border:`1px solid ${isIn?'#D4D1F5':'#E0DDD5'}`,transition:'all 0.15s'}}>
+                          {isIn&&<Icon n="check" size={11} color="#3C3489"/>}
+                          <span style={{fontSize:13,fontWeight:600,color:isIn?'#3C3489':'#888780'}}>{mm[k]||k}</span>
+                        </div>
+                      );
+                    })}
+                    {/* 총무 칩 */}
+                    <div onClick={()=>toggleOrganizer(r.id)} className="press"
+                      style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:includeOrg?'#EEEDFE':'#F1EFE8',border:`1px solid ${includeOrg?'#D4D1F5':'#E0DDD5'}`,transition:'all 0.15s'}}>
+                      {includeOrg&&<Icon n="check" size={11} color="#3C3489"/>}
+                      <span style={{fontSize:13,fontWeight:600,color:includeOrg?'#3C3489':'#888780'}}>총무 ({profile?.name||'이름'})</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 임시 인원 */}
+                <div style={{marginBottom:12}}>
+                  <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:6}}>임시 인원 ({extraList.length}명) <span style={{fontWeight:400,color:C.orange,fontSize:11}}>링크 공유 제외</span></div>
+                  {extraList.length>0&&(
                     <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>
-                      {editExtra.map((em,ei)=>(
+                      {extraList.map((em,ei)=>(
                         <div key={ei} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:12,background:C.orange+'20',border:`1.5px solid ${C.orange}50`}}>
                           <span style={{fontSize:10,fontWeight:800,color:C.orange}}>임시</span>
                           <span style={{fontSize:12,color:C.text,fontWeight:600}}>{em.name}</span>
-                          <button onClick={()=>setEditExtra(s=>s.filter((_,j)=>j!==ei))} style={{background:'none',border:'none',cursor:'pointer',color:C.textMid,fontSize:14,lineHeight:1,padding:'0 0 0 2px'}}>×</button>
+                          <button onClick={()=>setRoundExtra(r.id,s=>s.filter((_,j)=>j!==ei))} style={{background:'none',border:'none',cursor:'pointer',color:C.textMid,fontSize:14,lineHeight:1,padding:'0 0 0 2px'}}>×</button>
                         </div>
                       ))}
                     </div>
                   )}
                   <div style={{display:'flex',gap:6}}>
-                    <input value={extraInput} onChange={e=>setExtraInput(e.target.value)} placeholder="이름 입력"
-                      onKeyDown={e=>{if(e.key==='Enter'&&extraInput.trim()){setEditExtra(s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:extraInput.trim()}]);setExtraInput('');}}}
+                    <input value={extraInputs[r.id]||''} onChange={e=>setExtraInputs(p=>({...p,[r.id]:e.target.value}))} placeholder="이름 입력"
+                      onKeyDown={e=>{if(e.key==='Enter'&&(extraInputs[r.id]||'').trim()){const name=(extraInputs[r.id]||'').trim();setRoundExtra(r.id,s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name}]);setExtraInputs(p=>({...p,[r.id]:''}));}}}
                       style={{flex:1,padding:'7px 10px',borderRadius:8,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none'}}
                     />
-                    <button onClick={()=>{if(extraInput.trim()){setEditExtra(s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name:extraInput.trim()}]);setExtraInput('');}}} style={{padding:'7px 12px',borderRadius:8,background:C.orange+'20',border:`1.5px solid ${C.orange}50`,color:C.orange,fontWeight:700,fontSize:13,cursor:'pointer'}}>추가</button>
+                    <button onClick={()=>{const name=(extraInputs[r.id]||'').trim();if(name){setRoundExtra(r.id,s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name}]);setExtraInputs(p=>({...p,[r.id]:''}));}}} style={{padding:'7px 12px',borderRadius:8,background:C.orange+'20',border:`1.5px solid ${C.orange}50`,color:C.orange,fontWeight:700,fontSize:13,cursor:'pointer'}}>추가</button>
                   </div>
                 </div>
+
+                {/* 차수 삭제 */}
                 {!isFirst&&(
                   <div style={{marginBottom:10,textAlign:'right'}}>
-                    <button onClick={()=>deleteRound(r.id)} style={{fontSize:12,color:C.red,background:'none',border:'none',cursor:'pointer'}}>이 차수 삭제</button>
+                    <button onClick={()=>setDeleteRoundConfirm(r.id)} style={{fontSize:12,color:C.red,background:'none',border:'none',cursor:'pointer'}}>이 차수 삭제</button>
                   </div>
                 )}
-                <Btn onClick={()=>doSaveRound(r.id)}>저장하고 닫기</Btn>
+
+                {/* 저장하고 닫기 */}
+                <Btn onClick={()=>doSaveRound(r.id)} disabled={!canSave}
+                  style={!canSave?{background:C.textDim,cursor:'not-allowed',opacity:0.55}:{}}>
+                  저장하고 닫기
+                </Btn>
+                {!canSave&&<div style={{fontSize:12,color:C.textDim,textAlign:'center',marginTop:6}}>금액을 입력하면 저장할 수 있어요</div>}
               </>
             )}
-            <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${C.border}`}}>
-              <div onClick={()=>toggleOrganizer(r.id)} className="press" style={{display:'inline-flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:includeOrg?'#EEEDFE':'#F1EFE8',border:`1px solid ${includeOrg?'#D4D1F5':'#E0DDD5'}`,transition:'all 0.15s'}}>
-                {includeOrg&&<Icon n="check" size={11} color="#3C3489"/>}
-                <span style={{fontSize:13,fontWeight:600,color:includeOrg?'#3C3489':'#888780'}}>총무 ({profile?.name||'이름'})</span>
-              </div>
-            </div>
           </div>
         );
       })}
