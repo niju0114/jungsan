@@ -127,13 +127,14 @@ const rowToEv = r => ({
   memberMap:r.member_map||{}, rounds:r.rounds||[],
   payments:r.payments||{}, attendance:r.attendance||{},
   attendanceOpen:r.attendance_open||false, createdAt:r.created_at,
+  time:r.time||null,
   sourceFormCode:r.source_form_code||null,
   feeConfig:r.fee_config||null,
   paidFeeKeys:Array.isArray(r.member_meta?.paidFeeKeys)?r.member_meta.paidFeeKeys:[],
   lastMatchSummary:r.member_meta?.lastMatchSummary||null,
 });
 const evToRow = (ev, uid) => ({
-  code:ev.code, name:ev.name, date:ev.date, pin:ev.pin,
+  code:ev.code, name:ev.name, date:ev.date, time:ev.time||null, pin:ev.pin,
   account:ev.account, members:ev.members, member_map:ev.memberMap,
   rounds:ev.rounds, payments:ev.payments, attendance:ev.attendance,
   attendance_open:ev.attendanceOpen,
@@ -1735,6 +1736,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
   },[profile?.id]);
   const [name,setName]=useState('');
   const [date,setDate]=useState(new Date().toISOString().slice(0,10));
+  const [time,setTime]=useState('');
 
   const [bank,setBank]=useState(profile.account?.bank||'');
   const [number,setNumber]=useState(profile.account?.number||'');
@@ -1791,7 +1793,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
     const code=genCode();
     const paidFeeKeys=selected.filter(k=>groups.some(g=>(g.paidFeeMembers||[]).includes(k)));
     const fullMemberMap={...memberMap,...extraMemberMap};
-    const ev={code,name:name.trim(),date,pin:'',account:{bank,number,holder},members:selected,memberMap:fullMemberMap,rounds:[],payments:{},attendance:Object.fromEntries(selected.map(k=>[k,false])),attendanceOpen:false,createdAt:new Date().toISOString(),paidFeeKeys,feeConfig:null,sourceFormCode:null};
+    const ev={code,name:name.trim(),date,time:time||null,pin:'',account:{bank,number,holder},members:selected,memberMap:fullMemberMap,rounds:[],payments:{},attendance:Object.fromEntries(selected.map(k=>[k,false])),attendanceOpen:false,createdAt:new Date().toISOString(),paidFeeKeys,feeConfig:null,sourceFormCode:null};
     const ok=await createEvent(ev);
     setLoading(false);
     if(ok){nav.setCurrentCode(ev.code);nav.setView('adminEvent');}
@@ -1807,7 +1809,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
       <div style={{padding:'16px 16px 24px'}}>
         <Card>
           <Field label="정산 이름" value={name} onChange={setName} placeholder="5월 MT, 종강 회식…"/>
-          <Field label="날짜" value={date} onChange={setDate} type="date"/>
+          <Field label="행사 날짜·시간" value={date+(time?`T${time}`:'')} onChange={v=>{setDate(v.slice(0,10));setTime(v.length>10?v.slice(11,16):'');}} type="datetime-local"/>
 
         </Card>
         <Card>
@@ -1883,6 +1885,13 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
           <div style={{marginTop:6}}>
             <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:6}}>추가 참여자</div>
             <Field value={extraText} onChange={setExtraText} placeholder="홍길동&#10;김철수" multiline rows={2}/>
+          </div>
+          <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${C.border}`}}>
+            <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:6}}>총무</div>
+            <div style={{display:'inline-flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,background:'#EEEDFE',border:'1px solid #D4D1F5'}}>
+              <Icon n="check" size={11} color="#3C3489"/>
+              <span style={{fontSize:13,fontWeight:600,color:'#3C3489'}}>총무 ({profile?.name||'이름'})</span>
+            </div>
           </div>
         </Card>
         {err&&<div style={{color:C.red,fontSize:13,marginBottom:12,padding:'11px 14px',background:C.redBg,borderRadius:10,display:'flex',alignItems:'center',gap:6}}><Icon n="triangle-alert" size={14} color={C.red}/>{err}</div>}
@@ -3762,7 +3771,7 @@ function FormCreateScreen({nav,profile,createForm}){
       <Header title="신청폼 만들기" onBack={()=>nav.setView('home')}/>
       <FlowStepper steps={['폼 생성+공유','대조']} current={0} done={[]}/>
       <div style={{flex:1,padding:'8px 16px 16px',overflow:'auto'}}>
-        <div style={{fontSize:12,color:C.textDim,fontWeight:500,marginBottom:8,padding:'4px 2px'}}>신청 명단 + 입금 상태를 한 화면에서 관리합니다</div>
+        <div style={{fontSize:12,color:C.textDim,fontWeight:500,marginBottom:8,padding:'4px 2px'}}>신청자가 보게 될 메시지를 작성해주세요</div>
         {/* 기본 정보 */}
         <Card>
           <Field label="행사명" value={name} onChange={setName} placeholder="5월 MT, 개강총회…"/>
