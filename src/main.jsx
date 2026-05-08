@@ -856,7 +856,13 @@ function App() {
 
   if(!ready) return(
     <div className="screen" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'#fff',gap:12}}>
-      <div style={{fontSize:48,marginBottom:4}}>🍻</div>
+      <svg viewBox="0 0 200 200" style={{width:48,height:48,marginBottom:4}}>
+        <defs><clipPath id="f1-load"><circle cx="100" cy="100" r="100"/></clipPath></defs>
+        <g clipPath="url(#f1-load)">
+          <rect width="200" height="200" fill="#6366F1"/>
+          <polygon points="0,200 200,0 200,200" fill="#A5A6F6"/>
+        </g>
+      </svg>
       <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:-0.5}}>정산해</div>
       <div style={{marginTop:8}}><Spinner size={24} color={C.accent}/></div>
     </div>
@@ -893,7 +899,13 @@ function LandingScreen({nav}){
       <div style={{background:'linear-gradient(145deg,#6366F1 0%,#EC4899 100%)',padding:'72px 28px 56px',textAlign:'center',position:'relative',overflow:'hidden'}}>
         <div style={{position:'absolute',inset:0,opacity:0.05,backgroundImage:'radial-gradient(circle,#fff 1px,transparent 1px)',backgroundSize:'24px 24px'}}/>
         <div style={{position:'relative'}}>
-          <div style={{fontSize:56,marginBottom:16}}>🍻</div>
+          <svg viewBox="0 0 200 200" style={{width:56,height:56,margin:'0 auto 16px',display:'block'}}>
+            <defs><clipPath id="f1-land"><circle cx="100" cy="100" r="100"/></clipPath></defs>
+            <g clipPath="url(#f1-land)">
+              <rect width="200" height="200" fill="rgba(255,255,255,0.9)"/>
+              <polygon points="0,200 200,0 200,200" fill="rgba(255,255,255,0.45)"/>
+            </g>
+          </svg>
           <div style={{fontSize:28,fontWeight:900,color:'#fff',letterSpacing:-1,marginBottom:10}}>정산해</div>
           <div style={{fontSize:16,color:'rgba(255,255,255,0.9)',fontWeight:600,lineHeight:1.6}}>총무의 부담을 1/10로 줄여드려요</div>
         </div>
@@ -1019,7 +1031,7 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
 
         {mode==='signup'&&(
           <div style={{background:C.accentBg,borderRadius:16,padding:'14px 16px',marginBottom:14,border:`1px solid ${C.accent}20`}}>
-            <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:2}}>🍻 정산해에 오신 걸 환영해요!</div>
+            <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:2}}>🎉 정산해에 오신 걸 환영해요!</div>
             <div style={{fontSize:12,color:C.textMid}}>아래 정보는 서비스 개선에만 활용돼요.</div>
           </div>
         )}
@@ -3110,7 +3122,13 @@ function ParticipantSplashScreen({onDone}){
   return(
     <div className="screen" style={{background:`linear-gradient(145deg,#6366F1 0%,${C.purple} 100%)`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',transition:'opacity 0.2s',opacity:fading?0:1,position:'relative'}}>
       <button onClick={onDone} style={{position:'absolute',top:20,right:20,background:'rgba(255,255,255,0.2)',border:'none',borderRadius:20,padding:'6px 14px',color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer'}}>건너뛰기</button>
-      <div style={{fontSize:64,marginBottom:16}}>🍻</div>
+      <svg viewBox="0 0 200 200" style={{width:64,height:64,marginBottom:16}}>
+        <defs><clipPath id="f1-onb"><circle cx="100" cy="100" r="100"/></clipPath></defs>
+        <g clipPath="url(#f1-onb)">
+          <rect width="200" height="200" fill="rgba(255,255,255,0.9)"/>
+          <polygon points="0,200 200,0 200,200" fill="rgba(255,255,255,0.45)"/>
+        </g>
+      </svg>
       <div style={{fontSize:28,fontWeight:900,color:'#fff',letterSpacing:-1,marginBottom:8}}>정산해</div>
       <div style={{fontSize:14,color:'rgba(255,255,255,0.8)',fontWeight:500}}>간편한 모임 정산</div>
     </div>
@@ -3201,7 +3219,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
           )}
           {!dupWarning&&(
             <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'10px 14px',background:C.accentBg,borderRadius:12,border:`1px solid ${C.accent}20`}}>
-              <span style={{fontSize:16}}>🍻</span>
+              <span className="ms ms-sm" style={{color:C.accent}}>info</span>
               <span style={{fontSize:13,color:C.accent,fontWeight:700}}>본인 이름 검색 후 입금해주세요</span>
             </div>
           )}
