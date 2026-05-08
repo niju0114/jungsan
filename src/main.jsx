@@ -1838,7 +1838,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
       <div style={{padding:'16px 16px 24px'}}>
         <Card>
           <Field label="정산 이름" value={name} onChange={setName} placeholder="5월 MT, 종강 회식…"/>
-          <Field label="행사 날짜·시간" value={date+(time?`T${time}`:'')} onChange={v=>{setDate(v.slice(0,10));setTime(v.length>10?v.slice(11,16):'');}} type="datetime-local"/>
+          <Field label="행사 날짜·시간" value={date+'T'+(time||'00:00')} onChange={v=>{setDate(v.slice(0,10));setTime(v.slice(11,16));}} type="datetime-local"/>
 
         </Card>
         <Card>
@@ -3869,7 +3869,7 @@ function FormCreateScreen({nav,profile,createForm}){
         {/* 기본 정보 */}
         <Card>
           <Field label="행사명" value={name} onChange={setName} placeholder="5월 MT, 개강총회…"/>
-          <Field label="행사 날짜·시간" value={date+(time?`T${time}`:'')} onChange={v=>{setDate(v.slice(0,10));setTime(v.length>10?v.slice(11,16):'');}} type="datetime-local"/>
+          <Field label="행사 날짜·시간" value={date+'T'+(time||'00:00')} onChange={v=>{setDate(v.slice(0,10));setTime(v.slice(11,16));}} type="datetime-local"/>
           <div style={{marginBottom:14}}>
             <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:noFee?4:10}}>금액 설정</div>
             {noFee&&<div style={{fontSize:12,color:C.textDim,marginBottom:10}}>출석 체크 모드 (입금 추적 없음)</div>}
