@@ -1,6 +1,17 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
+import posthog from 'posthog-js';
+
+if (typeof window !== 'undefined' && import.meta.env.VITE_POSTHOG_KEY) {
+  posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
+    api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com',
+    person_profiles: 'identified_only',
+    capture_pageview: true,
+    capture_pageleave: true,
+    autocapture: true,
+  });
+}
 
 
 // ═══════════════════════════════════════════════════════════
@@ -790,6 +801,9 @@ function App() {
       phone:profData.phone||'',
       username:profData.username||'',
     });
+    if(profData&&u){
+      posthog.identify(u.id,{email:u.email,name:profData.name||profData.username||'',school:profData.school||''});
+    }
     setReady(true);
     // 참여자/신청폼 화면이면 유지, auth/빈값이면 홈으로
     setView(v=>['participantEvent','formSubmit'].includes(v)?v:(!v||v==='auth')?'home':v);
@@ -1014,6 +1028,7 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
         if(profErr){console.error('Profile save error:',profErr);}
         // profile 저장 후 data reload (race condition 방지)
         await nav.loadUserData(uid);
+        posthog.capture('회원가입_완료');
         // 신규가입 온보딩 표시
         setShowOnboarding(true);
       }
@@ -1316,7 +1331,7 @@ function ModeSelectModal({profile,nav,onClose}){
       )}
       <div style={{fontWeight:900,color:C.text,fontSize:20,marginBottom:6,textAlign:'center'}}>어떤 상황이세요?</div>
       <div style={{color:C.textMid,fontSize:13,marginBottom:24,textAlign:'center'}}>상황에 맞게 선택하세요</div>
-      <button onClick={()=>{onClose();nav.setView('formCreate');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,marginBottom:12,background:C.orangeBg,border:`1px solid ${C.orange}20`,cursor:'pointer',textAlign:'left'}}>
+      <button onClick={()=>{posthog.capture('신청폼_만들기_시작');onClose();nav.setView('formCreate');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,marginBottom:12,background:C.orangeBg,border:`1px solid ${C.orange}20`,cursor:'pointer',textAlign:'left'}}>
         <div style={{display:'flex',alignItems:'center',gap:14}}>
           <div style={{width:48,height:48,borderRadius:14,background:C.orange,display:'flex',alignItems:'center',justifyContent:'center'}}><Icon n="mail" size={24} color="#fff"/></div>
           <div style={{flex:1}}>
@@ -1326,7 +1341,7 @@ function ModeSelectModal({profile,nav,onClose}){
           <span className="ms" style={{color:C.orange}}>chevron_right</span>
         </div>
       </button>
-      <button onClick={()=>{onClose();nav.setView('create');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,background:C.accentBg,border:`1px solid ${C.accent}20`,cursor:'pointer',textAlign:'left'}}>
+      <button onClick={()=>{posthog.capture('정산_만들기_시작');onClose();nav.setView('create');}} className="press" style={{width:'100%',padding:'20px',borderRadius:16,background:C.accentBg,border:`1px solid ${C.accent}20`,cursor:'pointer',textAlign:'left'}}>
         <div style={{display:'flex',alignItems:'center',gap:14}}>
           <div style={{width:48,height:48,borderRadius:14,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center'}}><Icon n="users" size={24} color="#fff"/></div>
           <div style={{flex:1}}>
@@ -1687,6 +1702,8 @@ function DeleteAccountBtn({showToast,nav}){
       await Promise.all([api.deleteUserEvents(user.id),api.deleteUserForms(user.id)]);
       await api.updateProfile(user.id,{deleted:true,name:'',school:'',groups:[],account:{},username:null});
       await api.deleteAuthUser().catch(()=>{});
+      posthog.capture('탈퇴_완료');
+      posthog.reset();
       await api.signOut();
     }catch(e){
       showToast('탈퇴 처리 중 오류가 발생했어요',C.red);
@@ -1805,7 +1822,10 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
     const ev={code,name:name.trim(),date,time:time||null,pin:'',account:{bank,number,holder},members:selected,memberMap:fullMemberMap,rounds:[],payments:{},attendance:Object.fromEntries(selected.map(k=>[k,false])),attendanceOpen:false,createdAt:new Date().toISOString(),paidFeeKeys,feeConfig:null,sourceFormCode:null};
     const ok=await createEvent(ev);
     setLoading(false);
-    if(ok){nav.setCurrentCode(ev.code);nav.setView('adminEvent');}
+    if(ok){
+      posthog.capture('정산_만들기_완료',{차수_수:ev.rounds.length,명단_수:ev.members.length});
+      nav.setCurrentCode(ev.code);nav.setView('adminEvent');
+    }
   };
 
   const hasAccount=profile.account?.bank&&profile.account?.number;
@@ -2636,7 +2656,7 @@ function ShareSection({event,showToast}){
         <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',fontSize:12,color:C.textMid,lineHeight:1.85,marginBottom:8,whiteSpace:'pre-wrap',border:`1.5px solid ${C.border}`}}>{autoMsg}{'\n'}{directLink}</div>
       )}
       <div style={{display:'flex',gap:8,marginBottom:8}}>
-        <Btn onClick={async()=>{const msg=getMsg();const shared=await shareText(msg);if(!shared){await copy(msg,'메시지');}else showToast('공유 완료');}} small style={{flex:2}}><Icon n="message-circle" size={14} color="#fff" style={{marginRight:4}}/>카톡 공유</Btn>
+        <Btn onClick={async()=>{posthog.capture('정산_링크_공유');const msg=getMsg();const shared=await shareText(msg);if(!shared){await copy(msg,'메시지');}else showToast('공유 완료');}} small style={{flex:2}}><Icon n="message-circle" size={14} color="#fff" style={{marginRight:4}}/>카톡 공유</Btn>
         <Btn onClick={()=>copy(directLink,'링크')} variant="secondary" small style={{flex:1}}><Icon n="link" size={14} color={C.textMid} style={{marginRight:4}}/>링크</Btn>
       </div>
       <Btn onClick={()=>copy(getMsg(),'메시지')} variant="ghost" small style={{marginBottom:16}}><Icon n="clipboard-list" size={14} color={C.textDim} style={{marginRight:4}}/>메시지 복사</Btn>
@@ -2793,6 +2813,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
     const canDunning=status==='none'&&!matchInfo&&!!event.account?.bank&&!animating;
     const dunning=async e=>{
       e.stopPropagation();
+      posthog.capture('정산_콕_찌르기_사용',{미입금_수:1});
       const msg=buildDunningMsg({name:baseDisplay,eventName:event.name,amount:displayAmount,account:event.account,link:directLink});
       const shared=await shareText(msg);
       if(!shared){await copyText(msg);showToast('콕 찌르기 복사됐어요');}
@@ -2904,6 +2925,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
       if(parsed.error){showToast(parsed.error,C.red);setUploading(false);return;}
       if(parsed.deposits.length===0){showToast('입금 내역이 없어요',C.red);setUploading(false);return;}
       const esubs=presentMembers.map(k=>({name:mm[k]||k,key:k}));
+      posthog.capture('정산_거래내역_업로드',{명단_수:esubs.length});
       const results=matchEngine.match(parsed.deposits,esubs,s=>amounts[s.key]||0);
       const byKey={};
       (results.partial||[]).forEach(m=>{byKey[m.sub.key]={type:'partial',totalAmount:m.totalAmount,expected:amounts[m.sub.key]||0,depositCount:m.deposits.length};});
@@ -2911,6 +2933,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
       const needsCheck=(results.partial||[]).length+(results.overpaid||[]).length;
       const isEmpty=results.matched.length===0&&needsCheck===0&&(results.refund||[]).length===0;
       const newSummary={byKey,refund:results.refund||[],stats:{matched:results.matched.length,needsCheck},emptyResult:isEmpty};
+      posthog.capture('정산_자동_대조_완료',{매칭_수:results.matched.length,확인_필요_수:needsCheck,미입금_수:esubs.length-results.matched.length-needsCheck,명단에_없는_입금_수:(results.refund||[]).length});
       setMatchSummary(newSummary);
       const now=new Date().toISOString();
       const newPayments={...eventRef.current.payments};
@@ -2971,7 +2994,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
             {uploading?<><Spinner size={12} color={C.textDim}/>&nbsp;분석 중...</>:animating?<><Spinner size={12} color={C.textDim}/>&nbsp;처리 중...</>:<><Icon n="bar-chart" size={12} color={C.textMid}/>자동 대조</>}
           </button>
           {unpaidXKeys.length>0&&!animating&&(
-            <button onClick={()=>setDunningOpen(true)} className="press" style={{flex:1,padding:'10px 4px',borderRadius:10,background:C.cardBg,border:`1px solid ${C.border}`,color:C.textMid,fontWeight:700,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
+            <button onClick={()=>{posthog.capture('정산_콕_찌르기_사용',{미입금_수:unpaidXKeys.length});setDunningOpen(true);}} className="press" style={{flex:1,padding:'10px 4px',borderRadius:10,background:C.cardBg,border:`1px solid ${C.border}`,color:C.textMid,fontWeight:700,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
               <Icon n="message-circle" size={12} color={C.textMid}/>미입금자 {unpaidXKeys.length}명 콕 찌르기
             </button>
           )}
@@ -3626,6 +3649,7 @@ function OnboardingModal({nav,onClose}){
         localStorage.setItem('onboarding_done_'+user.id,'true');
       }
     }catch(e){console.error(e);}
+    posthog.capture('온보딩_환영_완료');
     onClose();
     nav.setView('setup');
   };
@@ -3648,11 +3672,13 @@ function OnboardingModal({nav,onClose}){
 function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
   const [slide,setSlide]=useState(0);
   const [neverShow,setNeverShow]=useState(false);
+  useEffect(()=>{posthog.capture('온보딩_정산_표시');},[]);
   const finish=()=>{
     if(neverShow&&showNeverShow&&userId){
       localStorage.setItem('small_onb_done_'+userId,'1');
       api.updateProfile(userId,{small_event_onboarding_done:true});
     }
+    posthog.capture('온보딩_정산_완료',{다시_보지_않기:neverShow});
     onClose();
   };
   const SLIDES=[
@@ -3694,11 +3720,13 @@ function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
 function FormOnboardingModal({onClose,showNeverShow=true,userId=null}){
   const [slide,setSlide]=useState(0);
   const [neverShow,setNeverShow]=useState(false);
+  useEffect(()=>{posthog.capture('온보딩_신청폼_표시');},[]);
   const finish=()=>{
     if(neverShow&&showNeverShow&&userId){
       localStorage.setItem('form_onb_done_'+userId,'1');
       api.updateProfile(userId,{form_onboarding_done:true});
     }
+    posthog.capture('온보딩_신청폼_완료',{다시_보지_않기:neverShow});
     onClose();
   };
   const SLIDES=[
@@ -3825,7 +3853,10 @@ function FormCreateScreen({nav,profile,createForm}){
     };
     const ok=await createForm(form);
     setLoading(false);
-    if(ok){nav.setCurrentFormCode(code);nav.setView('formAdmin');}
+    if(ok){
+      posthog.capture('신청폼_만들기_완료',{참가비:form.amount,정원:form.maxPeople});
+      nav.setCurrentFormCode(code);nav.setView('formAdmin');
+    }
   };
 
   return(
@@ -4545,7 +4576,7 @@ function FormShareTab({form, showToast, onShared}){
         <div style={{background:C.inputBg,borderRadius:12,padding:'14px 16px',fontSize:13,color:C.textMid,lineHeight:1.85,marginBottom:12,whiteSpace:'pre-wrap'}}>{autoMsg}</div>
       )}
       <div style={{display:'flex',gap:8}}>
-        <Btn onClick={async()=>{const msg=getMsg();const shared=await shareText(msg);if(!shared){await copyText(msg);showToast('메시지 복사됨');}else showToast('공유 완료');onShared&&onShared();}} small style={{flex:2}}><Icon n="message-circle" size={14} color="#fff" style={{marginRight:4}}/>카톡 공유</Btn>
+        <Btn onClick={async()=>{posthog.capture('신청폼_링크_공유');const msg=getMsg();const shared=await shareText(msg);if(!shared){await copyText(msg);showToast('메시지 복사됨');}else showToast('공유 완료');onShared&&onShared();}} small style={{flex:2}}><Icon n="message-circle" size={14} color="#fff" style={{marginRight:4}}/>카톡 공유</Btn>
         <Btn onClick={async()=>{await copyText(getMsg());showToast('메시지 복사됨');onShared&&onShared();}} variant="ghost" small style={{flex:1}}><Icon n="clipboard-list" size={14} color={C.textDim} style={{marginRight:4}}/>복사</Btn>
       </div>
     </div>
@@ -5104,6 +5135,7 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
         else showToast('신청 실패: 다시 시도해주세요',C.red);
         setLoading(false);return;
       }
+      posthog.capture('신청자_제출');
       setMySubmission(submission);
       setSubmitted(true);
       localStorage.setItem('form_sub_'+form.code,submission.createdAt);
