@@ -896,19 +896,16 @@ function App() {
 function LandingScreen({nav}){
   return(
     <div className="fade-up screen" style={{background:'#fff',display:'flex',flexDirection:'column'}}>
-      <div style={{background:'linear-gradient(145deg,#6366F1 0%,#EC4899 100%)',padding:'72px 28px 56px',textAlign:'center',position:'relative',overflow:'hidden'}}>
-        <div style={{position:'absolute',inset:0,opacity:0.05,backgroundImage:'radial-gradient(circle,#fff 1px,transparent 1px)',backgroundSize:'24px 24px'}}/>
-        <div style={{position:'relative'}}>
-          <svg viewBox="0 0 200 200" style={{width:56,height:56,margin:'0 auto 16px',display:'block'}}>
-            <defs><clipPath id="f1-land"><circle cx="100" cy="100" r="100"/></clipPath></defs>
-            <g clipPath="url(#f1-land)">
-              <rect width="200" height="200" fill="rgba(255,255,255,0.9)"/>
-              <polygon points="0,200 200,0 200,200" fill="rgba(255,255,255,0.45)"/>
-            </g>
-          </svg>
-          <div style={{fontSize:28,fontWeight:900,color:'#fff',letterSpacing:-1,marginBottom:10}}>정산해</div>
-          <div style={{fontSize:16,color:'rgba(255,255,255,0.9)',fontWeight:600,lineHeight:1.6}}>총무의 부담을 1/10로 줄여드려요</div>
-        </div>
+      <div style={{background:'#F5F3FF',padding:'72px 28px 56px',textAlign:'center'}}>
+        <svg viewBox="0 0 200 200" style={{width:56,height:56,margin:'0 auto 16px',display:'block'}}>
+          <defs><clipPath id="f1-land"><circle cx="100" cy="100" r="100"/></clipPath></defs>
+          <g clipPath="url(#f1-land)">
+            <rect width="200" height="200" fill="#6366F1"/>
+            <polygon points="0,200 200,0 200,200" fill="#A5A6F6"/>
+          </g>
+        </svg>
+        <div style={{fontSize:28,fontWeight:900,color:C.text,letterSpacing:-1,marginBottom:10}}>정산해</div>
+        <div style={{fontSize:16,color:C.textMid,fontWeight:600,lineHeight:1.6}}>총무의 부담을 1/10로 줄여드려요</div>
       </div>
       <div style={{flex:1,padding:'32px 24px',display:'flex',flexDirection:'column'}}>
         <div style={{flex:1}}>
@@ -923,7 +920,7 @@ function LandingScreen({nav}){
           ))}
         </div>
         <div style={{paddingTop:32,paddingBottom:'calc(16px + env(safe-area-inset-bottom))'}}>
-          <Btn onClick={()=>nav.setView('auth')} style={{background:'linear-gradient(135deg,#6366F1 0%,#EC4899 100%)'}}>시작하기</Btn>
+          <Btn onClick={()=>nav.setView('auth')}>시작하기</Btn>
         </div>
       </div>
     </div>
