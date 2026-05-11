@@ -782,19 +782,10 @@ function App() {
     }
 
     if(isOAuthCallback){
-      // detectSessionInUrl:false이므로 직접 코드 교환
-      api.exchangeCode(urlCode).then(({data,error})=>{
-        console.log('[OAuth] exchange result | user:',data?.user?.id,'error:',error?.message,error?.status);
-        if(data?.user){
-          loadUserData(data.user.id);
-        } else {
-          console.error('[OAuth] exchange failed:',error);
-          setUser(null);setReady(true);
-        }
-      }).catch(e=>{
-        console.error('[OAuth] exchange threw:',e);
-        setUser(null);setReady(true);
-      });
+      // SIGNED_IN이 자동으로 loadUserData를 호출하므로 여기선 교환만 트리거
+      api.exchangeCode(urlCode).then(({error})=>{
+        if(error){console.error('[OAuth] exchange failed:',error?.message);setUser(null);setReady(true);}
+      }).catch(e=>{console.error('[OAuth] exchange threw:',e);setUser(null);setReady(true);});
       return()=>subscription.unsubscribe();
     }
 
@@ -821,7 +812,7 @@ function App() {
     let resolvedProf=profData;
     if(!profData&&u?.id){
       // 최초 Google OAuth 로그인 — profiles 행 자동 생성
-      await api.upsertProfile({id:u.id,name:googleName,updated_at:new Date().toISOString()}).catch(()=>{});
+      try{await api.upsertProfile({id:u.id,name:googleName,updated_at:new Date().toISOString()});}catch(e){}
       const {data:newProf}=await api.getProfile(u.id);
       resolvedProf=newProf;
     } else if(profData&&!profData.name&&googleName&&u?.id){
