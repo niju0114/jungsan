@@ -1188,8 +1188,6 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
             <button onClick={()=>setMenuOpen(o=>!o)} style={{background:C.inputBg,border:'none',borderRadius:12,color:C.textMid,cursor:'pointer',width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center'}}><span className="ms" style={{fontSize:22}}>more_horiz</span></button>
             {menuOpen&&(
               <div style={{position:'absolute',right:0,top:48,background:'#fff',borderRadius:16,boxShadow:'0 8px 32px rgba(0,0,0,0.12)',zIndex:50,minWidth:160,overflow:'hidden'}}>
-                <button onClick={()=>{nav.setView('setup');setMenuOpen(false);}} style={{width:'100%',padding:'15px 18px',background:'none',border:'none',cursor:'pointer',fontSize:15,color:C.text,textAlign:'left',fontWeight:600,display:'flex',alignItems:'center',gap:10}}><span className="ms ms-sm">manage_accounts</span>명단·계좌 설정</button>
-                <div style={{height:1,background:C.pageBg,margin:'0 16px'}}/>
                 <button onClick={logout} style={{width:'100%',padding:'15px 18px',background:'none',border:'none',cursor:'pointer',fontSize:15,color:C.red,textAlign:'left',fontWeight:600,display:'flex',alignItems:'center',gap:10}}><span className="ms ms-sm">logout</span>{loggingOut?'..':'로그아웃'}</button>
               </div>
             )}
@@ -1405,6 +1403,7 @@ function GuideModal({onClose,onFeedback}){
 
 // ── SetupScreen ────────────────────────────────────────────
 function SetupScreen({nav,profile,saveProfile,showToast}){
+  const [name,setName]=useState(profile.name||'');
   const [bank,setBank]=useState(profile.account?.bank||'');
   const [number,setNumber]=useState(profile.account?.number||'');
   const [holder,setHolder]=useState(profile.account?.holder||'');
@@ -1462,7 +1461,7 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
   };
   const saveProfileData=async()=>{
     setSavingProf(true);
-    await saveProfile({...profile,school,account:{bank,number,holder},groups});
+    await saveProfile({...profile,name,school,account:{bank,number,holder},groups});
     setSavingProf(false);setSavedProf(true);setTimeout(()=>setSavedProf(false),2200);
   };
   const cur=activeG===-1?null:(groups[activeG]??null);
@@ -1701,8 +1700,8 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
         </>}
         {activeTab==='profile'&&<>
         <Card>
-          <div style={{fontWeight:800,color:C.text,marginBottom:4,fontSize:15,display:'flex',alignItems:'center',gap:6}}><Icon n="user" size={15} color={C.accent}/>프로필</div>
-          <div style={{color:C.textDim,fontSize:12,marginBottom:14}}>신청폼·정산에 표시되는 정보예요 (선택)</div>
+          <div style={{fontWeight:800,color:C.text,marginBottom:14,fontSize:15,display:'flex',alignItems:'center',gap:6}}><Icon n="user" size={15} color={C.accent}/>프로필</div>
+          <Field label="이름" value={name} onChange={setName} placeholder="홍길동"/>
           <Field label="학교·단체" value={school} onChange={setSchool} placeholder="00대학교 / 00동아리"/>
         </Card>
         <Card>
