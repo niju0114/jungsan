@@ -1057,21 +1057,16 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
     <div className="fade-up screen" style={{background:'#fff',overflowY:'auto'}}>
       <div style={{padding:'56px 24px calc(48px + env(safe-area-inset-bottom)) 24px'}}>
 
-        {/* 로고 */}
-        <div style={{marginBottom:28,display:'flex',flexDirection:'column',alignItems:'flex-start',gap:10}}>
-          <svg viewBox="0 0 200 200" style={{width:56,height:56,borderRadius:16}}>
-            <defs><clipPath id="auth-logo"><circle cx="100" cy="100" r="100"/></clipPath></defs>
-            <g clipPath="url(#auth-logo)">
-              <rect width="200" height="200" fill="#6366F1"/>
-              <polygon points="0,200 200,0 200,200" fill="#A5A6F6"/>
-            </g>
-          </svg>
-          <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:-0.5}}>정산해</div>
-        </div>
-
         {/* 인사말 */}
         <div style={{marginBottom:36}}>
-          <div style={{fontSize:30,fontWeight:900,color:C.text,lineHeight:1.35,letterSpacing:-0.5,marginBottom:8}}>
+          <div style={{fontSize:30,fontWeight:900,color:C.text,lineHeight:1.35,letterSpacing:-0.5,marginBottom:8,display:'flex',alignItems:'center',gap:12}}>
+            <svg viewBox="0 0 200 200" style={{width:40,height:40,borderRadius:12,flexShrink:0}}>
+              <defs><clipPath id="auth-logo"><circle cx="100" cy="100" r="100"/></clipPath></defs>
+              <g clipPath="url(#auth-logo)">
+                <rect width="200" height="200" fill="#6366F1"/>
+                <polygon points="0,200 200,0 200,200" fill="#A5A6F6"/>
+              </g>
+            </svg>
             {mode==='login'?<>환영해요</>:<>정산해에<br/>오신 걸 환영해요</>}
           </div>
           <div style={{fontSize:15,color:C.textMid,fontWeight:500}}>
