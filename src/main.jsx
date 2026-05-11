@@ -731,6 +731,8 @@ function App() {
 
     const {data:{subscription}}=api.onAuthChange((_evt,session)=>{
       if(!session){
+        // OAuth 콜백 중 INITIAL_SESSION null은 PKCE 교환 대기 상태 — ready 설정 보류
+        if(isOAuthCallback&&_evt==='INITIAL_SESSION') return;
         setUser(null);setEvents([]);setForms([]);
         setProfile({id:null,account:{bank:'',number:'',holder:''},groups:[],name:''});
         // 참여자 화면이면 유지
@@ -784,7 +786,11 @@ function App() {
       if(!session&&!isParticipantPath&&!isOAuthCallback){setUser(null);setReady(true);}
     });
 
-    return()=>subscription.unsubscribe();
+    // OAuth 교환 실패 안전망: 8초 내 ready 안 되면 강제 설정 (무한 스피너 방지)
+    let oauthTimer;
+    if(isOAuthCallback) oauthTimer=setTimeout(()=>setReady(true),8000);
+
+    return()=>{subscription.unsubscribe();if(oauthTimer)clearTimeout(oauthTimer);};
   },[]);
 
   const loadUserData=async(uid)=>{
