@@ -953,11 +953,6 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
   const [userId,setUserId]=useState('');
   const [pw,setPw]=useState('');
   const [name,setName]=useState('');
-  const [org,setOrg]=useState('');
-  const [marketing,setMarketing]=useState(false);
-  const [privacyAgree,setPrivacyAgree]=useState(false);
-  const [termsAgree,setTermsAgree]=useState(false);
-  const [legalModal,setLegalModal]=useState(null);
   const [loading,setLoading]=useState(false);
   const [idChecked,setIdChecked]=useState(false);
   const [idAvail,setIdAvail]=useState(null);
@@ -990,8 +985,6 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
       }
       if(pw.length<6){setErr('비밀번호는 6자 이상이어야 해요');return;}
       if(!name.trim()){setErr('이름을 입력해주세요');return;}
-      if(!org.trim()){setErr('학교/단체명을 입력해주세요');return;}
-      if(!privacyAgree||!termsAgree){setErr('필수 약관에 모두 동의해주세요');return;}
     }
     setLoading(true);
     const email=toEmail(userId);
@@ -1026,9 +1019,7 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
         const {error:profErr}=await api.upsertProfile({
           id:uid,
           name:name.trim(),
-          school:org.trim(),
           username:userId.trim().toLowerCase(),
-          marketing_agree:marketing,
           updated_at:new Date().toISOString(),
         });
         if(profErr){console.error('Profile save error:',profErr);}
@@ -1093,51 +1084,16 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
           {!idChecking&&idChecked&&idAvail&&<div style={{color:C.green,fontSize:12,marginTop:-10,marginBottom:10,display:'flex',alignItems:'center',gap:4}}><Icon n="check" size={12} color={C.green}/>사용 가능한 아이디예요</div>}
           {!idChecking&&idChecked&&!idAvail&&err==='이미 사용 중인 아이디예요'&&<div style={{color:C.red,fontSize:12,marginTop:-10,marginBottom:10,display:'flex',alignItems:'center',gap:4}}><Icon n="x" size={12} color={C.red}/>사용 불가능한 아이디예요</div>}
           <Field label="비밀번호" value={pw} onChange={setPw} placeholder="6자 이상" type="password" onEnter={mode==='login'?submit:undefined}/>
+          {mode==='signup'&&<Field label="이름 *" value={name} onChange={setName} placeholder="홍길동"/>}
         </Card>
-
-        {mode==='signup'&&(
-          <>
-            <Card>
-              <div style={{fontWeight:700,color:C.textMid,fontSize:13,marginBottom:14}}>기본 정보</div>
-              <Field label="이름 (실명) *" value={name} onChange={setName} placeholder="홍길동"/>
-              <Field label="학교·단체 *" value={org} onChange={setOrg} placeholder="00대 학과/동아리"/>
-            </Card>
-            <Card>
-              <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:14}}>약관 동의</div>
-              {/* 전체 동의 */}
-              <div onClick={()=>{const allChecked=termsAgree&&privacyAgree&&marketing;setTermsAgree(!allChecked);setPrivacyAgree(!allChecked);setMarketing(!allChecked);}} style={{display:'flex',alignItems:'center',gap:12,cursor:'pointer',padding:'14px 16px',background:C.inputBg,borderRadius:14,marginBottom:14,border:`1.5px solid ${termsAgree&&privacyAgree?C.accent:C.border}`}}>
-                <div style={{width:24,height:24,borderRadius:8,border:`2px solid ${termsAgree&&privacyAgree&&marketing?C.accent:C.border}`,background:termsAgree&&privacyAgree&&marketing?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                  {termsAgree&&privacyAgree&&marketing&&<Icon n="check" size={14} color="#fff"/>}
-                </div>
-                <div style={{fontWeight:800,color:C.text,fontSize:14}}>모두 동의</div>
-              </div>
-              {[
-                {key:'terms',state:termsAgree,set:setTermsAgree,label:'이용약관',required:true},
-                {key:'privacy',state:privacyAgree,set:setPrivacyAgree,label:'개인정보 수집·이용',required:true},
-                {key:'marketing',state:marketing,set:setMarketing,label:'마케팅 수신',required:false},
-              ].map(item=>(
-                <div key={item.key} style={{display:'flex',alignItems:'center',gap:12,marginBottom:10}}>
-                  <div onClick={()=>item.set(v=>!v)} style={{width:22,height:22,borderRadius:7,border:`2px solid ${item.state?C.accent:item.required?C.red+'80':C.border}`,background:item.state?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,cursor:'pointer'}}>
-                    {item.state&&<Icon n="check" size={13} color="#fff"/>}
-                  </div>
-                  <span onClick={()=>item.set(v=>!v)} style={{flex:1,fontSize:13,fontWeight:600,color:C.text,cursor:'pointer'}}>
-                    {item.label}{!item.required&&<span style={{fontSize:11,color:C.textDim,fontWeight:400}}> (선택)</span>}
-                  </span>
-                  <button onClick={()=>setLegalModal(item.key)} style={{background:'none',border:'none',color:C.textDim,fontSize:11,cursor:'pointer',textDecoration:'underline',padding:0,flexShrink:0}}>보기</button>
-                </div>
-              ))}
-            </Card>
-            <Modal isOpen={!!legalModal} onClose={()=>setLegalModal(null)}
-              title={legalModal==='terms'?'서비스 이용약관':legalModal==='privacy'?'개인정보 처리방침':'마케팅 수신 동의'}>
-              <div style={{fontSize:13,color:C.textMid,lineHeight:2}}>
-                {legalModal&&LEGAL_TEXTS[legalModal]}
-              </div>
-            </Modal>
-          </>
-        )}
 
         {err&&<div style={{color:C.red,fontSize:13,marginBottom:12,padding:'11px 14px',background:C.redBg,borderRadius:10,display:'flex',alignItems:'center',gap:6}}><Icon n="triangle-alert" size={14} color={C.red}/>{err}</div>}
         <Btn onClick={submit} loading={loading}>{mode==='login'?'로그인':'가입하고 시작하기 →'}</Btn>
+        {mode==='signup'&&(
+          <div style={{textAlign:'center',marginTop:8}}>
+            <span style={{fontSize:11,color:C.textDim,lineHeight:1.5}}>가입하면 이용약관 및 개인정보처리방침에 동의한 것으로 간주됩니다</span>
+          </div>
+        )}
 
         <div style={{textAlign:'center',marginTop:18}}>
           <span style={{color:C.textDim,fontSize:14}}>{mode==='login'?'계정이 없으신가요?':'이미 계정이 있으신가요?'} </span>
@@ -1439,8 +1395,12 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
   })();
   const [groups,setGroups]=useState(_rawGroups);
   const [activeG,setActiveG]=useState(0);
+  const [activeTab,setActiveTab]=useState('members');
+  const [school,setSchool]=useState(profile.school||'');
   const [saving,setSaving]=useState(false);
   const [saved,setSaved]=useState(false);
+  const [savingProf,setSavingProf]=useState(false);
+  const [savedProf,setSavedProf]=useState(false);
   const [addingGroup,setAddingGroup]=useState(false);
   const [newGName,setNewGName]=useState('');
   const [pfmOpen,setPfmOpen]=useState(false);
@@ -1477,6 +1437,11 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
     await saveProfile({...profile,account:{bank,number,holder},groups});
     setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),2200);
   };
+  const saveProfileData=async()=>{
+    setSavingProf(true);
+    await saveProfile({...profile,school,account:{bank,number,holder},groups});
+    setSavingProf(false);setSavedProf(true);setTimeout(()=>setSavedProf(false),2200);
+  };
   const cur=activeG===-1?null:(groups[activeG]??null);
   const displayMembers=activeG===-1?groups.flatMap(g=>g.members||[]):(cur?.members||[]);
   const filteredMembers=searchQ?displayMembers.filter(m=>m.name.includes(searchQ)||(m.sid||'').includes(searchQ)):displayMembers;
@@ -1497,6 +1462,11 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
     <div className="fade-up screen" style={{background:C.pageBg}}>
       <Header title="명단·계좌 설정" onBack={()=>nav.setView('home')}/>
       <div style={{padding:'16px 16px 24px'}}>
+        <div style={{display:'flex',background:C.inputBg,borderRadius:12,padding:4,marginBottom:16}}>
+          <button onClick={()=>setActiveTab('members')} style={{flex:1,padding:'8px 0',borderRadius:8,border:'none',background:activeTab==='members'?C.cardBg:'transparent',color:activeTab==='members'?C.text:C.textDim,fontSize:14,fontWeight:activeTab==='members'?700:500,cursor:'pointer',transition:'all 0.15s'}}>명단·계좌</button>
+          <button onClick={()=>setActiveTab('profile')} style={{flex:1,padding:'8px 0',borderRadius:8,border:'none',background:activeTab==='profile'?C.cardBg:'transparent',color:activeTab==='profile'?C.text:C.textDim,fontSize:14,fontWeight:activeTab==='profile'?700:500,cursor:'pointer',transition:'all 0.15s'}}>프로필</button>
+        </div>
+        {activeTab==='members'&&<>
         <Card>
           <div style={{fontWeight:800,color:C.text,marginBottom:4,fontSize:15,display:'flex',alignItems:'center',gap:6}}><Icon n="credit-card" size={15} color={C.accent}/>입금 계좌</div>
           <div style={{color:C.textDim,fontSize:12,marginBottom:14}}>한 번 저장하면 모든 정산에 자동 적용돼요</div>
@@ -1705,6 +1675,22 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
         <div style={{marginTop:32,paddingTop:20,borderTop:`1px solid ${C.border}`}}>
           <DeleteAccountBtn showToast={showToast} nav={nav}/>
         </div>
+        </>}
+        {activeTab==='profile'&&<>
+        <Card>
+          <div style={{fontWeight:800,color:C.text,marginBottom:4,fontSize:15,display:'flex',alignItems:'center',gap:6}}><Icon n="user" size={15} color={C.accent}/>프로필</div>
+          <div style={{color:C.textDim,fontSize:12,marginBottom:14}}>신청폼·정산에 표시되는 정보예요 (선택)</div>
+          <Field label="학교·단체" value={school} onChange={setSchool} placeholder="00대학교 / 00동아리"/>
+        </Card>
+        <Card>
+          <div style={{fontWeight:800,color:C.text,marginBottom:4,fontSize:15,display:'flex',alignItems:'center',gap:6}}><Icon n="credit-card" size={15} color={C.accent}/>입금 계좌</div>
+          <div style={{color:C.textDim,fontSize:12,marginBottom:14}}>한 번 저장하면 모든 정산에 자동 적용돼요 (선택)</div>
+          <Field label="은행" value={bank} onChange={setBank} placeholder="카카오뱅크, 국민은행…"/>
+          <Field label="계좌번호" value={number} onChange={setNumber} placeholder="숫자만" inputMode="numeric"/>
+          <Field label="예금주" value={holder} onChange={setHolder} placeholder="홍길동"/>
+        </Card>
+        <Btn onClick={saveProfileData} loading={savingProf} variant={savedProf?'green':'primary'}>{savedProf?<><Icon n="check" size={16} color="#fff" style={{marginRight:4}}/>저장됐어요!</>:'저장하기'}</Btn>
+        </>}
       </div>
     </div>
   );
