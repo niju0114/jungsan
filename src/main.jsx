@@ -22,7 +22,7 @@ if (typeof window !== 'undefined' && import.meta.env.VITE_POSTHOG_KEY) {
 const SUPA_URL = 'https://jetxfddjunfpykgyurnf.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpldHhmZGRqdW5mcHlrZ3l1cm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMTAwNzMsImV4cCI6MjA5MDg4NjA3M30.Jg9cxDZw_aQ9EDy5bpheT7TEzUo8QZDIk9z5WNHwa1w';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' }
 });
 const ID_DOMAIN = '@jungsan.app';
 
@@ -716,15 +716,12 @@ function App() {
   const showToast=(msg,color=C.green)=>{setToast({msg,color});setTimeout(()=>setToast(null),2500);};
 
   useEffect(()=>{
-    // Google OAuth 콜백 처리 (hash fragment 제거)
-    if(window.location.hash) window.history.replaceState({},'',window.location.pathname+window.location.search);
-
     const urlParams=new URLSearchParams(window.location.search);
     const urlCode=urlParams.get('code');
     const urlForm=urlParams.get('form');
-    // OAuth PKCE 콜백은 ?code=&state= 형태 — 이벤트 코드와 구별
+    // PKCE 콜백은 ?code=&state= 형태 — 이벤트 코드와 구별
     const isOAuthCallback=!!urlParams.get('state');
-    console.log('[Auth] init | hash:',!!window.location.hash,'code:',urlCode,'state:',urlParams.get('state'),'isOAuth:',isOAuthCallback);
+    console.log('[Auth] init | hash:',window.location.hash,'code:',urlCode,'state:',urlParams.get('state'),'isOAuth:',isOAuthCallback);
     // OAuth 콜백 URL 즉시 정리 (UX + 재처리 방지)
     if(isOAuthCallback) window.history.replaceState({},'',window.location.pathname);
     // 참여자 경로에서는 form/event 로딩 완료 전까지 setReady 차단 (로그인 화면 깜빡임 방지)
