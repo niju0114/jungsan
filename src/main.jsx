@@ -802,6 +802,14 @@ function App() {
       api.getEvents(uid),
       api.getProfile(uid),
     ]);
+    // 탈퇴 계정 차단 (email 로그인뿐 아니라 Google OAuth도 동일하게 적용)
+    if(profData?.deleted){
+      await api.signOut();
+      setUser(null);setEvents([]);setForms([]);
+      setProfile({id:null,account:{bank:'',number:'',holder:''},groups:[],name:''});
+      setReady(true);
+      return;
+    }
     const formRes=await api.getForms(uid);
     const formData=formRes.data;
     const {data:{user:u}}=await api.getUser();
