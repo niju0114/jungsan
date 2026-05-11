@@ -532,6 +532,8 @@ const ICONS={
   'file-spreadsheet':'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/>',
   'share-2':'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>',
   receipt:'<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v1.25m0-10v1.25"/>',
+  'file-search':'<path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v3"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="5" cy="17" r="3"/><path d="m9 21-1.5-1.5"/>',
+  'bell-ring':'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="M4 2C2.8 3.7 2 5.7 2 8"/><path d="M20 2c1.2 1.7 2 3.7 2 6"/>',
 };
 const Icon=({n,size=18,color='currentColor',style={}})=>(
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:'inline-block',verticalAlign:'middle',flexShrink:0,...style}} dangerouslySetInnerHTML={{__html:ICONS[n]}}/>
@@ -929,7 +931,7 @@ function LandingScreen({nav}){
       </div>
       <div style={{flex:1,padding:'32px 24px',display:'flex',flexDirection:'column'}}>
         <div style={{flex:1}}>
-          {[['clipboard-list','명단 한 번 등록','학년·기수별로 저장해두면 매번 재사용'],['wallet','차수별 자동 계산','1인당 금액 자동으로 나눠줘요'],['bar-chart','실시간 O/X 보드','친구가 완료 누르면 바로 반영']].map(([icon,title,desc],i)=>(
+          {[['file-search','거래내역 자동 대조','은행 엑셀 올리면 입금자 자동 확인'],['calculator','학생회비 차등 계산','납부자·미납자 금액 자동 분리'],['bell-ring','콕 찌르기','미입금자에게 바로 독촉 메시지 전송']].map(([icon,title,desc],i)=>(
             <div key={title} style={{display:'flex',alignItems:'flex-start',gap:16,marginBottom:i<2?24:0}}>
               <div style={{width:48,height:48,borderRadius:16,background:C.accentBg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon n={icon} size={22} color={C.accent}/></div>
               <div style={{paddingTop:2}}>
