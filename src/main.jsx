@@ -816,7 +816,7 @@ function App() {
       const {data:newProf}=await api.getProfile(u.id);
       resolvedProf=newProf;
     } else if(profData&&!profData.name&&googleName&&u?.id){
-      api.updateProfile(u.id,{name:googleName}).catch(()=>{});
+      try{await api.updateProfile(u.id,{name:googleName});}catch(e){}
     }
     if(resolvedProf) setProfile({
       id:resolvedProf.id,
@@ -1733,7 +1733,7 @@ function DeleteAccountBtn({showToast,nav}){
       if(!user) throw new Error('no user');
       await Promise.all([api.deleteUserEvents(user.id),api.deleteUserForms(user.id)]);
       await api.updateProfile(user.id,{deleted:true,name:'',school:'',groups:[],account:{},username:null});
-      await api.deleteAuthUser().catch(()=>{});
+      try{await api.deleteAuthUser();}catch(e){}
       posthog.capture('탈퇴_완료');
       posthog.reset();
       await api.signOut();
