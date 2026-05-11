@@ -853,7 +853,7 @@ function App() {
     setEvents(syncedEvents);
     setProfile(prof);
     if(user?.id){
-      const {error}=await api.upsertProfile({id:user.id,account:prof.account,groups:prof.groups,school:prof.school||'',updated_at:new Date().toISOString()});
+      const {error}=await api.upsertProfile({id:user.id,name:prof.name||'',account:prof.account,groups:prof.groups,school:prof.school||'',updated_at:new Date().toISOString()});
       if(error){showToast('저장 실패',C.red);return;}
       await Promise.all(syncedEvents.map(ev=>api.updateEvent(ev.code,evToRow(ev))));
     }
