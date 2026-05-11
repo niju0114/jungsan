@@ -896,8 +896,7 @@ function App() {
 
   return(
     <div className="screen" style={{fontFamily:"'Pretendard',-apple-system,sans-serif",background:C.pageBg,maxWidth:480,margin:'0 auto',color:C.text,paddingBottom:60}}>
-      {!user&&view==='home'&&<LandingScreen nav={nav}/>}
-      {!user&&view==='auth'&&<AuthScreen nav={nav} showToast={showToast} setShowOnboarding={setShowOnboarding}/>}
+      {!user&&!['participantEvent','formSubmit'].includes(view)&&<AuthScreen nav={nav} showToast={showToast} setShowOnboarding={setShowOnboarding}/>}
       {view==='participantEvent'&&currentEvent&&<ParticipantScreen nav={nav} event={currentEvent} updateEvent={updateEvent} participantKey={participantKey} showToast={showToast}/>}
       {view==='formSubmit'&&currentForm&&<FormSubmitScreen nav={nav} form={currentForm} updateForm={updateForm} showToast={showToast}/>}
       {user&&view==='home'&&<HomeScreen nav={nav} user={user} profile={profile} events={events} forms={forms} showToast={showToast} onGuide={()=>setShowGuide(true)} showFeedback={showFeedback} onFeedbackDone={()=>setShowFeedback(false)}/>}
@@ -916,40 +915,6 @@ function App() {
   );
 }
 
-// ── LandingScreen ──────────────────────────────────────────
-function LandingScreen({nav}){
-  return(
-    <div className="fade-up screen" style={{background:'#fff',display:'flex',flexDirection:'column'}}>
-      <div style={{background:'#F5F3FF',padding:'72px 28px 56px',textAlign:'center'}}>
-        <svg viewBox="0 0 200 200" style={{width:56,height:56,margin:'0 auto 16px',display:'block'}}>
-          <defs><clipPath id="f1-land"><circle cx="100" cy="100" r="100"/></clipPath></defs>
-          <g clipPath="url(#f1-land)">
-            <rect width="200" height="200" fill="#6366F1"/>
-            <polygon points="0,200 200,0 200,200" fill="#A5A6F6"/>
-          </g>
-        </svg>
-        <div style={{fontSize:28,fontWeight:900,color:C.text,letterSpacing:-1,marginBottom:10}}>정산해</div>
-        <div style={{fontSize:16,color:C.textMid,fontWeight:600,lineHeight:1.6}}>총무의 부담을 1/10로 줄여드려요</div>
-      </div>
-      <div style={{flex:1,padding:'32px 24px',display:'flex',flexDirection:'column'}}>
-        <div style={{flex:1}}>
-          {[['file-search','거래내역 자동 대조','은행 엑셀 올리면 입금자 자동 확인'],['calculator','학생회비 차등 계산','납부자·미납자 금액 자동 분리'],['bell-ring','콕 찌르기','미입금자에게 바로 독촉 메시지 전송']].map(([icon,title,desc],i)=>(
-            <div key={title} style={{display:'flex',alignItems:'flex-start',gap:16,marginBottom:i<2?24:0}}>
-              <div style={{width:48,height:48,borderRadius:16,background:C.accentBg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon n={icon} size={22} color={C.accent}/></div>
-              <div style={{paddingTop:2}}>
-                <div style={{fontWeight:700,color:C.text,fontSize:15,marginBottom:4}}>{title}</div>
-                <div style={{color:C.textDim,fontSize:14,lineHeight:1.6}}>{desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div style={{paddingTop:32,paddingBottom:'calc(16px + env(safe-area-inset-bottom))'}}>
-          <Btn onClick={()=>nav.setView('auth')}>시작하기</Btn>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── AuthScreen ─────────────────────────────────────────────
 function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
@@ -1043,65 +1008,91 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
     if(error){showToast('Google 로그인에 실패했어요',C.red);setLoading(false);}
   };
 
+  const iStyle={width:'100%',padding:'15px 16px',background:'#F2F4F6',border:'1.5px solid transparent',borderRadius:14,color:C.text,fontSize:15,outline:'none',display:'block'};
+  const gSvg=(
+    <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg>
+  );
+
   return(
-    <div className="fade-up screen" style={{background:C.pageBg}}>
-      <Header title={mode==='login'?'로그인':'회원가입'} onBack={()=>nav.setView('home')}/>
-      <div style={{padding:'16px 16px calc(40px + env(safe-area-inset-bottom))'}}>
+    <div className="fade-up screen" style={{background:'#fff',overflowY:'auto'}}>
+      <div style={{padding:'64px 24px calc(48px + env(safe-area-inset-bottom)) 24px'}}>
 
-        {mode==='signup'&&(
-          <div style={{background:C.accentBg,borderRadius:16,padding:'14px 16px',marginBottom:14,border:`1px solid ${C.accent}20`}}>
-            <div style={{fontWeight:800,color:C.text,fontSize:14,marginBottom:2}}>🎉 정산해에 오신 걸 환영해요!</div>
-            <div style={{fontSize:12,color:C.textMid}}>아래 정보는 서비스 개선에만 활용돼요.</div>
+        {/* 인사말 */}
+        <div style={{marginBottom:36}}>
+          <div style={{fontSize:30,fontWeight:900,color:C.text,lineHeight:1.35,letterSpacing:-0.5,marginBottom:8}}>
+            {mode==='login'?<>다시 오신 걸<br/>환영해요</>:<>정산해에<br/>오신 걸 환영해요</>}
           </div>
-        )}
+          <div style={{fontSize:15,color:C.textMid,fontWeight:500}}>
+            {mode==='login'?'로그인하고 정산을 이어가세요':'총무의 부담을 1/10로'}
+          </div>
+        </div>
 
-        <button onClick={signInWithGoogle} disabled={loading} className="press" style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:10,padding:'13px 16px',background:'#fff',border:`1.5px solid ${C.border}`,borderRadius:14,fontSize:15,fontWeight:600,color:C.text,cursor:'pointer',marginBottom:6,boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
-          <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          Google로 계속하기
+        {/* Google 버튼 */}
+        <button onClick={signInWithGoogle} disabled={loading} className="press" style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:10,padding:'15px 16px',background:'#fff',border:`1.5px solid ${C.border}`,borderRadius:14,fontSize:15,fontWeight:600,color:C.text,cursor:'pointer',marginBottom:16}}>
+          {gSvg}{mode==='login'?'Google로 계속하기':'Google로 시작하기'}
         </button>
-        <div style={{textAlign:'center',marginBottom:14}}>
-          <span style={{fontSize:11,color:C.textDim,lineHeight:1.5}}>Google로 계속하면 이용약관 및 개인정보처리방침에 동의한 것으로 간주됩니다</span>
-        </div>
 
-        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+        {/* 구분선 */}
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
           <div style={{flex:1,height:1,background:C.border}}/>
-          <span style={{color:C.textDim,fontSize:13,fontWeight:500}}>또는</span>
+          <span style={{color:C.textDim,fontSize:13,whiteSpace:'nowrap'}}>또는 아이디로</span>
           <div style={{flex:1,height:1,background:C.border}}/>
         </div>
 
-        <Card>
-          <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:7}}>아이디</div>
-          <div style={{marginBottom:14}}>
-            <input value={userId} onChange={e=>{setUserId(e.target.value.replace(/[^a-zA-Z0-9_]/g,''));setIdChecked(false);setIdAvail(null);setErr('');}}
-              onBlur={()=>mode==='signup'&&userId.trim().length>=3&&checkId()}
-              placeholder="영문, 숫자, _ (3~20자)" maxLength={20}
-              style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${idChecked?(idAvail?C.green:C.red):C.border}`,borderRadius:12,color:C.text,fontSize:15,outline:'none',transition:'border 0.15s'}}
-              onFocus={e=>!idChecked&&(e.target.style.border=`1.5px solid ${C.accent}`)}
-            />
-          </div>
-          {idChecking&&<div style={{color:C.accent,fontSize:12,marginTop:-10,marginBottom:10}}>확인 중...</div>}
-          {!idChecking&&idChecked&&idAvail&&<div style={{color:C.green,fontSize:12,marginTop:-10,marginBottom:10,display:'flex',alignItems:'center',gap:4}}><Icon n="check" size={12} color={C.green}/>사용 가능한 아이디예요</div>}
-          {!idChecking&&idChecked&&!idAvail&&err==='이미 사용 중인 아이디예요'&&<div style={{color:C.red,fontSize:12,marginTop:-10,marginBottom:10,display:'flex',alignItems:'center',gap:4}}><Icon n="x" size={12} color={C.red}/>사용 불가능한 아이디예요</div>}
-          <Field label="비밀번호" value={pw} onChange={setPw} placeholder="6자 이상" type="password" onEnter={mode==='login'?submit:undefined}/>
-          {mode==='signup'&&<Field label="이름 *" value={name} onChange={setName} placeholder="홍길동"/>}
-        </Card>
-
-        {err&&<div style={{color:C.red,fontSize:13,marginBottom:12,padding:'11px 14px',background:C.redBg,borderRadius:10,display:'flex',alignItems:'center',gap:6}}><Icon n="triangle-alert" size={14} color={C.red}/>{err}</div>}
-        <Btn onClick={submit} loading={loading}>{mode==='login'?'로그인':'가입하고 시작하기 →'}</Btn>
+        {/* 이름 (signup, 맨 위) */}
         {mode==='signup'&&(
-          <div style={{textAlign:'center',marginTop:8}}>
-            <span style={{fontSize:11,color:C.textDim,lineHeight:1.5}}>가입하면 이용약관 및 개인정보처리방침에 동의한 것으로 간주됩니다</span>
+          <input value={name} onChange={e=>setName(e.target.value)}
+            onFocus={e=>e.target.style.borderColor=C.accent}
+            onBlur={e=>e.target.style.borderColor='transparent'}
+            placeholder="이름"
+            style={{...iStyle,marginBottom:10}}
+          />
+        )}
+
+        {/* 아이디 */}
+        <input value={userId}
+          onChange={e=>{setUserId(e.target.value.replace(/[^a-zA-Z0-9_]/g,''));setIdChecked(false);setIdAvail(null);setErr('');}}
+          onFocus={e=>!idChecked&&(e.target.style.borderColor=C.accent)}
+          onBlur={e=>{e.target.style.borderColor=idChecked?(idAvail?C.green:C.red):'transparent';mode==='signup'&&userId.trim().length>=3&&checkId();}}
+          placeholder="아이디"
+          maxLength={20}
+          style={{...iStyle,borderColor:idChecked?(idAvail?C.green:C.red):'transparent',marginBottom:(idChecking||idChecked)?4:10}}
+        />
+        {idChecking&&<div style={{fontSize:12,color:C.textDim,paddingLeft:4,marginBottom:10}}>확인 중...</div>}
+        {!idChecking&&idChecked&&idAvail&&<div style={{fontSize:12,color:C.green,paddingLeft:4,marginBottom:10,display:'flex',alignItems:'center',gap:4}}><Icon n="check" size={12} color={C.green}/>사용 가능한 아이디예요</div>}
+        {!idChecking&&idChecked&&!idAvail&&<div style={{fontSize:12,color:C.red,paddingLeft:4,marginBottom:10,display:'flex',alignItems:'center',gap:4}}><Icon n="x" size={12} color={C.red}/>사용 불가능한 아이디예요</div>}
+
+        {/* 비밀번호 */}
+        <input type="password" value={pw} onChange={e=>setPw(e.target.value)}
+          onFocus={e=>e.target.style.borderColor=C.accent}
+          onBlur={e=>e.target.style.borderColor='transparent'}
+          onKeyDown={e=>e.key==='Enter'&&mode==='login'&&submit()}
+          placeholder={mode==='login'?'비밀번호':'비밀번호 (6자 이상)'}
+          style={{...iStyle,marginBottom:10}}
+        />
+
+        {/* 에러 */}
+        {err&&<div style={{color:C.red,fontSize:13,marginBottom:12,padding:'11px 14px',background:C.redBg,borderRadius:10,display:'flex',alignItems:'center',gap:6}}><Icon n="triangle-alert" size={14} color={C.red}/>{err}</div>}
+
+        {/* 제출 버튼 */}
+        <Btn onClick={submit} loading={loading}>{mode==='login'?'로그인':'가입하기'}</Btn>
+
+        {/* 약관 (signup only) */}
+        {mode==='signup'&&(
+          <div style={{textAlign:'center',marginTop:14}}>
+            <span style={{fontSize:11,color:C.textDim,lineHeight:1.6}}>가입 시 이용약관 및 개인정보처리방침에 동의한 것으로 간주됩니다</span>
           </div>
         )}
 
-        <div style={{textAlign:'center',marginTop:18}}>
-          <span style={{color:C.textDim,fontSize:14}}>{mode==='login'?'계정이 없으신가요?':'이미 계정이 있으신가요?'} </span>
-          <button onClick={()=>{setMode(m=>m==='login'?'signup':'login');setErr('');}} style={{color:C.accent,fontWeight:700,fontSize:14,background:'none',border:'none',cursor:'pointer'}}>
+        {/* 모드 전환 */}
+        <div style={{textAlign:'center',marginTop:28}}>
+          <span style={{color:C.textDim,fontSize:14}}>{mode==='login'?'계정이 없으신가요? ':'이미 계정이 있으신가요? '}</span>
+          <button onClick={()=>{setMode(m=>m==='login'?'signup':'login');setErr('');setIdChecked(false);setIdAvail(null);}} style={{color:C.accent,fontWeight:700,fontSize:14,background:'none',border:'none',cursor:'pointer',padding:0}}>
             {mode==='login'?'회원가입':'로그인'}
           </button>
         </div>
