@@ -1704,13 +1704,6 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
           <Field label="이름" value={name} onChange={setName} placeholder="홍길동"/>
           <Field label="학교·단체" value={school} onChange={setSchool} placeholder="00대학교 / 00동아리"/>
         </Card>
-        <Card>
-          <div style={{fontWeight:800,color:C.text,marginBottom:4,fontSize:15,display:'flex',alignItems:'center',gap:6}}><Icon n="credit-card" size={15} color={C.accent}/>입금 계좌</div>
-          <div style={{color:C.textDim,fontSize:12,marginBottom:14}}>한 번 저장하면 모든 정산에 자동 적용돼요 (선택)</div>
-          <Field label="은행" value={bank} onChange={setBank} placeholder="카카오뱅크, 국민은행…"/>
-          <Field label="계좌번호" value={number} onChange={setNumber} placeholder="숫자만" inputMode="numeric"/>
-          <Field label="예금주" value={holder} onChange={setHolder} placeholder="홍길동"/>
-        </Card>
         <Btn onClick={saveProfileData} loading={savingProf} variant={savedProf?'green':'primary'}>{savedProf?<><Icon n="check" size={16} color="#fff" style={{marginRight:4}}/>저장됐어요!</>:'저장하기'}</Btn>
         </>}
       </div>
