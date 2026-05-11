@@ -724,12 +724,14 @@ function App() {
     const urlForm=urlParams.get('form');
     // OAuth PKCE 콜백은 ?code=&state= 형태 — 이벤트 코드와 구별
     const isOAuthCallback=!!urlParams.get('state');
+    console.log('[Auth] init | hash:',!!window.location.hash,'code:',urlCode,'state:',urlParams.get('state'),'isOAuth:',isOAuthCallback);
     // OAuth 콜백 URL 즉시 정리 (UX + 재처리 방지)
     if(isOAuthCallback) window.history.replaceState({},'',window.location.pathname);
     // 참여자 경로에서는 form/event 로딩 완료 전까지 setReady 차단 (로그인 화면 깜빡임 방지)
     const isParticipantPath=!!(!isOAuthCallback&&urlCode||urlForm);
 
     const {data:{subscription}}=api.onAuthChange((_evt,session)=>{
+      console.log('[Auth] event:',_evt,'uid:',session?.user?.id,'isOAuth:',isOAuthCallback);
       if(!session){
         // OAuth 콜백 중 INITIAL_SESSION null은 PKCE 교환 대기 상태 — ready 설정 보류
         if(isOAuthCallback&&_evt==='INITIAL_SESSION') return;
@@ -794,6 +796,7 @@ function App() {
   },[]);
 
   const loadUserData=async(uid)=>{
+    console.log('[loadUserData] uid:',uid);
     const [{data:evData},{data:profData}]=await Promise.all([
       api.getEvents(uid),
       api.getProfile(uid),
@@ -829,6 +832,7 @@ function App() {
       const resolvedName=resolvedProf.name||googleName||resolvedProf.username||'';
       posthog.identify(u.id,{email:u.email,name:resolvedName,school:resolvedProf.school||''});
     }
+    console.log('[loadUserData] done | user:',u?.id,'prof:',resolvedProf?.id);
     setReady(true);
     // 참여자/신청폼 화면이면 유지, 나머지는 홈으로 (로그인 후 빈 화면 방지)
     setView(v=>['participantEvent','formSubmit'].includes(v)?v:(!v||v==='auth'||v==='home')?'home':v);
