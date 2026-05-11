@@ -1034,7 +1034,7 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
         {/* 인사말 */}
         <div style={{marginBottom:36}}>
           <div style={{fontSize:30,fontWeight:900,color:C.text,lineHeight:1.35,letterSpacing:-0.5,marginBottom:8}}>
-            {mode==='login'?<>다시 오신 걸<br/>환영해요</>:<>정산해에<br/>오신 걸 환영해요</>}
+            {mode==='login'?<>환영해요</>:<>정산해에<br/>오신 걸 환영해요</>}
           </div>
           <div style={{fontSize:15,color:C.textMid,fontWeight:500}}>
             {mode==='login'?'로그인하고 정산을 이어가세요':'총무의 부담을 1/10로'}
