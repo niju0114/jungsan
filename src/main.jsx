@@ -22,7 +22,7 @@ if (typeof window !== 'undefined' && import.meta.env.VITE_POSTHOG_KEY) {
 const SUPA_URL = 'https://jetxfddjunfpykgyurnf.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpldHhmZGRqdW5mcHlrZ3l1cm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMTAwNzMsImV4cCI6MjA5MDg4NjA3M30.Jg9cxDZw_aQ9EDy5bpheT7TEzUo8QZDIk9z5WNHwa1w';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, flowType: 'pkce' }
 });
 const ID_DOMAIN = '@jungsan.app';
 
@@ -52,6 +52,7 @@ const api = {
   signUp: (email, pw) => sb.auth.signUp({email, password:pw}),
   signOut: () => sb.auth.signOut(),
   signInWithOAuth: () => sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin}}),
+  exchangeCode: (code) => sb.auth.exchangeCodeForSession(code),
   onAuthChange: (cb) => sb.auth.onAuthStateChange(cb),
 
   // Events
@@ -780,16 +781,28 @@ function App() {
       return()=>subscription.unsubscribe();
     }
 
-    // OAuth 콜백 중에는 getSession이 null 반환할 수 있음 — onAuthStateChange에 위임
+    if(isOAuthCallback){
+      // detectSessionInUrl:false이므로 직접 코드 교환
+      api.exchangeCode(urlCode).then(({data,error})=>{
+        console.log('[OAuth] exchange result | user:',data?.user?.id,'error:',error?.message,error?.status);
+        if(data?.user){
+          loadUserData(data.user.id);
+        } else {
+          console.error('[OAuth] exchange failed:',error);
+          setUser(null);setReady(true);
+        }
+      }).catch(e=>{
+        console.error('[OAuth] exchange threw:',e);
+        setUser(null);setReady(true);
+      });
+      return()=>subscription.unsubscribe();
+    }
+
     api.getSession().then(({data:{session}})=>{
-      if(!session&&!isParticipantPath&&!isOAuthCallback){setUser(null);setReady(true);}
+      if(!session&&!isParticipantPath){setUser(null);setReady(true);}
     });
 
-    // OAuth 교환 실패 안전망: 8초 내 ready 안 되면 강제 설정 (무한 스피너 방지)
-    let oauthTimer;
-    if(isOAuthCallback) oauthTimer=setTimeout(()=>setReady(true),8000);
-
-    return()=>{subscription.unsubscribe();if(oauthTimer)clearTimeout(oauthTimer);};
+    return()=>subscription.unsubscribe();
   },[]);
 
   const loadUserData=async(uid)=>{
