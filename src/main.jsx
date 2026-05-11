@@ -822,6 +822,14 @@ function App() {
       // 최초 Google OAuth 로그인 — profiles 행 자동 생성
       try{await api.upsertProfile({id:u.id,name:googleName,updated_at:new Date().toISOString()});}catch(e){}
       const {data:newProf}=await api.getProfile(u.id);
+      if(!newProf){
+        // upsert 후에도 프로필을 읽을 수 없음 → RLS가 탈퇴 계정을 차단 중
+        await api.signOut();
+        setUser(null);setEvents([]);setForms([]);
+        setProfile({id:null,account:{bank:'',number:'',holder:''},groups:[],name:''});
+        setReady(true);
+        return;
+      }
       resolvedProf=newProf;
     } else if(profData&&!profData.name&&googleName&&u?.id){
       try{await api.updateProfile(u.id,{name:googleName});}catch(e){}
@@ -830,7 +838,7 @@ function App() {
       id:resolvedProf.id,
       account:resolvedProf.account||{bank:'',number:'',holder:''},
       groups:resolvedProf.groups||[],
-      name:resolvedProf.name||googleName||resolvedProf.username||'',
+      name:resolvedProf.name||googleName||'',
       school:resolvedProf.school||'',
       department:resolvedProf.department||'',
       role:resolvedProf.role||'',
@@ -838,8 +846,7 @@ function App() {
       username:resolvedProf.username||'',
     });
     if(resolvedProf&&u){
-      const resolvedName=resolvedProf.name||googleName||resolvedProf.username||'';
-      posthog.identify(u.id,{email:u.email,name:resolvedName,school:resolvedProf.school||''});
+      posthog.identify(u.id,{email:u.email,name:resolvedProf.name||googleName||'',school:resolvedProf.school||''});
     }
     console.log('[loadUserData] done | user:',u?.id,'prof:',resolvedProf?.id);
     setReady(true);
