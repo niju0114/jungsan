@@ -724,6 +724,8 @@ function App() {
     const urlForm=urlParams.get('form');
     // OAuth PKCE 콜백은 ?code=&state= 형태 — 이벤트 코드와 구별
     const isOAuthCallback=!!urlParams.get('state');
+    // OAuth 콜백 URL 즉시 정리 (UX + 재처리 방지)
+    if(isOAuthCallback) window.history.replaceState({},'',window.location.pathname);
     // 참여자 경로에서는 form/event 로딩 완료 전까지 setReady 차단 (로그인 화면 깜빡임 방지)
     const isParticipantPath=!!(!isOAuthCallback&&urlCode||urlForm);
 
@@ -777,8 +779,9 @@ function App() {
       return()=>subscription.unsubscribe();
     }
 
+    // OAuth 콜백 중에는 getSession이 null 반환할 수 있음 — onAuthStateChange에 위임
     api.getSession().then(({data:{session}})=>{
-      if(!session&&!isParticipantPath){setUser(null);setReady(true);}
+      if(!session&&!isParticipantPath&&!isOAuthCallback){setUser(null);setReady(true);}
     });
 
     return()=>subscription.unsubscribe();
@@ -796,27 +799,33 @@ function App() {
     if(evData) setEvents(evData.map(rowToEv));
     if(formData) setForms(formData.map(rowToForm));
     const googleName=u?.user_metadata?.full_name||'';
-    if(profData&&!profData.name&&googleName&&u?.id){
+    let resolvedProf=profData;
+    if(!profData&&u?.id){
+      // 최초 Google OAuth 로그인 — profiles 행 자동 생성
+      await api.upsertProfile({id:u.id,name:googleName,updated_at:new Date().toISOString()}).catch(()=>{});
+      const {data:newProf}=await api.getProfile(u.id);
+      resolvedProf=newProf;
+    } else if(profData&&!profData.name&&googleName&&u?.id){
       api.updateProfile(u.id,{name:googleName}).catch(()=>{});
     }
-    if(profData) setProfile({
-      id:profData.id,
-      account:profData.account||{bank:'',number:'',holder:''},
-      groups:profData.groups||[],
-      name:profData.name||googleName||profData.username||'',
-      school:profData.school||'',
-      department:profData.department||'',
-      role:profData.role||'',
-      phone:profData.phone||'',
-      username:profData.username||'',
+    if(resolvedProf) setProfile({
+      id:resolvedProf.id,
+      account:resolvedProf.account||{bank:'',number:'',holder:''},
+      groups:resolvedProf.groups||[],
+      name:resolvedProf.name||googleName||resolvedProf.username||'',
+      school:resolvedProf.school||'',
+      department:resolvedProf.department||'',
+      role:resolvedProf.role||'',
+      phone:resolvedProf.phone||'',
+      username:resolvedProf.username||'',
     });
-    if(profData&&u){
-      const resolvedName=profData.name||googleName||profData.username||'';
-      posthog.identify(u.id,{email:u.email,name:resolvedName,school:profData.school||''});
+    if(resolvedProf&&u){
+      const resolvedName=resolvedProf.name||googleName||resolvedProf.username||'';
+      posthog.identify(u.id,{email:u.email,name:resolvedName,school:resolvedProf.school||''});
     }
     setReady(true);
-    // 참여자/신청폼 화면이면 유지, auth/빈값이면 홈으로
-    setView(v=>['participantEvent','formSubmit'].includes(v)?v:(!v||v==='auth')?'home':v);
+    // 참여자/신청폼 화면이면 유지, 나머지는 홈으로 (로그인 후 빈 화면 방지)
+    setView(v=>['participantEvent','formSubmit'].includes(v)?v:(!v||v==='auth'||v==='home')?'home':v);
   };
 
   const saveProfile=async(prof)=>{
