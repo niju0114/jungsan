@@ -25,6 +25,7 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, flowType: 'pkce' }
 });
 const ID_DOMAIN = '@jungsan.app';
+const DECRYPT_API_URL = import.meta.env.VITE_DECRYPT_API_URL || '';
 
 const C = {
   pageBg:'#F2F3F5', cardBg:'#FFFFFF', inputBg:'#F7F8FA',
@@ -344,6 +345,18 @@ const sortByRequested = (keys, payments, nameOf=k=>k) => {
 const extraKey = (roundId, em, ei) =>
   `__extra__${roundId}__${em.id || 'legacyidx_'+ei}`;
 
+const decryptExcel = async (data, password) => {
+  const fd = new FormData();
+  fd.append('file', new Blob([data], {type:'application/octet-stream'}), 'file.xlsx');
+  fd.append('password', password);
+  const res = await fetch(`${DECRYPT_API_URL}/decrypt`, {method:'POST', body:fd});
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.detail || 'DECRYPT_FAILED');
+  }
+  return res.arrayBuffer();
+};
+
 // 입금 대조 매칭 엔진 (순수 함수)
 const matchEngine = {
   NAME_COLS: ['의뢰인','수취인','입금자','입금자명','보내는분','받는분','거래상대','거래자','보낸이','받는이','이름','거래내용','기재내용','통장표시','비고','내용','메모','적요'],
@@ -364,7 +377,13 @@ const matchEngine = {
   },
 
   parseExcel(arrayBuffer) {
-    const wb=XLSX.read(arrayBuffer);
+    let wb;
+    try {
+      wb=XLSX.read(arrayBuffer);
+    } catch(e) {
+      if(/password|encrypt|crypt|protected/i.test(e?.message||'')) return {error:'NEEDS_PASSWORD'};
+      return {error:'파일을 읽을 수 없어요. .xlsx 또는 .xls 파일인지 확인해주세요.'};
+    }
     const ws=wb.Sheets[wb.SheetNames[0]];
     const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
 
@@ -685,6 +704,33 @@ const ConfirmBulkModal = ({isOpen, onClose, count, onConfirm}) => (
     </div>
   </Modal>
 );
+
+const ExcelPasswordModal = ({isOpen, onClose, onSubmit, loading}) => {
+  const [pwd, setPwd] = useState('');
+  useEffect(()=>{if(!isOpen) setPwd('');},[isOpen]);
+  const submit = () => { if(pwd) onSubmit(pwd); };
+  return (
+    <Modal isOpen={isOpen} onClose={loading?undefined:onClose} showCloseButton={!loading} maxWidth={360} closeOnBackdrop={!loading}>
+      <div style={{textAlign:'center',marginBottom:20}}>
+        <div style={{width:56,height:56,borderRadius:28,background:C.accent+'20',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 10px'}}><Icon n="lock" size={28} color={C.accent}/></div>
+        <div style={{fontWeight:900,color:C.text,fontSize:17,marginBottom:4}}>거래내역서 비밀번호 입력</div>
+        <div style={{fontSize:12,color:C.textDim,marginBottom:14}}>은행에서 설정한 비밀번호를 입력해주세요</div>
+        <div style={{fontSize:11,color:C.textMid,background:C.accentBg,borderRadius:8,padding:'6px 10px',display:'flex',alignItems:'center',gap:4}}><Icon n="lock" size={11} color={C.accent}/><span>비밀번호는 복호화 후 즉시 삭제됩니다</span></div>
+      </div>
+      <input
+        type="password" value={pwd} onChange={e=>setPwd(e.target.value)}
+        onKeyDown={e=>e.key==='Enter'&&submit()} placeholder="비밀번호" autoFocus
+        style={{width:'100%',padding:'14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,color:C.text,outline:'none',boxSizing:'border-box',marginBottom:14}}
+        onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
+        onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
+      />
+      <div style={{display:'flex',gap:10}}>
+        <Btn variant="ghost" onClick={onClose} disabled={loading} style={{flex:1}}>취소</Btn>
+        <Btn onClick={submit} loading={loading} disabled={!pwd} style={{flex:2}}>확인</Btn>
+      </div>
+    </Modal>
+  );
+};
 
 // Realtime hook
 function useRealtimeEvent(code, onUpdate) {
@@ -2714,6 +2760,7 @@ function ShareSection({event,showToast}){
 function ExcelUploadModal({uploading,fileRef,onClose}){
   const [bankOpen,setBankOpen]=useState(new Set());
   const toggle=id=>setBankOpen(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
+  useEffect(()=>{if(DECRYPT_API_URL) fetch(`${DECRYPT_API_URL}/health`).catch(()=>{});},[]);
   return(
     <Modal isOpen={true} onClose={onClose} title={<><Icon n="bar-chart" size={15} color={C.text} style={{marginRight:4}}/>자동 대조</>}>
       <div style={{textAlign:'center',marginBottom:16}}>
@@ -2947,6 +2994,8 @@ function StatusSection({event,updateEvent,groups,showToast}){
   const [animating,setAnimating]=useState(false);
   const [uploading,setUploading]=useState(false);
   const [showExcelModal,setShowExcelModal]=useState(false);
+  const [excelPwdOpen,setExcelPwdOpen]=useState(false);
+  const [pendingExcelData,setPendingExcelData]=useState(null);
   const excelFileRef=useRef(null);
   const animTimers=useRef([]);
   const eventRef=useRef(event);
@@ -2960,6 +3009,62 @@ function StatusSection({event,updateEvent,groups,showToast}){
     setConfirmBulk(false);
   };
 
+  const _applyExcelParsed=async parsed=>{
+    if(parsed.deposits.length===0){showToast('입금 내역이 없어요',C.red);return;}
+    const esubs=presentMembers.map(k=>({name:mm[k]||k,key:k}));
+    posthog.capture('정산_거래내역_업로드',{명단_수:esubs.length});
+    const results=matchEngine.match(parsed.deposits,esubs,s=>amounts[s.key]||0);
+    const byKey={};
+    (results.partial||[]).forEach(m=>{byKey[m.sub.key]={type:'partial',totalAmount:m.totalAmount,expected:amounts[m.sub.key]||0,depositCount:m.deposits.length};});
+    (results.overpaid||[]).forEach(m=>{byKey[m.sub.key]={type:'overpaid',totalAmount:m.totalAmount,expected:amounts[m.sub.key]||0};});
+    const needsCheck=(results.partial||[]).length+(results.overpaid||[]).length;
+    const isEmpty=results.matched.length===0&&needsCheck===0&&(results.refund||[]).length===0;
+    const newSummary={byKey,refund:results.refund||[],stats:{matched:results.matched.length,needsCheck},emptyResult:isEmpty};
+    posthog.capture('정산_자동_대조_완료',{매칭_수:results.matched.length,확인_필요_수:needsCheck,미입금_수:esubs.length-results.matched.length-needsCheck,명단에_없는_입금_수:(results.refund||[]).length});
+    setMatchSummary(newSummary);
+    const now=new Date().toISOString();
+    const newPayments={...eventRef.current.payments};
+    // 수동 변경 카드 skip (by:'admin')
+    const skipKeys=new Set(Object.entries(eventRef.current.payments||{}).filter(([,p])=>p?.by==='admin').map(([k])=>k));
+    results.matched.forEach(m=>{
+      if(skipKeys.has(m.sub.key)) return;
+      newPayments[m.sub.key]={payStatus:'paid',hasBeenConfirmed:true,requestedAt:eventRef.current.payments[m.sub.key]?.requestedAt||null,time:now,by:'auto'};
+    });
+    (results.partial||[]).forEach(m=>{
+      if(skipKeys.has(m.sub.key)) return;
+      newPayments[m.sub.key]={payStatus:'requested',hasBeenConfirmed:false,requestedAt:eventRef.current.payments[m.sub.key]?.requestedAt||now,time:null,by:null,matchType:'partial',matchedAmount:m.totalAmount,expectedAmount:amounts[m.sub.key]||0,matchedBy:'auto'};
+    });
+    (results.overpaid||[]).forEach(m=>{
+      if(skipKeys.has(m.sub.key)) return;
+      newPayments[m.sub.key]={payStatus:'requested',hasBeenConfirmed:false,requestedAt:eventRef.current.payments[m.sub.key]?.requestedAt||now,time:null,by:null,matchType:'overpaid',matchedAmount:m.totalAmount,expectedAmount:amounts[m.sub.key]||0,matchedBy:'auto'};
+    });
+    const matchedKeys=results.matched.filter(m=>!skipKeys.has(m.sub.key)).map(m=>m.sub.key);
+    animTimers.current.forEach(t=>clearTimeout(t));
+    animTimers.current=[];
+    const lms={matchedCount:newSummary.stats.matched,needsCheck,refund:newSummary.refund.map(d=>({name:d.name,amount:d.amount})),matchedAt:now};
+    if(matchedKeys.length>0){
+      setAnimating(true);
+      const interval=matchedKeys.length<=50?30:Math.floor(1500/matchedKeys.length);
+      matchedKeys.forEach((key,i)=>{
+        const t=setTimeout(()=>setAnimatingPaidKeys(prev=>new Set([...prev,key])),i*interval);
+        animTimers.current.push(t);
+      });
+      const finalT=setTimeout(async()=>{
+        await updateEvent({...eventRef.current,payments:newPayments,refundList:newSummary.refund.map(d=>({name:d.name,amount:d.amount})),lastMatchSummary:lms});
+        setAnimating(false);
+        setAnimatingPaidKeys(new Set());
+      },matchedKeys.length*interval+100);
+      animTimers.current.push(finalT);
+    } else if(!isEmpty){
+      await updateEvent({...eventRef.current,payments:newPayments,refundList:newSummary.refund.map(d=>({name:d.name,amount:d.amount})),lastMatchSummary:lms});
+    }
+    const parts=[];
+    if(results.matched.length>0) parts.push(`${results.matched.length}명 처리`);
+    if(needsCheck>0) parts.push(`확인 필요 ${needsCheck}명`);
+    if(isEmpty) showToast('매칭 결과 없음 — 거래내역서 형식 확인',C.yellow);
+    else showToast(parts.length?parts.join(', '):`${results.totalDeposits}건 분석`);
+  };
+
   const handleExcel=async e=>{
     const file=e.target.files?.[0];
     if(!file) return;
@@ -2968,64 +3073,30 @@ function StatusSection({event,updateEvent,groups,showToast}){
     try{
       const data=await file.arrayBuffer();
       const parsed=matchEngine.parseExcel(data);
+      if(parsed.error==='NEEDS_PASSWORD'){setPendingExcelData(data);setExcelPwdOpen(true);setUploading(false);return;}
       if(parsed.error){showToast(parsed.error,C.red);setUploading(false);return;}
-      if(parsed.deposits.length===0){showToast('입금 내역이 없어요',C.red);setUploading(false);return;}
-      const esubs=presentMembers.map(k=>({name:mm[k]||k,key:k}));
-      posthog.capture('정산_거래내역_업로드',{명단_수:esubs.length});
-      const results=matchEngine.match(parsed.deposits,esubs,s=>amounts[s.key]||0);
-      const byKey={};
-      (results.partial||[]).forEach(m=>{byKey[m.sub.key]={type:'partial',totalAmount:m.totalAmount,expected:amounts[m.sub.key]||0,depositCount:m.deposits.length};});
-      (results.overpaid||[]).forEach(m=>{byKey[m.sub.key]={type:'overpaid',totalAmount:m.totalAmount,expected:amounts[m.sub.key]||0};});
-      const needsCheck=(results.partial||[]).length+(results.overpaid||[]).length;
-      const isEmpty=results.matched.length===0&&needsCheck===0&&(results.refund||[]).length===0;
-      const newSummary={byKey,refund:results.refund||[],stats:{matched:results.matched.length,needsCheck},emptyResult:isEmpty};
-      posthog.capture('정산_자동_대조_완료',{매칭_수:results.matched.length,확인_필요_수:needsCheck,미입금_수:esubs.length-results.matched.length-needsCheck,명단에_없는_입금_수:(results.refund||[]).length});
-      setMatchSummary(newSummary);
-      const now=new Date().toISOString();
-      const newPayments={...eventRef.current.payments};
-      // 수동 변경 카드 skip (by:'admin')
-      const skipKeys=new Set(Object.entries(eventRef.current.payments||{}).filter(([,p])=>p?.by==='admin').map(([k])=>k));
-      results.matched.forEach(m=>{
-        if(skipKeys.has(m.sub.key)) return;
-        newPayments[m.sub.key]={payStatus:'paid',hasBeenConfirmed:true,requestedAt:eventRef.current.payments[m.sub.key]?.requestedAt||null,time:now,by:'auto'};
-      });
-      (results.partial||[]).forEach(m=>{
-        if(skipKeys.has(m.sub.key)) return;
-        newPayments[m.sub.key]={payStatus:'requested',hasBeenConfirmed:false,requestedAt:eventRef.current.payments[m.sub.key]?.requestedAt||now,time:null,by:null,matchType:'partial',matchedAmount:m.totalAmount,expectedAmount:amounts[m.sub.key]||0,matchedBy:'auto'};
-      });
-      (results.overpaid||[]).forEach(m=>{
-        if(skipKeys.has(m.sub.key)) return;
-        newPayments[m.sub.key]={payStatus:'requested',hasBeenConfirmed:false,requestedAt:eventRef.current.payments[m.sub.key]?.requestedAt||now,time:null,by:null,matchType:'overpaid',matchedAmount:m.totalAmount,expectedAmount:amounts[m.sub.key]||0,matchedBy:'auto'};
-      });
-      const matchedKeys=results.matched.filter(m=>!skipKeys.has(m.sub.key)).map(m=>m.sub.key);
-      animTimers.current.forEach(t=>clearTimeout(t));
-      animTimers.current=[];
-      const lms={matchedCount:newSummary.stats.matched,needsCheck,refund:newSummary.refund.map(d=>({name:d.name,amount:d.amount})),matchedAt:now};
-      if(matchedKeys.length>0){
-        setAnimating(true);
-        const interval=matchedKeys.length<=50?30:Math.floor(1500/matchedKeys.length);
-        matchedKeys.forEach((key,i)=>{
-          const t=setTimeout(()=>setAnimatingPaidKeys(prev=>new Set([...prev,key])),i*interval);
-          animTimers.current.push(t);
-        });
-        const finalT=setTimeout(async()=>{
-          await updateEvent({...eventRef.current,payments:newPayments,refundList:newSummary.refund.map(d=>({name:d.name,amount:d.amount})),lastMatchSummary:lms});
-          setAnimating(false);
-          setAnimatingPaidKeys(new Set());
-        },matchedKeys.length*interval+100);
-        animTimers.current.push(finalT);
-      } else if(!isEmpty){
-        await updateEvent({...eventRef.current,payments:newPayments,refundList:newSummary.refund.map(d=>({name:d.name,amount:d.amount})),lastMatchSummary:lms});
-      }
-      const parts=[];
-      if(results.matched.length>0) parts.push(`${results.matched.length}명 처리`);
-      if(needsCheck>0) parts.push(`확인 필요 ${needsCheck}명`);
-      if(isEmpty) showToast('매칭 결과 없음 — 거래내역서 형식 확인',C.yellow);
-      else showToast(parts.length?parts.join(', '):`${results.totalDeposits}건 분석`);
+      await _applyExcelParsed(parsed);
     }catch(err){
       console.error(err);
       showToast('파일을 읽을 수 없어요',C.red);
       setAnimating(false);
+    }
+    setUploading(false);
+    if(excelFileRef.current) excelFileRef.current.value='';
+  };
+
+  const submitExcelPassword=async password=>{
+    setUploading(true);
+    try{
+      const decrypted=await decryptExcel(pendingExcelData,password);
+      const parsed=matchEngine.parseExcel(decrypted);
+      if(parsed.error){showToast(parsed.error,C.red);setUploading(false);return;}
+      setExcelPwdOpen(false);
+      setPendingExcelData(null);
+      await _applyExcelParsed(parsed);
+    }catch(err){
+      if(err.message==='WRONG_PASSWORD') showToast('비밀번호가 틀려요. 다시 입력해주세요.',C.red);
+      else showToast('파일 복호화에 실패했어요.',C.red);
     }
     setUploading(false);
     if(excelFileRef.current) excelFileRef.current.value='';
@@ -3154,6 +3225,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
           unpaidList={unpaidXList} showToast={showToast} onClose={()=>setDunningOpen(false)}/>
       )}
       {showExcelModal&&<ExcelUploadModal uploading={uploading} fileRef={excelFileRef} onClose={()=>setShowExcelModal(false)}/>}
+      {excelPwdOpen&&<ExcelPasswordModal isOpen={excelPwdOpen} onClose={()=>{setExcelPwdOpen(false);setPendingExcelData(null);}} onSubmit={submitExcelPassword} loading={uploading}/>}
       {detailKey&&(()=>{
         const dp=event.payments?.[detailKey];
         const dSt=getPayStatus(dp);
@@ -4846,6 +4918,8 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
   const [animatingPaidCrAts,setAnimatingPaidCrAts]=useState(new Set());
   const [formAnimating,setFormAnimating]=useState(false);
   const [uploading,setUploading]=useState(false);
+  const [excelPwdOpen,setExcelPwdOpen]=useState(false);
+  const [pendingExcelData,setPendingExcelData]=useState(null);
   const formAnimTimers=useRef([]);
   const formRef=useRef(form);
   useEffect(()=>{formRef.current=form;},[form]);
@@ -4905,6 +4979,61 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
     else showToast('공유 완료');
   };
 
+  const _applyFormExcelParsed=async parsed=>{
+    if(parsed.deposits.length===0){showToast('입금 내역이 없어요',C.red);return;}
+    const curSubs=formRef.current.submissions||[];
+    const results=matchEngine.match(parsed.deposits,curSubs,s=>getUserAmount(formRef.current,s.name,s.data?.studentId));
+    const byKey={};
+    (results.partial||[]).forEach(m=>{byKey[m.sub.createdAt]={type:'partial',totalAmount:m.totalAmount,expected:getUserAmount(formRef.current,m.sub.name,m.sub.data?.studentId),depositCount:m.deposits.length};});
+    (results.overpaid||[]).forEach(m=>{byKey[m.sub.createdAt]={type:'overpaid',totalAmount:m.totalAmount,expected:getUserAmount(formRef.current,m.sub.name,m.sub.data?.studentId)};});
+    const needsCheck=(results.partial||[]).length+(results.overpaid||[]).length;
+    const isEmpty=results.matched.length===0&&needsCheck===0&&(results.refund||[]).length===0;
+    // 수동 변경 카드 skip (matchedBy:'manual')
+    const matchedCrAts=results.matched.filter(m=>curSubs.find(s=>s.createdAt===m.sub.createdAt)?.matchedBy!=='manual').map(m=>m.sub.createdAt);
+    const newSummary={byKey,refund:results.refund||[],stats:{matched:matchedCrAts.length,needsCheck},emptyResult:isEmpty};
+    setFormMatchSummary(newSummary);
+    setShowExcelModal(false);
+    const newSubs=[...curSubs];
+    const now=new Date().toISOString();
+    results.matched.forEach(m=>{
+      const idx=newSubs.findIndex(s=>s.createdAt===m.sub.createdAt);
+      if(idx>=0&&newSubs[idx].matchedBy!=='manual') newSubs[idx]={...newSubs[idx],paid:true,paymentStatus:'matched',matchedAmount:m.totalAmount,matchedAt:now,matchedBy:'auto'};
+    });
+    (results.partial||[]).forEach(m=>{
+      const idx=newSubs.findIndex(s=>s.createdAt===m.sub.createdAt);
+      if(idx>=0&&!(newSubs[idx].paid||newSubs[idx].paymentStatus==='matched')&&newSubs[idx].matchedBy!=='manual')
+        newSubs[idx]={...newSubs[idx],paymentStatus:'requested',requestedAt:newSubs[idx].requestedAt||now,matchType:'partial',matchedAmount:m.totalAmount};
+    });
+    (results.overpaid||[]).forEach(m=>{
+      const idx=newSubs.findIndex(s=>s.createdAt===m.sub.createdAt);
+      if(idx>=0&&!(newSubs[idx].paid||newSubs[idx].paymentStatus==='matched')&&newSubs[idx].matchedBy!=='manual')
+        newSubs[idx]={...newSubs[idx],paymentStatus:'requested',requestedAt:newSubs[idx].requestedAt||now,matchType:'overpaid',matchedAmount:m.totalAmount};
+    });
+    formAnimTimers.current.forEach(t=>clearTimeout(t));
+    formAnimTimers.current=[];
+    if(matchedCrAts.length>0){
+      setFormAnimating(true);
+      const interval=matchedCrAts.length<=50?30:Math.floor(1500/matchedCrAts.length);
+      matchedCrAts.forEach((crAt,i)=>{
+        const t=setTimeout(()=>setAnimatingPaidCrAts(prev=>new Set([...prev,crAt])),i*interval);
+        formAnimTimers.current.push(t);
+      });
+      const finalT=setTimeout(async()=>{
+        await updateForm({...formRef.current,submissions:newSubs,lastMatchSummary:{matchedCount:matchedCrAts.length,needsCheck,refund:results.refund.map(d=>({name:d.name,amount:d.amount})),matchedAt:new Date().toISOString()}});
+        setFormAnimating(false);
+        setAnimatingPaidCrAts(new Set());
+      },matchedCrAts.length*interval+100);
+      formAnimTimers.current.push(finalT);
+    } else {
+      await updateForm({...formRef.current,submissions:newSubs,lastMatchSummary:{matchedCount:matchedCrAts.length,needsCheck,refund:results.refund.map(d=>({name:d.name,amount:d.amount})),matchedAt:new Date().toISOString()}});
+    }
+    const parts=[];
+    if(matchedCrAts.length>0) parts.push(`${matchedCrAts.length}명 처리`);
+    if(needsCheck>0) parts.push(`확인 필요 ${needsCheck}명`);
+    if(isEmpty) showToast('매칭 결과 없음 — 거래내역서 형식 확인',C.yellow);
+    else showToast(parts.length?parts.join(', '):`${results.totalDeposits}건 분석`);
+  };
+
   const handleFormExcel=async e=>{
     const file=e.target.files?.[0];
     if(!file) return;
@@ -4912,59 +5041,9 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
     try{
       const data=await file.arrayBuffer();
       const parsed=matchEngine.parseExcel(data);
+      if(parsed.error==='NEEDS_PASSWORD'){setPendingExcelData(data);setExcelPwdOpen(true);setUploading(false);return;}
       if(parsed.error){showToast(parsed.error,C.red);setUploading(false);return;}
-      if(parsed.deposits.length===0){showToast('입금 내역이 없어요',C.red);setUploading(false);return;}
-      const curSubs=formRef.current.submissions||[];
-      const results=matchEngine.match(parsed.deposits,curSubs,s=>getUserAmount(formRef.current,s.name,s.data?.studentId));
-      const byKey={};
-      (results.partial||[]).forEach(m=>{byKey[m.sub.createdAt]={type:'partial',totalAmount:m.totalAmount,expected:getUserAmount(formRef.current,m.sub.name,m.sub.data?.studentId),depositCount:m.deposits.length};});
-      (results.overpaid||[]).forEach(m=>{byKey[m.sub.createdAt]={type:'overpaid',totalAmount:m.totalAmount,expected:getUserAmount(formRef.current,m.sub.name,m.sub.data?.studentId)};});
-      const needsCheck=(results.partial||[]).length+(results.overpaid||[]).length;
-      const isEmpty=results.matched.length===0&&needsCheck===0&&(results.refund||[]).length===0;
-      // 수동 변경 카드 skip (matchedBy:'manual')
-      const matchedCrAts=results.matched.filter(m=>curSubs.find(s=>s.createdAt===m.sub.createdAt)?.matchedBy!=='manual').map(m=>m.sub.createdAt);
-      const newSummary={byKey,refund:results.refund||[],stats:{matched:matchedCrAts.length,needsCheck},emptyResult:isEmpty};
-      setFormMatchSummary(newSummary);
-      setShowExcelModal(false);
-      const newSubs=[...curSubs];
-      const now=new Date().toISOString();
-      results.matched.forEach(m=>{
-        const idx=newSubs.findIndex(s=>s.createdAt===m.sub.createdAt);
-        if(idx>=0&&newSubs[idx].matchedBy!=='manual') newSubs[idx]={...newSubs[idx],paid:true,paymentStatus:'matched',matchedAmount:m.totalAmount,matchedAt:now,matchedBy:'auto'};
-      });
-      (results.partial||[]).forEach(m=>{
-        const idx=newSubs.findIndex(s=>s.createdAt===m.sub.createdAt);
-        if(idx>=0&&!(newSubs[idx].paid||newSubs[idx].paymentStatus==='matched')&&newSubs[idx].matchedBy!=='manual')
-          newSubs[idx]={...newSubs[idx],paymentStatus:'requested',requestedAt:newSubs[idx].requestedAt||now,matchType:'partial',matchedAmount:m.totalAmount};
-      });
-      (results.overpaid||[]).forEach(m=>{
-        const idx=newSubs.findIndex(s=>s.createdAt===m.sub.createdAt);
-        if(idx>=0&&!(newSubs[idx].paid||newSubs[idx].paymentStatus==='matched')&&newSubs[idx].matchedBy!=='manual')
-          newSubs[idx]={...newSubs[idx],paymentStatus:'requested',requestedAt:newSubs[idx].requestedAt||now,matchType:'overpaid',matchedAmount:m.totalAmount};
-      });
-      formAnimTimers.current.forEach(t=>clearTimeout(t));
-      formAnimTimers.current=[];
-      if(matchedCrAts.length>0){
-        setFormAnimating(true);
-        const interval=matchedCrAts.length<=50?30:Math.floor(1500/matchedCrAts.length);
-        matchedCrAts.forEach((crAt,i)=>{
-          const t=setTimeout(()=>setAnimatingPaidCrAts(prev=>new Set([...prev,crAt])),i*interval);
-          formAnimTimers.current.push(t);
-        });
-        const finalT=setTimeout(async()=>{
-          await updateForm({...formRef.current,submissions:newSubs,lastMatchSummary:{matchedCount:matchedCrAts.length,needsCheck,refund:results.refund.map(d=>({name:d.name,amount:d.amount})),matchedAt:new Date().toISOString()}});
-          setFormAnimating(false);
-          setAnimatingPaidCrAts(new Set());
-        },matchedCrAts.length*interval+100);
-        formAnimTimers.current.push(finalT);
-      } else {
-        await updateForm({...formRef.current,submissions:newSubs,lastMatchSummary:{matchedCount:matchedCrAts.length,needsCheck,refund:results.refund.map(d=>({name:d.name,amount:d.amount})),matchedAt:new Date().toISOString()}});
-      }
-      const parts=[];
-      if(matchedCrAts.length>0) parts.push(`${matchedCrAts.length}명 처리`);
-      if(needsCheck>0) parts.push(`확인 필요 ${needsCheck}명`);
-      if(isEmpty) showToast('매칭 결과 없음 — 거래내역서 형식 확인',C.yellow);
-      else showToast(parts.length?parts.join(', '):`${results.totalDeposits}건 분석`);
+      await _applyFormExcelParsed(parsed);
     }catch(err){
       console.error(err);
       showToast('파일을 읽을 수 없어요',C.red);
@@ -4972,6 +5051,22 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
     }
     setUploading(false);
     if(e.target) e.target.value='';
+  };
+
+  const submitFormExcelPassword=async password=>{
+    setUploading(true);
+    try{
+      const decrypted=await decryptExcel(pendingExcelData,password);
+      const parsed=matchEngine.parseExcel(decrypted);
+      if(parsed.error){showToast(parsed.error,C.red);setUploading(false);return;}
+      setExcelPwdOpen(false);
+      setPendingExcelData(null);
+      await _applyFormExcelParsed(parsed);
+    }catch(err){
+      if(err.message==='WRONG_PASSWORD') showToast('비밀번호가 틀려요. 다시 입력해주세요.',C.red);
+      else showToast('파일 복호화에 실패했어요.',C.red);
+    }
+    setUploading(false);
   };
 
   return(
@@ -5083,6 +5178,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
       )}
 
       {showExcelModal&&<ExcelUploadModal uploading={uploading} fileRef={fileRef} onClose={()=>setShowExcelModal(false)}/>}
+      {excelPwdOpen&&<ExcelPasswordModal isOpen={excelPwdOpen} onClose={()=>{setExcelPwdOpen(false);setPendingExcelData(null);}} onSubmit={submitFormExcelPassword} loading={uploading}/>}
       {shareOpen&&<FormShareModal form={form} showToast={showToast} onClose={()=>setShareOpen(false)} onShared={()=>{setShareOpen(false);setSlide(1);}}/>}
       {dunningOpen&&(
         form.account?.bank
