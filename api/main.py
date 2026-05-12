@@ -8,6 +8,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 import msoffcrypto
+from msoffcrypto.exceptions import InvalidKeyError
 
 CORS_ORIGINS = os.getenv(
     "CORS_ORIGIN",
@@ -53,8 +54,7 @@ async def decrypt(
             content=dst.getvalue(),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-    except Exception as e:
-        msg = str(e).lower()
-        if any(k in msg for k in ("invalid key", "wrong key", "password", "incorrect", "secretkey")):
-            raise HTTPException(status_code=400, detail="WRONG_PASSWORD")
+    except InvalidKeyError:
+        raise HTTPException(status_code=400, detail="WRONG_PASSWORD")
+    except Exception:
         raise HTTPException(status_code=400, detail="DECRYPT_FAILED")
