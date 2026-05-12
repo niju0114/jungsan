@@ -3687,15 +3687,18 @@ function HistoryScreen({nav,events,forms,deleteEvent,deleteForm}){
 
 // ── OnboardingModal (가입 후 1회) ─────────────────────────
 function OnboardingModal({nav,onClose}){
+  const [neverShow,setNeverShow]=useState(false);
   const finish=async()=>{
-    try{
-      const {data:{user}}=await api.getUser();
-      if(user){
-        await api.updateProfile(user.id,{onboarding_done:true,updated_at:new Date().toISOString()});
-        localStorage.setItem('onboarding_done_'+user.id,'true');
-      }
-    }catch(e){console.error(e);}
-    posthog.capture('온보딩_환영_완료');
+    if(neverShow){
+      try{
+        const {data:{user}}=await api.getUser();
+        if(user){
+          await api.updateProfile(user.id,{onboarding_done:true,updated_at:new Date().toISOString()});
+          localStorage.setItem('onboarding_done_'+user.id,'true');
+        }
+      }catch(e){console.error(e);}
+    }
+    posthog.capture('온보딩_환영_완료',{다시_보지_않기:neverShow});
     onClose();
     nav.setView('setup');
   };
@@ -3709,6 +3712,12 @@ function OnboardingModal({nav,onClose}){
           <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>먼저 명단·계좌부터 설정해주세요.</div>
         </div>
         <Btn onClick={finish}>시작하기 →</Btn>
+        <div onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginTop:16,cursor:'pointer'}}>
+          <div style={{width:18,height:18,borderRadius:5,border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.12s'}}>
+            {neverShow&&<Icon n="check" size={11} color="#fff"/>}
+          </div>
+          <span style={{fontSize:13,color:C.textMid}}>다시 보지 않기</span>
+        </div>
       </div>
     </Modal>
   );
