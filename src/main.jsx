@@ -714,7 +714,7 @@ const ExcelPasswordModal = ({isOpen, onClose, onSubmit, loading}) => {
       <div style={{textAlign:'center',marginBottom:20}}>
         <div style={{width:56,height:56,borderRadius:28,background:C.accent+'20',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 10px'}}><Icon n="lock" size={28} color={C.accent}/></div>
         <div style={{fontWeight:900,color:C.text,fontSize:17,marginBottom:4}}>거래내역서 비밀번호 입력</div>
-        <div style={{fontSize:12,color:C.textDim,marginBottom:14}}>은행에서 설정한 비밀번호를 입력해주세요</div>
+        <div style={{fontSize:12,color:C.textDim,marginBottom:14}}>보통 생년월일 6자리예요<br/><span style={{fontSize:11}}>예) 990101</span></div>
         <div style={{fontSize:11,color:C.textMid,background:C.accentBg,borderRadius:8,padding:'6px 10px',display:'flex',alignItems:'center',gap:4}}><Icon n="lock" size={11} color={C.accent}/><span>비밀번호는 복호화 후 즉시 삭제됩니다</span></div>
       </div>
       <input
