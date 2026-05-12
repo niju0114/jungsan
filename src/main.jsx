@@ -5067,6 +5067,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
       else showToast('파일 복호화에 실패했어요.',C.red);
     }
     setUploading(false);
+    if(fileRef.current) fileRef.current.value='';
   };
 
   return(
