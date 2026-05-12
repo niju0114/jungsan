@@ -3,3 +3,6 @@
 
 /og-image.png
   Cache-Control: public, max-age=300, must-revalidate
+
+/og-jungsanhae.png
+  Cache-Control: public, max-age=300, must-revalidate
