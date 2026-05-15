@@ -1113,7 +1113,7 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
                 <polygon points="0,200 200,0 200,200" fill="#A5A6F6"/>
               </g>
             </svg>
-            {mode==='login'?<>환영해요</>:<>정산해에<br/>오신 걸 환영해요</>}
+            {mode==='login'?<>환영해요</>:<>환영해요</>}
           </div>
           <div style={{fontSize:15,color:C.textMid,fontWeight:500}}>
             {mode==='login'?'로그인하고 정산을 이어가세요':'총무의 부담을 1/10로'}
