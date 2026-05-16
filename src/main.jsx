@@ -920,6 +920,42 @@ function App() {
   };
 
   const updateEvent=async(ev)=>{
+    // 운영 디버깅: 전체행 write가 데이터를 손실시키는지 감지 → PostHog 추적.
+    // lost-update/stale 덮어쓰기 의심 신호. (정상 차수삭제·정상 토글은 캡쳐 X)
+    try{
+      const prev=events.find(e=>e.code===ev.code);
+      if(prev){
+        const prevRounds=prev.rounds||[], nextRounds=ev.rounds||[];
+        const nextIds=new Set(nextRounds.map(r=>r.id));
+        // 살아있는(prev·next 모두 존재) 차수만 비교 → 정상 차수삭제는 제외(false positive 가드).
+        // 금액 손실: 같은 차수가 before>0 인데 after===0 (삭제가 아니라 "값이 0으로 덮임").
+        const lost_amount_rounds=prevRounds
+          .filter(p=>nextIds.has(p.id))
+          .filter(p=>(p.amount||0)>0 && (nextRounds.find(n=>n.id===p.id)?.amount||0)===0)
+          .map(p=>p.id);
+        // 키 손실: 정상 토글/확정은 키를 추가/수정만 함 → 키가 사라지면 stale 덮어쓰기 신호.
+        const lost_payment_keys=Object.keys(prev.payments||{}).filter(k=>!(k in (ev.payments||{})));
+        const lost_attendance_keys=Object.keys(prev.attendance||{}).filter(k=>!(k in (ev.attendance||{})));
+        // 트리거: 살아있는 차수의 금액 0 덮임 / 입금키 소실 / 출석키 소실.
+        // (차수 개수 감소 단독은 정상 삭제이므로 트리거 아님 — 단 forensics용으로 payload엔 기록)
+        if(lost_amount_rounds.length>0||lost_payment_keys.length>0||lost_attendance_keys.length>0){
+          const payload={
+            code:ev.code,
+            user_id:user?.id||null,
+            diff:{
+              rounds_count_before:prevRounds.length,
+              rounds_count_after:nextRounds.length,
+              lost_amount_rounds,
+              lost_payment_keys,
+              lost_attendance_keys,
+            },
+            trigger:'event_write_anomaly',
+          };
+          console.warn('[event_write_anomaly]',payload);
+          try{posthog.capture('event_write_anomaly',payload);}catch(_){}
+        }
+      }
+    }catch(_){}
     const {error}=await api.updateEvent(ev.code,evToRow(ev));
     if(error){showToast('업데이트 실패',C.red);return;}
     setEvents(evs=>evs.map(e=>e.code===ev.code?ev:e));
@@ -2047,7 +2083,9 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
   const [savePrompt,setSavePrompt]=useState(null);
   const [archiveConfirm,setArchiveConfirm]=useState(false);
 
-  useEffect(()=>setEvent(initEvent),[initEvent]);
+  // 같은 정산을 보는 동안 App.events의 stale 사본이 realtime 최신 로컬 state를
+  // 되살려 덮어쓰지 않도록, 다른 정산으로 이동(code 변경) 시에만 재동기화.
+  useEffect(()=>setEvent(initEvent),[initEvent.code]);
   useRealtimeEvent(event.code,ev=>setEvent(ev));
   useEffect(()=>{api.getViewCount(event.code,null).then(c=>setViewCount(c));},[event.code]);
 
@@ -2242,6 +2280,12 @@ function FeeConfigSection({event,updateEvent}){
   const saveTimerRef=useRef(null);
   const autoSaveTimerRef=useRef(null);
   const didMountRef=useRef(false);
+  // 디바운스 대기 중(아직 저장 안 된) 입력이 있는지. 언마운트 flush용
+  // (RoundsSection의 pendingRoundsRef 패턴과 동일).
+  const pendingFeeRef=useRef(false);
+  const saveFeeConfigRef=useRef(null);
+  const fcModeRef=useRef(fc?.mode);
+  fcModeRef.current=fc?.mode;
 
   useEffect(()=>{
     if(fc){
@@ -2255,10 +2299,21 @@ function FeeConfigSection({event,updateEvent}){
   useEffect(()=>{
     if(!didMountRef.current){didMountRef.current=true;return;}
     if(!fc) return;
+    pendingFeeRef.current=true;
     clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current=setTimeout(()=>saveFeeConfig(fc.mode),700);
     return()=>clearTimeout(autoSaveTimerRef.current);
   },[totalCostInput,subsidyInput,paidInput,unpaidInput]);
+
+  // 언마운트 시: 디바운스 대기 중인 입력을 즉시 저장.
+  // 700ms 안에 슬라이드 이동(언마운트)하면 위 cleanup이 clearTimeout만 해서
+  // round_1.amount가 0으로 남던 버그 방지. feeConfig 해제됐으면(fcMode 없음) skip.
+  useEffect(()=>()=>{
+    clearTimeout(autoSaveTimerRef.current);
+    if(pendingFeeRef.current&&fcModeRef.current&&saveFeeConfigRef.current){
+      saveFeeConfigRef.current(fcModeRef.current);
+    }
+  },[]);
 
   const previewAuto=()=>{
     const total=Number(totalCostInput)||0;
@@ -2268,6 +2323,7 @@ function FeeConfigSection({event,updateEvent}){
   };
 
   const saveFeeConfig=(mode)=>{
+    pendingFeeRef.current=false;
     if(mode==='auto'){
       const {unpaid,paid}=previewAuto();
       const newFc={mode:'auto',totalCost:Number(totalCostInput)||0,subsidyPerPaid:Number(subsidyInput)||0,paidFeeAmount:paid,unpaidFeeAmount:unpaid};
@@ -2281,6 +2337,7 @@ function FeeConfigSection({event,updateEvent}){
     setSaved(true);
     saveTimerRef.current=setTimeout(()=>setSaved(false),1500);
   };
+  saveFeeConfigRef.current=saveFeeConfig; // 언마운트 flush가 최신 클로저 사용
 
   const switchMode=(newMode)=>{
     if(fc?.mode===newMode) return;
@@ -2374,6 +2431,9 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   const roundExtrasRef=useRef(roundExtras);
   const eventRef=useRef(event);
   const updateEventRef=useRef(updateEvent);
+  // 아직 DB에 저장 안 된(디바운스 대기 중) 차수 id 집합.
+  // 언마운트 flush가 "건드리지도 않은 차수"를 stale 로컬값으로 0원 덮어쓰던 버그 방지용.
+  const pendingRoundsRef=useRef(new Set());
   roundAmountsRef.current=roundAmounts;
   roundExtrasRef.current=roundExtras;
   eventRef.current=event;
@@ -2402,12 +2462,17 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
     });
   },[event.rounds.length]);
 
-  // 언마운트 시 디바운스 타이머 즉시 플러시
+  // 언마운트 시: 디바운스 대기 중인(아직 저장 안 된) 차수만 최신 event에 patch.
+  // 과거엔 모든 차수를 stale 로컬맵으로 재작성 → 이 클라이언트가 입력한 적 없는
+  // 차수의 금액/임시인원이 0/빈값으로 덮어써지는 데이터 손실([A][B])이 있었음.
   useEffect(()=>()=>{
+    Object.values(roundTimersRef.current).forEach(t=>clearTimeout(t));
+    const pending=[...pendingRoundsRef.current];
+    if(pending.length===0) return;
     const ev=eventRef.current;
     const fc=ev.feeConfig;
     const newRounds=ev.rounds.map(r=>{
-      clearTimeout(roundTimersRef.current[r.id]);
+      if(!pendingRoundsRef.current.has(r.id)) return r; // 건드린 적 없는 차수는 그대로 보존
       const roundAmt=roundAmountsRef.current[r.id]||'';
       const extra=roundExtrasRef.current[r.id]||[];
       const isFirst=ev.rounds[0]?.id===r.id;
@@ -2415,6 +2480,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
       const amtNum=Number(roundAmt.replace(/[^0-9]/g,''))||0;
       return useFc?{...r,extraMembers:[...extra]}:{...r,amount:amtNum,extraMembers:[...extra]};
     });
+    pendingRoundsRef.current.clear();
     updateEventRef.current({...ev,rounds:newRounds});
   },[]);
 
@@ -2425,6 +2491,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
     const amtNum=Number((amt||'').replace(/[^0-9]/g,''))||0;
     const roundPatch=useFc?{extraMembers:[...extra]}:{amount:amtNum,extraMembers:[...extra]};
     const newRounds=ev.rounds.map(r=>r.id===rid?{...r,...roundPatch}:r);
+    pendingRoundsRef.current.delete(rid); // 저장 완료 → pending 해제
     updateEventRef.current({...ev,rounds:newRounds});
     if(roundSavedTimerRef.current) clearTimeout(roundSavedTimerRef.current);
     setRoundSavedId(rid);
@@ -2433,6 +2500,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
   const setRoundAmount=(rid,val)=>{
     setRoundAmounts(p=>({...p,[rid]:val}));
+    pendingRoundsRef.current.add(rid);
     clearTimeout(roundTimersRef.current[rid]);
     roundTimersRef.current[rid]=setTimeout(()=>{
       saveRoundNow(rid,val,roundExtrasRef.current[rid]||[],eventRef.current);
@@ -2442,6 +2510,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   const setRoundExtra=(rid,updater)=>{
     setRoundExtras(p=>{
       const next={...p,[rid]:updater(p[rid]||[])};
+      pendingRoundsRef.current.add(rid);
       clearTimeout(roundTimersRef.current[rid]);
       roundTimersRef.current[rid]=setTimeout(()=>{
         saveRoundNow(rid,roundAmountsRef.current[rid]||'',next[rid]||[],eventRef.current);
