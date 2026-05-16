@@ -1719,6 +1719,7 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
                     onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
                     onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
                   />
+                  <div style={{fontSize:11,color:C.textDim,marginBottom:8,lineHeight:1.6}}>학번 없어도 됩니다. 동명이인은 이름을 다르게 적어주세요 (예: 민준2)</div>
                   {displayMembers.length>0&&(
                     <div>
                       <div style={{display:'flex',gap:6,marginBottom:8}}>
@@ -1968,8 +1969,6 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
   const [err,setErr]=useState('');
   const [loading,setLoading]=useState(false);
   const [activeG,setActiveG]=useState(-1);
-  const [dupModalM,setDupModalM]=useState(null);
-  const [dupInput,setDupInput]=useState('');
   const [extraMemberMap,setExtraMemberMap]=useState({});
   const groups=profile.groups||[];
   const allFromGroups=groups.flatMap(g=>g.members||[]);
@@ -1987,23 +1986,14 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
 
   const toggle=m=>{
     const k=m.name+(m.sid?`_${m.sid}`:'');
-    if(dupBaseKeys.has(k)){setDupModalM(m);setDupInput('');}
-    else setSelected(s=>s.includes(k)?s.filter(x=>x!==k):[...s,k]);
+    if(dupBaseKeys.has(k)){showToast('동명이인이에요. 명단 화면에서 이름을 다르게 적어주세요 (예: 민준2)',C.orange);return;}
+    setSelected(s=>s.includes(k)?s.filter(x=>x!==k):[...s,k]);
   };
   const selectGroup=gIdx=>{
     const gm=gIdx===-1?allMembers:(groups[gIdx]?.members||[]);
     const keys=gm.map(m=>m.name+(m.sid?`_${m.sid}`:''));
     const allSel=keys.every(k=>selected.includes(k));
     setSelected(s=>allSel?s.filter(k=>!keys.includes(k)):[...new Set([...s,...keys])]);
-  };
-  const confirmDup=()=>{
-    if(!dupInput.trim()||!dupModalM) return;
-    const uniqueKey=dupModalM.name+'__'+dupInput.trim();
-    if(!selected.includes(uniqueKey)){
-      setSelected(s=>[...s,uniqueKey]);
-      setExtraMemberMap(prev=>({...prev,[uniqueKey]:dupModalM.name+' ('+dupInput.trim()+')'}));
-    }
-    setDupModalM(null);setDupInput('');
   };
 
   const create=async()=>{
@@ -2122,19 +2112,6 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
         {err&&<div style={{color:C.red,fontSize:13,marginBottom:12,padding:'11px 14px',background:C.redBg,borderRadius:10,display:'flex',alignItems:'center',gap:6}}><Icon n="triangle-alert" size={14} color={C.red}/>{err}</div>}
         <Btn onClick={create} loading={loading}>정산 생성하기 →</Btn>
       </div>
-      {dupModalM&&(
-        <Modal isOpen={true} onClose={()=>setDupModalM(null)} title="동명이인 구분">
-          <div style={{fontSize:14,color:C.textMid,marginBottom:16,lineHeight:1.7}}>
-            <strong style={{color:C.text}}>{dupModalM.name}</strong>이(가) {allMembers.filter(m=>m.name===dupModalM.name&&!m.sid).length}명이에요.<br/>
-            학번 뒷자리를 입력해주세요.
-          </div>
-          <Field label="" value={dupInput} onChange={setDupInput} placeholder="예: 1234"/>
-          <div style={{display:'flex',gap:8,marginTop:12}}>
-            <Btn variant="ghost" onClick={()=>setDupModalM(null)} style={{flex:1}}>취소</Btn>
-            <Btn onClick={confirmDup} style={{flex:2}}>추가</Btn>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }
@@ -4112,7 +4089,7 @@ function FormCreateScreen({nav,profile,createForm}){
   const [holder,setHolder]=useState(profile.account?.holder||'');
   const [fields,setFields]=useState([
     {id:'name',type:'text',label:'이름',required:true},
-    {id:'studentId',type:'text',label:'학번',required:true},
+    {id:'studentId',type:'text',label:'학번',required:false},
   ]);
   const [time,setTime]=useState('');
   const [place,setPlace]=useState('');
@@ -4164,9 +4141,7 @@ function FormCreateScreen({nav,profile,createForm}){
     setLoading(true);
     const code=genCode();
     const cleanFields=fields.map(f=>({...f,options:(f.options||[]).map(o=>o.trim()).filter(Boolean)}));
-    const finalFields=feeMode==='twoTier'&&!cleanFields.some(f=>f.id==='studentId')
-      ?[...cleanFields,{id:'studentId',type:'text',label:'학번',required:true}]
-      :cleanFields;
+    const finalFields=cleanFields;
     const memberList=(noFee||feeMode==='twoTier')?buildMemberList(profile):[];
     const form={
       code,name:name.trim(),date,amount:Number(amount),
@@ -4202,14 +4177,8 @@ function FormCreateScreen({nav,profile,createForm}){
             {!noFee&&<div style={{display:'flex',background:C.inputBg,borderRadius:10,padding:3,marginBottom:10}}>
               {[['single','단일 금액'],['twoTier','두 갈래 금액']].map(([mode,label])=>(
                 <button key={mode} onClick={()=>{
-                  if(mode==='twoTier'&&feeMode==='single'){
-                    setFeeMode('twoTier');
-                    setFields(fs=>fs.some(f=>f.id==='studentId')?fs:[...fs,{id:'studentId',type:'text',label:'학번',required:true}]);
-                  }
-                  else if(mode==='single'&&feeMode==='twoTier'){
-                    setAmountPaid('');setFeeMode('single');
-                    setFields(fs=>fs.filter(f=>f.id!=='studentId'));
-                  }
+                  if(mode==='twoTier'&&feeMode==='single') setFeeMode('twoTier');
+                  else if(mode==='single'&&feeMode==='twoTier'){setAmountPaid('');setFeeMode('single');}
                 }} style={{flex:1,padding:'7px 0',borderRadius:8,fontSize:13,
                   fontWeight:feeMode===mode?700:500,cursor:'pointer',border:'none',
                   background:feeMode===mode?'#fff':'transparent',
@@ -4290,16 +4259,14 @@ function FormCreateScreen({nav,profile,createForm}){
                   <span style={{fontWeight:700,color:C.text,fontSize:14}}>{f.label}</span>
                   {f.required&&<span style={{fontSize:11,color:C.red,marginLeft:4}}>*</span>}
                   {f.type==='textarea'&&<span style={{fontSize:11,color:C.accent,marginLeft:6}}>서술형</span>}
-                  {f.id==='studentId'&&(noFee||feeMode==='twoTier')&&<span style={{fontSize:10,color:C.textDim,marginLeft:4}}>(삭제 시 학생회비 대조 불가)</span>}
+                  {f.id==='studentId'&&(noFee||feeMode==='twoTier')&&<span style={{fontSize:10,color:C.textDim,marginLeft:4}}>(없으면 이름으로 대조)</span>}
                 </div>
-                <button onClick={()=>updateField(f.id,'required',!f.required)} disabled={f.id==='studentId'&&feeMode==='twoTier'} style={{background:f.required?C.redBg:'none',border:`1px solid ${f.required?C.red+'30':C.border}`,borderRadius:8,padding:'3px 8px',fontSize:10,fontWeight:700,color:f.required?C.red:C.textDim,cursor:f.id==='studentId'&&feeMode==='twoTier'?'default':'pointer',opacity:f.id==='studentId'&&feeMode==='twoTier'?0.5:1}}>
+                <button onClick={()=>updateField(f.id,'required',!f.required)} style={{background:f.required?C.redBg:'none',border:`1px solid ${f.required?C.red+'30':C.border}`,borderRadius:8,padding:'3px 8px',fontSize:10,fontWeight:700,color:f.required?C.red:C.textDim,cursor:'pointer'}}>
                   {f.required?'필수':'선택'}
                 </button>
-                {!(f.id==='studentId'&&feeMode==='twoTier')&&(
-                  <button onClick={()=>removeField(f.id)} style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'flex'}}>
-                    <span className="ms ms-sm" style={{color:C.textDim}}>close</span>
-                  </button>
-                )}
+                <button onClick={()=>removeField(f.id)} style={{background:'none',border:'none',cursor:'pointer',padding:4,display:'flex'}}>
+                  <span className="ms ms-sm" style={{color:C.textDim}}>close</span>
+                </button>
               </div>
               {['select','multiselect'].includes(f.type)&&(f.options||[]).length>0&&(
                 <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>
@@ -4926,8 +4893,15 @@ function PasteFeeModal({members, currentPaidKeys, onApply, showToast, onClose}){
     }).join('\n');
   },[]);// eslint-disable-line
   const [pasteText,setPasteText]=useState(initialText);
-  const [noSid,setNoSid]=useState([]);
+  const [ambig,setAmbig]=useState([]);
   const [notFound,setNotFound]=useState([]);
+  // 멤버 키(이름 / 이름_학번 / 이름__구분자)에서 기준 이름 추출
+  const baseName=k=>{
+    const di=k.indexOf('__');
+    if(di>=0) return k.slice(0,di);
+    const ui=k.lastIndexOf('_');
+    return ui>=0?k.slice(0,ui):k;
+  };
 
   const parseLine=raw=>{
     const s=raw.trim();
@@ -4951,40 +4925,43 @@ function PasteFeeModal({members, currentPaidKeys, onApply, showToast, onClose}){
     if(!lines.length) return;
     const memberSet=new Set(members);
     const matchedKeys=new Set();
-    const missNoSid=[];
+    const missAmbig=[];
     const missNotFound=[];
     lines.forEach(line=>{
       const p=parseLine(line);
       if(!p) return;
-      if(!p.sid){missNoSid.push(p.name);return;}
-      const key=p.name+'_'+p.sid;
-      if(memberSet.has(key)) matchedKeys.add(key);
-      else missNotFound.push(p.name+' '+p.sid);
+      // 학번 있고 학번키가 명단에 있으면 정확 매칭
+      if(p.sid&&memberSet.has(p.name+'_'+p.sid)){matchedKeys.add(p.name+'_'+p.sid);return;}
+      // 학번 없거나 학번키 불일치 → 이름으로 매칭
+      const cands=members.filter(k=>baseName(k)===p.name);
+      if(cands.length===1) matchedKeys.add(cands[0]);
+      else if(cands.length===0) missNotFound.push(p.name+(p.sid?' '+p.sid:''));
+      else missAmbig.push(p.name);
     });
-    setNoSid(missNoSid);
+    setAmbig(missAmbig);
     setNotFound(missNotFound);
-    if(missNoSid.length) return;
+    if(missAmbig.length) return;
     showToast(`납부자 ${matchedKeys.size}명 적용됐어요${missNotFound.length?` (미매칭 ${missNotFound.length}명)`:''}`);
     onApply(matchedKeys);
   };
 
   return(
     <Modal isOpen={true} onClose={onClose} title={<><Icon n="clipboard-list" size={15} color={C.text} style={{marginRight:4}}/>납부자 명단 붙여넣기</>}>
-      <div style={{fontSize:12,color:C.textDim,marginBottom:8}}>이름과 학번을 함께 붙여넣어 주세요. 탭이나 공백으로 구분해요.</div>
+      <div style={{fontSize:12,color:C.textDim,marginBottom:8}}>이름만 붙여넣어도 돼요. 학번이 있으면 함께 넣으면 더 정확해요 (탭·공백 구분).</div>
       <div style={{background:C.inputBg,border:`1px solid ${C.border}`,borderRadius:8,padding:'7px 10px',fontSize:11,color:C.textDim,fontFamily:'monospace',marginBottom:10,lineHeight:1.9}}>
         홍길동{'\t'}20210001<br/>김철수{'\t'}20210002
       </div>
       <textarea
         value={pasteText}
-        onChange={e=>{setPasteText(e.target.value);setNoSid([]);setNotFound([]);}}
+        onChange={e=>{setPasteText(e.target.value);setAmbig([]);setNotFound([]);}}
         placeholder={'홍길동\t20210001\n김철수\t20210002'}
         rows={6}
         style={{width:'100%',padding:'10px 12px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,lineHeight:1.8,resize:'vertical',outline:'none',boxSizing:'border-box',marginBottom:10}}
       />
-      {noSid.length>0&&(
+      {ambig.length>0&&(
         <div style={{background:C.orangeBg,borderRadius:10,padding:'10px 12px',marginBottom:10}}>
-          <div style={{fontSize:12,color:C.orange,fontWeight:700,marginBottom:4}}>학번이 없어요. 이름과 학번을 함께 입력해주세요</div>
-          {noSid.map((n,i)=><div key={i} style={{fontSize:12,color:C.orange}}>• {n}</div>)}
+          <div style={{fontSize:12,color:C.orange,fontWeight:700,marginBottom:4}}>동명이인이 있어요. 명단에서 이름을 다르게 적어주세요 (예: 민준2)</div>
+          {ambig.map((n,i)=><div key={i} style={{fontSize:12,color:C.orange}}>• {n}</div>)}
         </div>
       )}
       {notFound.length>0&&(
