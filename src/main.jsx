@@ -2101,13 +2101,6 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
             <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:6}}>추가 참여자</div>
             <Field value={extraText} onChange={setExtraText} placeholder="홍길동&#10;김철수" multiline rows={2}/>
           </div>
-          <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${C.border}`}}>
-            <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:6}}>총무</div>
-            <div style={{display:'inline-flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,background:'#EEEDFE',border:'1px solid #D4D1F5'}}>
-              <Icon n="check" size={11} color="#3C3489"/>
-              <span style={{fontSize:13,fontWeight:600,color:'#3C3489'}}>{profile?.name||'이름'} <span style={{fontSize:11,fontWeight:400,color:'#9E9B8E'}}>(본인)</span></span>
-            </div>
-          </div>
         </Card>
         {err&&<div style={{color:C.red,fontSize:13,marginBottom:12,padding:'11px 14px',background:C.redBg,borderRadius:10,display:'flex',alignItems:'center',gap:6}}><Icon n="triangle-alert" size={14} color={C.red}/>{err}</div>}
         <Btn onClick={create} loading={loading}>정산 생성하기 →</Btn>
@@ -2483,10 +2476,13 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   roundExtrasRef.current=roundExtras;
   eventRef.current=event;
   updateEventRef.current=updateEvent;
+  // 기존 정산 보존: includeOrganizer 키가 한 번이라도 저장된(구 모델 생성) 정산만 '본인' 유지.
+  // 신규 정산은 이 키를 만들지 않아 총무 자동 추가/본인 표시/정산 포함이 없음.
+  const eventHasLegacyOrganizer=(event.rounds||[]).some(r=>'includeOrganizer' in r);
 
   useEffect(()=>{
     if(!event.rounds.some(r=>r.label==='1차')){
-      const r0={id:'round_1',label:'1차',amount:0,members:[...presentMembers],includeOrganizer:true};
+      const r0={id:'round_1',label:'1차',amount:0,members:[...presentMembers]};
       updateEvent({...event,rounds:[r0]});
       setRoundAmounts({'round_1':''});
       setRoundExtras({'round_1':[]});
@@ -2566,7 +2562,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
 
   const doAddRound=()=>{
-    const newRound={id:Date.now().toString(),label:`${event.rounds.length+1}차`,amount:0,members:[...presentMembers],extraMembers:[],includeOrganizer:true};
+    const newRound={id:Date.now().toString(),label:`${event.rounds.length+1}차`,amount:0,members:[...presentMembers],extraMembers:[],...(eventHasLegacyOrganizer?{includeOrganizer:true}:{})};
     updateEvent({...event,rounds:[...event.rounds,newRound]});
     setRoundAmounts(p=>({...p,[newRound.id]:''}));
     setRoundExtras(p=>({...p,[newRound.id]:[]}));
@@ -2687,8 +2683,8 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                       출석 <span style={{fontWeight:400,color:C.textDim}}>{rMembers.length+(includeOrg?1:0)}명</span>
                     </div>
                     <div style={{display:'flex',gap:8}}>
-                      <button onClick={()=>{const newM=[...event.members];const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:newM,includeOrganizer:true}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,true])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전원 참석</button>
-                      <button onClick={()=>{const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:[],includeOrganizer:false}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,false])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.textDim,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전원 불참</button>
+                      <button onClick={()=>{const newM=[...event.members];const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:newM,...(eventHasLegacyOrganizer?{includeOrganizer:true}:{})}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,true])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전원 참석</button>
+                      <button onClick={()=>{const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:[],...(eventHasLegacyOrganizer?{includeOrganizer:false}:{})}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,false])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.textDim,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전원 불참</button>
                     </div>
                   </div>
                   {groupSections?(
@@ -2716,7 +2712,8 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                           </div>
                         );
                       })}
-                      {/* 본인 그룹 */}
+                      {/* 본인 그룹 (구 모델 정산만) */}
+                      {eventHasLegacyOrganizer&&(
                       <div>
                         <div style={{marginBottom:5}}>
                           <span style={{fontSize:11,fontWeight:700,color:C.textDim,letterSpacing:0.3}}>본인</span>
@@ -2729,6 +2726,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                           </div>
                         </div>
                       </div>
+                      )}
                     </>
                   ):(
                     <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
@@ -2742,12 +2740,14 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                           </div>
                         );
                       })}
-                      {/* 총무 칩 */}
+                      {/* 총무 칩 (구 모델 정산만) */}
+                      {eventHasLegacyOrganizer&&(
                       <div onClick={()=>toggleOrganizer(r.id)} className="press"
                         style={{display:'flex',alignItems:'center',gap:3,padding:'5px 10px',borderRadius:20,cursor:'pointer',background:includeOrg?'#EEEDFE':'#F1EFE8',border:`1px solid ${includeOrg?'#D4D1F5':'#E0DDD5'}`,transition:'all 0.15s'}}>
                         {includeOrg&&<Icon n="check" size={11} color="#3C3489"/>}
                         <span style={{fontSize:13,fontWeight:600,color:includeOrg?'#3C3489':'#888780'}}>{profile?.name||'이름'} <span style={{fontSize:11,fontWeight:400,opacity:0.7}}>(본인)</span></span>
                       </div>
+                      )}
                     </div>
                   )}
                 </div>
