@@ -353,15 +353,33 @@ const extraKey = (roundId, em, ei) =>
   `__extra__${roundId}__${em.id || 'legacyidx_'+ei}`;
 
 const decryptExcel = async (data, password) => {
-  const fd = new FormData();
-  fd.append('file', new Blob([data], {type:'application/octet-stream'}), 'file.xlsx');
-  fd.append('password', password);
-  const res = await fetch(`${DECRYPT_API_URL}/decrypt`, {method:'POST', body:fd});
-  if (!res.ok) {
-    const err = await res.json().catch(()=>({}));
-    throw new Error(err.detail || 'DECRYPT_FAILED');
+  if(!DECRYPT_API_URL) throw new Error('복호화 서버 설정이 없어요. 비밀번호 없는 파일로 시도하거나 잠시 후 다시 시도해주세요.');
+  // 복호화 백엔드(Render)는 유휴 시 콜드스타트로 첫 요청이 실패/지연될 수 있어
+  // 타임아웃 + 1회 자동 재시도 (재시도는 더 길게 대기)
+  const attempt = async (timeoutMs) => {
+    const fd = new FormData();
+    fd.append('file', new Blob([data], {type:'application/octet-stream'}), 'file.xlsx');
+    fd.append('password', password);
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${DECRYPT_API_URL}/decrypt`, {method:'POST', body:fd, signal:ctrl.signal});
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({}));
+        const e = new Error(err.detail || 'DECRYPT_FAILED');
+        e.status = res.status;
+        throw e;
+      }
+      return await res.arrayBuffer();
+    } finally { clearTimeout(timer); }
+  };
+  try {
+    return await attempt(20000);
+  } catch (e) {
+    // 비밀번호 오류는 재시도 무의미 — 즉시 전파
+    if (e.status === 400 || e.message === 'WRONG_PASSWORD') throw e;
+    return await attempt(45000);
   }
-  return res.arrayBuffer();
 };
 
 // 입금 대조 매칭 엔진 (순수 함수)
@@ -386,7 +404,7 @@ const matchEngine = {
   parseExcel(arrayBuffer) {
     let wb;
     try {
-      wb=XLSX.read(arrayBuffer);
+      wb=XLSX.read(arrayBuffer,{type:'array'});
     } catch(e) {
       if(/password|encrypt|crypt|protected/i.test(e?.message||'')) return {error:'NEEDS_PASSWORD'};
       return {error:'파일을 읽을 수 없어요. .xlsx 또는 .xls 파일인지 확인해주세요.'};
@@ -758,6 +776,38 @@ function useRealtimeForm(code, onUpdate, enabled=true) {
 // 7. SCREENS — 화면 컴포넌트
 // ═══════════════════════════════════════════════════════════
 
+// ── ErrorBoundary ──────────────────────────────────────────
+// 렌더 예외가 전체 트리를 빈 화면으로 만들지 않도록 차단 + 운영 로깅
+class ErrorBoundary extends React.Component {
+  constructor(props){ super(props); this.state={error:null}; }
+  static getDerivedStateFromError(error){ return {error}; }
+  componentDidCatch(error, info){
+    try {
+      console.error('[ErrorBoundary]', error, info?.componentStack);
+      posthog.capture('error_boundary', {
+        message:String(error?.message||error),
+        stack:String(error?.stack||'').slice(0,2000),
+        componentStack:String(info?.componentStack||'').slice(0,2000),
+      });
+    } catch(_){}
+  }
+  render(){
+    if(this.state.error){
+      return (
+        <div className="screen" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'#fff',padding:'40px 28px',textAlign:'center',gap:14}}>
+          <div style={{width:64,height:64,borderRadius:32,background:'#FFF0F0',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <Icon n="triangle-alert" size={32} color="#F04452"/>
+          </div>
+          <div style={{fontSize:20,fontWeight:900,color:'#191F28'}}>일시적인 문제가 발생했어요</div>
+          <div style={{fontSize:14,color:'#4E5968',lineHeight:1.7}}>입력하신 내용은 대부분 자동 저장돼요.<br/>새로고침하면 이어서 사용할 수 있어요.</div>
+          <button onClick={()=>window.location.reload()} style={{marginTop:8,padding:'14px 28px',borderRadius:14,border:'none',background:'linear-gradient(135deg,#6366F1,#4F46E5)',color:'#fff',fontWeight:700,fontSize:15,cursor:'pointer'}}>새로고침</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ── App ────────────────────────────────────────────────────
 function App() {
   const [ready,setReady]=useState(false);
@@ -821,8 +871,9 @@ function App() {
       window.history.replaceState({},'',window.location.pathname);
       api.getFormByCode(code).then(({data,error})=>{
         if(data&&!error){setForms([rowToForm(data)]);setCurrentFormCode(code);setView('formSubmit');}
+        else setView('notFound');
         setReady(true);
-      }).catch(()=>setReady(true));
+      }).catch(()=>{setView('notFound');setReady(true);});
       return()=>subscription.unsubscribe();
     }
 
@@ -835,9 +886,9 @@ function App() {
           setEvents([rowToEv(data)]);setCurrentCode(code);
           if(urlKey) setParticipantKey(decodeURIComponent(urlKey));
           setView('participantEvent');
-        }
+        } else setView('notFound');
         setReady(true);
-      }).catch(()=>setReady(true));
+      }).catch(()=>{setView('notFound');setReady(true);});
       return()=>subscription.unsubscribe();
     }
 
@@ -1027,7 +1078,9 @@ function App() {
 
   return(
     <div className="screen" style={{fontFamily:"'Pretendard',-apple-system,sans-serif",background:C.pageBg,maxWidth:480,margin:'0 auto',color:C.text,paddingBottom:60}}>
-      {!user&&!['participantEvent','formSubmit'].includes(view)&&<AuthScreen nav={nav} showToast={showToast} setShowOnboarding={setShowOnboarding}/>}
+      <ErrorBoundary>
+      {!user&&!['participantEvent','formSubmit','notFound'].includes(view)&&<AuthScreen nav={nav} showToast={showToast} setShowOnboarding={setShowOnboarding}/>}
+      {view==='notFound'&&<NotFoundScreen/>}
       {view==='participantEvent'&&currentEvent&&<ParticipantScreen nav={nav} event={currentEvent} updateEvent={updateEvent} participantKey={participantKey} showToast={showToast}/>}
       {view==='formSubmit'&&currentForm&&<FormSubmitScreen nav={nav} form={currentForm} updateForm={updateForm} showToast={showToast}/>}
       {user&&view==='home'&&<HomeScreen nav={nav} user={user} profile={profile} events={events} forms={forms} showToast={showToast} onGuide={()=>setShowGuide(true)} showFeedback={showFeedback} onFeedbackDone={()=>setShowFeedback(false)}/>}
@@ -1041,6 +1094,7 @@ function App() {
       {user&&view==='usage-guide'&&<UsageGuideScreen nav={nav}/>}
       {showGuide&&<GuideModal onClose={()=>setShowGuide(false)} onFeedback={()=>{setShowGuide(false);setShowFeedback(true);}}/>}
       {showOnboarding&&<OnboardingModal nav={nav} onClose={()=>setShowOnboarding(false)}/>}
+      </ErrorBoundary>
       <Toast msg={toast?.msg} color={toast?.color}/>
     </div>
   );
@@ -3333,6 +3387,21 @@ function StatusSection({event,updateEvent,groups,showToast}){
 }
 
 // ── ParticipantSplashScreen ────────────────────────────────
+function NotFoundScreen(){
+  return(
+    <div className="fade-up screen" style={{background:C.pageBg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'40px 28px',textAlign:'center'}}>
+      <div style={{width:72,height:72,borderRadius:36,background:C.textDim+'18',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
+        <Icon n="file-search" size={36} color={C.textDim}/>
+      </div>
+      <div style={{fontSize:22,fontWeight:900,color:C.text,marginBottom:8,letterSpacing:-0.5}}>찾을 수 없는 링크예요</div>
+      <div style={{fontSize:14,color:C.textMid,lineHeight:1.7,marginBottom:28}}>
+        정산이 종료됐거나 삭제됐을 수 있어요.<br/>총무에게 링크를 다시 받아주세요.
+      </div>
+      <a href="https://jungsan-hae.com" style={{fontSize:13,color:C.accent,fontWeight:700,textDecoration:'none'}}>정산해 알아보기 →</a>
+    </div>
+  );
+}
+
 function ParticipantSplashScreen({onDone}){
   const [fading,setFading]=useState(false);
   useEffect(()=>{
@@ -3394,7 +3463,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   const isRequested=myPayStatus==='requested';
   const isRejected=myPayStatus==='rejected';
   const myAmount=amounts[selectedKey]||0;
-  const myRounds=(event.rounds||[]).filter(r=>r.members.includes(selectedKey));
+  const myRounds=(event.rounds||[]).filter(r=>(r.members||[]).includes(selectedKey));
 
   const markRequested=async()=>{
     if(!selectedKey||myPayStatus==='paid'||myPayStatus==='requested'||myPayStatus==='rejected') return;
@@ -5332,7 +5401,7 @@ function FormSubmitScreen({nav,form:initForm,updateForm,showToast,isPreview=fals
     }
   },[form.submissions]);
 
-  if(!splashDone&&!isPreview) return <ParticipantSplashScreen onDone={()=>{localStorage.setItem('splash_form_'+form.code,'1');setSplashDone(true);}}/>;
+  if(!splashDone&&!isPreview) return <ParticipantSplashScreen onDone={()=>{lsSet('splash_form_'+form.code,'1');setSplashDone(true);}}/>;
 
 
   const setValue=(id,val)=>setValues(v=>({...v,[id]:val}));
@@ -5657,7 +5726,7 @@ function FormSubmitScreen({nav,form:initForm,updateForm,showToast,isPreview=fals
             }
             if(match){
               setMySubmission(match);setSubmitted(true);
-              localStorage.setItem('form_sub_'+form.code,match.createdAt);
+              lsSet('form_sub_'+form.code,match.createdAt);
             } else {
               setLookupErr('신청 내역을 찾을 수 없어요');
             }
