@@ -1960,6 +1960,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
   const [name,setName]=useState('');
   const [date,setDate]=useState(new Date().toISOString().slice(0,10));
   const [time,setTime]=useState('');
+  const [firstAmount,setFirstAmount]=useState('');
 
   const [bank,setBank]=useState(profile.account?.bank||'');
   const [number,setNumber]=useState(profile.account?.number||'');
@@ -2005,7 +2006,9 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
     const code=genCode();
     const paidFeeKeys=selected.filter(k=>groups.some(g=>(g.paidFeeMembers||[]).includes(k)));
     const fullMemberMap={...memberMap,...extraMemberMap};
-    const ev={code,name:name.trim(),date,time:time||null,pin:'',account:{bank,number,holder},members:selected,memberMap:fullMemberMap,rounds:[],payments:{},attendance:Object.fromEntries(selected.map(k=>[k,false])),attendanceOpen:false,createdAt:new Date().toISOString(),paidFeeKeys,feeConfig:null,sourceFormCode:null};
+    const firstAmt=Number((firstAmount||'').replace(/[^0-9]/g,''))||0;
+    // 선택한 참여자 = 1차 명단(전원 출석). 빈 1차로 시작하던 흐름 제거 → 바로 출석/공유/현황 진입.
+    const ev={code,name:name.trim(),date,time:time||null,pin:'',account:{bank,number,holder},members:selected,memberMap:fullMemberMap,rounds:[{id:'round_1',label:'1차',amount:firstAmt,members:[...selected],extraMembers:[]}],payments:{},attendance:Object.fromEntries(selected.map(k=>[k,true])),attendanceOpen:false,createdAt:new Date().toISOString(),paidFeeKeys,feeConfig:null,sourceFormCode:null};
     const ok=await createEvent(ev);
     setLoading(false);
     if(ok){
@@ -2025,7 +2028,8 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
         <Card>
           <Field label="정산 이름" value={name} onChange={setName} placeholder="5월 MT, 종강 회식…"/>
           <Field label="행사 날짜·시간" value={date+'T'+(time||'00:00')} onChange={v=>{setDate(v.slice(0,10));setTime(v.slice(11,16));}} type="datetime-local"/>
-
+          <Field label="1차 금액 (원)" value={firstAmount} onChange={v=>setFirstAmount(v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="비워두면 나중에 입력"/>
+          <div style={{fontSize:11,color:C.textDim,lineHeight:1.6,marginTop:-4}}>선택한 참여자가 1차 명단이 돼요. 출석 체크하면 1/N이 자동 계산되고, 금액·차수는 다음 화면에서 바로 수정할 수 있어요.</div>
         </Card>
         <Card>
           <div style={{fontWeight:800,color:C.text,marginBottom:12,fontSize:14,display:'flex',alignItems:'center',gap:6}}><Icon n="credit-card" size={14} color={C.text}/>입금 계좌</div>
