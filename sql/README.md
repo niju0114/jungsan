@@ -9,12 +9,16 @@ Supabase Dashboard > SQL Editor에서 아래 순서로 실행.
 | `create_forms_table.sql` | forms 테이블 생성 + 기본 RLS 정책 |
 | `create_views_table.sql` | views 조회수 추적 테이블 생성 + RLS |
 | `rls_participant_functions.sql` | 참여자 전용 RPC 4개 + events/forms 오너 RLS 강화 |
+| `add_mark_event_requested.sql` | 참여자 입금요청 RPC |
+| `fix_participant_security_and_race.sql` | 정원 레이스/서버 중복차단/anon RPC 하드닝 |
 
 ## 적용 순서
 
 1. `create_forms_table.sql`
 2. `create_views_table.sql`
 3. `rls_participant_functions.sql`
+4. `add_mark_event_requested.sql`
+5. `fix_participant_security_and_race.sql`
 
 ## 참고
 

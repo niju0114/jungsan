@@ -5250,20 +5250,30 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
   const submit=async()=>{
     if(isPreview) return;
     for(const f of form.fields){
-      if(f.required&&!values[f.id]){
+      if(!f.required) continue;
+      const v=values[f.id];
+      const empty = v==null
+        || (typeof v==='string' && v.trim()==='')
+        || (Array.isArray(v) && v.length===0);
+      if(empty){
         showToast(`${f.label}을(를) 입력해주세요`,C.red);return;
       }
     }
-    // #2: 중복 신청 방지 (이름+전화번호)
+    // 중복 신청 방지 (이름 + 전화번호, 폰 없으면 이름 + 학번)
     const existingSubs=form.submissions||[];
     const name=(values.name||'').trim();
     const phone=(values.phone||'').replace(/[^0-9]/g,'');
-    if(name&&phone){
-      const dup=existingSubs.find(s=>s.name.trim()===name&&(s.phone||'').replace(/[^0-9]/g,'')===phone);
+    const sid=(values.studentId||'').replace(/\s/g,'');
+    if(name&&(phone||sid)){
+      const dup=existingSubs.find(s=>s.name.trim()===name&&(
+        phone
+          ? (s.phone||'').replace(/[^0-9]/g,'')===phone
+          : (s.data?.studentId||'').replace(/\s/g,'')===sid
+      ));
       if(dup){
         showToast('이미 신청한 내역이 있어요',C.orange);
         setMySubmission(dup);setSubmitted(true);
-        localStorage.setItem('form_sub_'+form.code,dup.createdAt);
+        lsSet('form_sub_'+form.code,dup.createdAt);
         return;
       }
     }
@@ -5284,13 +5294,22 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
       if(error||data?.error){
         if(data?.error==='full') showToast('정원이 마감됐어요',C.orange);
         else if(data?.error==='closed') showToast('신청이 마감됐어요',C.orange);
+        else if(data?.error==='duplicate'){
+          const d=(form.submissions||[]).find(s=>s.name.trim()===name&&(
+            phone
+              ? (s.phone||'').replace(/[^0-9]/g,'')===phone
+              : (s.data?.studentId||'').replace(/\s/g,'')===sid
+          ));
+          showToast('이미 신청한 내역이 있어요',C.orange);
+          if(d){setMySubmission(d);setSubmitted(true);lsSet('form_sub_'+form.code,d.createdAt);}
+        }
         else showToast('신청 실패: 다시 시도해주세요',C.red);
         setLoading(false);return;
       }
       posthog.capture('신청자_제출');
       setMySubmission(submission);
       setSubmitted(true);
-      localStorage.setItem('form_sub_'+form.code,submission.createdAt);
+      lsSet('form_sub_'+form.code,submission.createdAt);
     }catch(e){
       showToast('신청 실패: 다시 시도해주세요',C.red);
     }
