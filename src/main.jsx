@@ -3133,6 +3133,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
   const [showExcelModal,setShowExcelModal]=useState(false);
   const [excelPwdOpen,setExcelPwdOpen]=useState(false);
   const [pendingExcelData,setPendingExcelData]=useState(null);
+  const [reMatchPrompt,setReMatchPrompt]=useState(null); // {parsed,autoCount} | null
   const excelFileRef=useRef(null);
   const animTimers=useRef([]);
   const eventRef=useRef(event);
@@ -3146,9 +3147,26 @@ function StatusSection({event,updateEvent,groups,showToast}){
     setConfirmBulk(false);
   };
 
-  const _applyExcelParsed=async parsed=>{
+  const _applyExcelParsed=async(parsed,mode)=>{
     if(parsed.deposits.length===0){showToast('입금 내역이 없어요',C.red);return;}
-    const esubs=presentMembers.map(k=>({name:mm[k]||k,key:k}));
+    // [수정1] 매칭 입력을 렌더 클로저가 아닌 매칭 실행 시점의 live ref(eventRef.current)로
+    //         일원화. FormAdmin의 formRef 패턴과 동일. decrypt 대기/슬라이드 이동/realtime
+    //         사이에 바뀐 event를 stale 캡쳐하던 비결정성 제거.
+    const evNow=eventRef.current;
+    // 재업로드 게이트: 이전 자동매칭 결과가 있으면 모드 선택 모달 표시(증분 업로드 보호).
+    // mode 미지정 + auto 결과 존재 시에만. 첫 업로드(auto 없음)는 모달 없이 바로 진행.
+    if(!mode){
+      const autoCount=Object.values(evNow.payments||{}).filter(p=>p?.by==='auto'||p?.matchedBy==='auto').length;
+      if(autoCount>0){ setReMatchPrompt({parsed,autoCount}); return; }
+    }
+    const amounts=calcAmounts(evNow);
+    const mmNow=evNow.memberMap||{};
+    const attendingNow=(evNow.members||[]).filter(k=>evNow.attendance?.[k]!==false);
+    // [수정2] amount>0 필터 제거 — 0원도 매칭 후보에 포함(stale/0원으로 인한 매칭 누락 방지).
+    //         동명이인 시 실제 청구자가 먼저 매칭되도록 nonzero를 앞에 배치.
+    const withAmt=attendingNow.filter(k=>(amounts[k]||0)>0);
+    const zeroAmt=attendingNow.filter(k=>(amounts[k]||0)===0);
+    const esubs=[...withAmt,...zeroAmt].map(k=>({name:mmNow[k]||k,key:k}));
     posthog.capture('정산_거래내역_업로드',{명단_수:esubs.length});
     const results=matchEngine.match(parsed.deposits,esubs,s=>amounts[s.key]||0);
     const byKey={};
@@ -3160,9 +3178,22 @@ function StatusSection({event,updateEvent,groups,showToast}){
     posthog.capture('정산_자동_대조_완료',{매칭_수:results.matched.length,확인_필요_수:needsCheck,미입금_수:esubs.length-results.matched.length-needsCheck,명단에_없는_입금_수:(results.refund||[]).length});
     setMatchSummary(newSummary);
     const now=new Date().toISOString();
-    const newPayments={...eventRef.current.payments};
+    const prevPayments=evNow.payments||{};
+    const newPayments={...prevPayments};
     // 수동 변경 카드 skip (by:'admin')
-    const skipKeys=new Set(Object.entries(eventRef.current.payments||{}).filter(([,p])=>p?.by==='admin').map(([k])=>k));
+    const skipKeys=new Set(Object.entries(prevPayments).filter(([,p])=>p?.by==='admin').map(([k])=>k));
+    // [수정3] mode!=='append'일 때만 이전 자동매칭(by:'auto'/matchedBy:'auto') 무효화 →
+    //         이번 매칭이 권위. 'append'(추가하기)면 이전 auto 유지하고 새 결과만 덮어씀.
+    //         수동(admin)은 skipKeys로 보존, 참여자 요청 흔적(requestedAt)은 '요청됨' 보존.
+    if(mode!=='append'){
+      Object.entries(prevPayments).forEach(([k,p])=>{
+        if(skipKeys.has(k)) return;
+        if(p?.by==='auto'||p?.matchedBy==='auto'){
+          if(p.requestedAt) newPayments[k]={payStatus:'requested',hasBeenConfirmed:false,requestedAt:p.requestedAt,time:null,by:null};
+          else delete newPayments[k];
+        }
+      });
+    }
     results.matched.forEach(m=>{
       if(skipKeys.has(m.sub.key)) return;
       newPayments[m.sub.key]={payStatus:'paid',hasBeenConfirmed:true,requestedAt:eventRef.current.payments[m.sub.key]?.requestedAt||null,time:now,by:'auto'};
@@ -3363,6 +3394,22 @@ function StatusSection({event,updateEvent,groups,showToast}){
       )}
       {showExcelModal&&<ExcelUploadModal uploading={uploading} fileRef={excelFileRef} onClose={()=>setShowExcelModal(false)}/>}
       {excelPwdOpen&&<ExcelPasswordModal isOpen={excelPwdOpen} onClose={()=>{setExcelPwdOpen(false);setPendingExcelData(null);}} onSubmit={submitExcelPassword} loading={uploading}/>}
+      {reMatchPrompt&&(
+        <Modal isOpen={true} onClose={()=>setReMatchPrompt(null)} title="이전 자동매칭이 있어요" closeOnBackdrop={false} showCloseButton={false} maxWidth={360}>
+          <div style={{fontSize:14,color:C.textMid,marginBottom:8,lineHeight:1.7}}>
+            이전 자동매칭 결과 <strong style={{color:C.text}}>{reMatchPrompt.autoCount}개</strong>가 있어요.<br/>새 거래내역으로 어떻게 처리할까요?
+          </div>
+          <div style={{fontSize:12,color:C.textDim,marginBottom:18,lineHeight:1.6}}>
+            · <strong>다시 매칭</strong>: 이전 자동매칭을 지우고 이번 결과로 새로 맞춰요<br/>
+            · <strong>추가</strong>: 이전 자동매칭을 그대로 두고 새로 매칭된 것만 더해요 (여러 번 나눠 업로드할 때)
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            <Btn onClick={()=>{const p=reMatchPrompt.parsed;setReMatchPrompt(null);_applyExcelParsed(p,'rematch');}}>다시 매칭하기</Btn>
+            <Btn variant="secondary" onClick={()=>{const p=reMatchPrompt.parsed;setReMatchPrompt(null);_applyExcelParsed(p,'append');}}>추가하기</Btn>
+            <Btn variant="ghost" onClick={()=>setReMatchPrompt(null)}>취소</Btn>
+          </div>
+        </Modal>
+      )}
       {detailKey&&(()=>{
         const dp=event.payments?.[detailKey];
         const dSt=getPayStatus(dp);
