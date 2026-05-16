@@ -127,6 +127,13 @@ const api = {
       .subscribe();
     return () => sb.removeChannel(ch);
   },
+  subscribeForm: (code, cb) => {
+    const ch = sb.channel(`form:${code}`)
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'forms',filter:`code=eq.${code}`},
+        p=>{ if(p.new) cb(p.new); })
+      .subscribe();
+    return () => sb.removeChannel(ch);
+  },
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -738,6 +745,13 @@ function useRealtimeEvent(code, onUpdate) {
     if(!code) return;
     return api.subscribeEvent(code, raw => onUpdate(rowToEv(raw)));
   },[code]);
+}
+
+function useRealtimeForm(code, onUpdate, enabled=true) {
+  useEffect(()=>{
+    if(!code||!enabled) return;
+    return api.subscribeForm(code, raw => onUpdate(rowToForm(raw)));
+  },[code,enabled]);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -5275,7 +5289,11 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
 }
 
 // ── FormSubmitScreen (참여자용 신청폼) ──────────────────
-function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
+function FormSubmitScreen({nav,form:initForm,updateForm,showToast,isPreview=false}){
+  const lsGet=k=>{try{return localStorage.getItem(k);}catch{return null;}};
+  const lsSet=(k,v)=>{try{localStorage.setItem(k,v);}catch{}};
+  const lsDel=k=>{try{localStorage.removeItem(k);}catch{}};
+  const [form,setForm]=useState(initForm);
   const [values,setValues]=useState({});
   const [loading,setLoading]=useState(false);
   const [submitted,setSubmitted]=useState(false);
@@ -5284,20 +5302,23 @@ function FormSubmitScreen({nav,form,updateForm,showToast,isPreview=false}){
   const [lookupName,setLookupName]=useState('');
   const [lookupId,setLookupId]=useState('');
   const [lookupErr,setLookupErr]=useState('');
-  const [splashDone,setSplashDone]=useState(()=>!!localStorage.getItem('splash_form_'+form.code));
+  const [splashDone,setSplashDone]=useState(()=>!!lsGet('splash_form_'+initForm.code));
   const isClosed=form.status==='closed';
   const isFull=form.maxPeople&&(form.submissions||[]).length>=form.maxPeople;
+
+  useEffect(()=>setForm(initForm),[initForm]);
+  useRealtimeForm(form.code, f=>setForm(f), !isPreview);
 
   // 조회수 추적
   useEffect(()=>{if(!isPreview)api.trackView(null,form.code,'anonymous');},[]);
 
   // 재방문 시 이전 신청 확인 (localStorage)
   useEffect(()=>{
-    const savedKey=localStorage.getItem('form_sub_'+form.code);
+    const savedKey=lsGet('form_sub_'+form.code);
     if(savedKey){
       const existing=(form.submissions||[]).find(s=>s.createdAt===savedKey);
       if(existing){setMySubmission(existing);setSubmitted(true);}
-      else localStorage.removeItem('form_sub_'+form.code); // 삭제된 신청
+      else lsDel('form_sub_'+form.code); // 삭제된 신청
     }
   },[form.code]);
 
