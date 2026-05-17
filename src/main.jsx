@@ -2905,56 +2905,51 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
 // ── ShareSection ───────────────────────────────────────────
 function ShareSection({event,showToast}){
-  const amounts=calcAmounts(event);
-  const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
-  const unpaid=presentMembers.filter(k=>getPayStatus(event.payments?.[k])!=='paid');
-
-  const copy=async(text,label)=>{await copyText(text);showToast(`${label} 복사됐어요`);};
-
   const directLink=getLink(`code=${event.code}`);
   const fc=event.feeConfig;
-  const paidFeeMembers=presentMembers.filter(k=>(event.paidFeeKeys||[]).includes(k));
-  const unpaidFeeMembers=presentMembers.filter(k=>!(event.paidFeeKeys||[]).includes(k));
-  const paidTotalAmt=paidFeeMembers.length>0?(amounts[paidFeeMembers[0]]||0):0;
-  const unpaidTotalAmt=unpaidFeeMembers.length>0?(amounts[unpaidFeeMembers[0]]||0):0;
-  const hasPaidLine=paidTotalAmt>0;
-  const hasUnpaidLine=unpaidTotalAmt>0;
-  const autoMsg=fc?.paidFeeAmount!=null&&(hasPaidLine||hasUnpaidLine)
-    ?[`[${event.date} ${event.name}] 정산 안내`,'',
-      ...(hasPaidLine?[`📌 학생회비 납부자: ${fmtKRW(paidTotalAmt)}`]:[]),
-      ...(hasUnpaidLine?[`📌 학생회비 미납자: ${fmtKRW(unpaidTotalAmt)}`]:[]),
-      '','아래 링크에서 내가 낼 돈을 확인하고 입금해주세요.','','(정산해 · 간편한 모임 정산 서비스)'].join('\n')
-    :`[${event.date} ${event.name}] 정산 안내\n\n아래 링크에서 내가 낼 돈을 확인하고 입금해주세요.\n\n(정산해 · 간편한 모임 정산 서비스)`;
-
-  const [editMode,setEditMode]=useState(false);
-  const [editText,setEditText]=useState('');
-
-  const startEdit=()=>{if(!editText)setEditText(autoMsg);setEditMode(true);};
-  const getMsg=()=>`${editMode?editText:autoMsg}\n${directLink}`;
-
+  const copy=async(text,label)=>{await copyText(text);showToast(`${label} 복사됐어요`);};
+  const isFcRound=i=>i===0&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
+  const canShare=(r,i)=>!!isFcRound(i)||r.amount>0;
+  const roundMsg=(r,i)=>{
+    const head=`[${event.date} ${event.name}] ${r.label} 정산 안내`;
+    if(isFcRound(i)){
+      return [head,'',
+        ...(fc.paidFeeAmount>0?[`📌 학생회비 납부자: ${fmtKRW(fc.paidFeeAmount)}`]:[]),
+        ...(fc.unpaidFeeAmount>0?[`📌 학생회비 미납자: ${fmtKRW(fc.unpaidFeeAmount)}`]:[]),
+        '','아래 링크에서 내가 낼 돈을 확인하고 입금해주세요.','','(정산해 · 간편한 모임 정산 서비스)',
+        directLink].join('\n');
+    }
+    const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0)+(r.includeOrganizer===true?1:0);
+    const perPerson=r.amount>0&&totalCount>0?Math.ceil(r.amount/totalCount):0;
+    return `${head}\n\n1인당 ${fmtKRW(perPerson)} (${totalCount}명)\n아래 링크에서 내가 낼 돈을 확인하고 입금해주세요.\n\n(정산해 · 간편한 모임 정산 서비스)\n${directLink}`;
+  };
   return(
     <div>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-        <div style={{fontSize:12,color:C.textDim,fontWeight:600}}>공유 메시지</div>
-        {!editMode?(
-          <button onClick={startEdit} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',fontWeight:600,display:'flex',alignItems:'center',gap:3}}><Icon n="pencil" size={11} color={C.accent}/>편집</button>
-        ):(
-          <div style={{display:'flex',gap:8}}>
-            <button onClick={()=>setEditText(autoMsg)} style={{fontSize:11,color:C.textMid,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',fontWeight:600}}>원래대로</button>
-            <button onClick={()=>setEditMode(false)} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',fontWeight:600}}>완료</button>
+      <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:10,lineHeight:1.6}}>차수별로 따로 공유할 수 있어요. 금액을 입력한 차수만 공유돼요.</div>
+      {event.rounds.map((r,i)=>{
+        const ok=canShare(r,i);
+        const fcR=isFcRound(i);
+        const msg=roundMsg(r,i);
+        return(
+          <div key={r.id} style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${ok?C.accent+'40':C.border}`}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:ok?10:0}}>
+              <div style={{fontWeight:800,fontSize:15,color:C.text}}>{r.label}</div>
+              <div style={{fontSize:13,fontWeight:700,color:ok?C.accent:C.textDim}}>{r.amount>0?fmtKRW(r.amount):(fcR?'학생회비 정산':'금액 미입력')}</div>
+            </div>
+            {ok?(
+              <>
+                <div style={{background:C.inputBg,borderRadius:10,padding:'10px 12px',fontSize:12,color:C.textMid,lineHeight:1.8,marginBottom:8,whiteSpace:'pre-wrap',border:`1px solid ${C.border}`}}>{msg}</div>
+                <div style={{display:'flex',gap:8}}>
+                  <Btn onClick={async()=>{posthog.capture('정산_링크_공유',{차수:r.label});const shared=await shareText(msg);if(!shared){await copy(msg,'메시지');}else showToast('공유 완료');}} small style={{flex:2}}><Icon n="message-circle" size={14} color="#fff" style={{marginRight:4}}/>카톡 공유</Btn>
+                  <Btn onClick={()=>copy(directLink,'링크')} variant="secondary" small style={{flex:1}}><Icon n="link" size={14} color={C.textMid} style={{marginRight:4}}/>링크</Btn>
+                </div>
+              </>
+            ):(
+              <div style={{fontSize:12,color:C.textDim,marginTop:6,lineHeight:1.6}}>금액 입력 후 공유 가능 — '행사 진행' 탭에서 {r.label} 금액을 입력하세요.</div>
+            )}
           </div>
-        )}
-      </div>
-      {editMode?(
-        <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={6} style={{width:'100%',padding:'10px 12px',borderRadius:10,border:`1.5px solid ${C.accent}`,background:C.inputBg,fontSize:13,color:C.text,lineHeight:1.85,resize:'vertical',outline:'none',boxSizing:'border-box',marginBottom:6}}/>
-      ):(
-        <div style={{background:C.inputBg,borderRadius:12,padding:'12px 14px',fontSize:12,color:C.textMid,lineHeight:1.85,marginBottom:8,whiteSpace:'pre-wrap',border:`1.5px solid ${C.border}`}}>{autoMsg}{'\n'}{directLink}</div>
-      )}
-      <div style={{display:'flex',gap:8,marginBottom:8}}>
-        <Btn onClick={async()=>{posthog.capture('정산_링크_공유');const msg=getMsg();const shared=await shareText(msg);if(!shared){await copy(msg,'메시지');}else showToast('공유 완료');}} small style={{flex:2}}><Icon n="message-circle" size={14} color="#fff" style={{marginRight:4}}/>카톡 공유</Btn>
-        <Btn onClick={()=>copy(directLink,'링크')} variant="secondary" small style={{flex:1}}><Icon n="link" size={14} color={C.textMid} style={{marginRight:4}}/>링크</Btn>
-      </div>
-      <Btn onClick={()=>copy(getMsg(),'메시지')} variant="ghost" small style={{marginBottom:16}}><Icon n="clipboard-list" size={14} color={C.textDim} style={{marginRight:4}}/>메시지 복사</Btn>
+        );
+      })}
     </div>
   );
 }
