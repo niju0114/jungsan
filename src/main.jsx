@@ -826,6 +826,8 @@ function App() {
   // 인증 재진입 루프 방지: 마지막 로드 완료 uid / 진행 중 플래그
   const loadedUidRef=useRef(null);
   const loadingRef=useRef(false);
+  // 탈퇴·RLS차단 계정: signOut→재SIGNED_IN으로 loadUserData가 다시 도는 루프 차단 (세션 내 영구)
+  const deniedUidRef=useRef(null);
 
   const showToast=(msg,color=C.green)=>{setToast({msg,color});setTimeout(()=>setToast(null),2500);};
 
@@ -858,6 +860,7 @@ function App() {
       // 데이터 재로딩은 최초 진입/실제 로그인에서만. TOKEN_REFRESHED·USER_UPDATED·동일 uid 중복 SIGNED_IN 무시
       if(_evt!=='SIGNED_IN'&&_evt!=='INITIAL_SESSION') return;
       if(loadingRef.current||loadedUidRef.current===session.user.id) return;
+      if(deniedUidRef.current===session.user.id) return; // 탈퇴/차단 계정 재시도 차단
       loadingRef.current=true;
       // Supabase 콜백은 auth 락 보유 중 — 내부에서 Supabase 호출 시 재진입 루프 발생.
       // 락 밖(setTimeout 0)에서 처리하고, getUser() 대신 콜백이 준 session.user 사용.
@@ -927,6 +930,7 @@ function App() {
     ]);
     // 탈퇴 계정 차단 (email 로그인뿐 아니라 Google OAuth도 동일하게 적용)
     if(profData?.deleted){
+      deniedUidRef.current=uid;
       await api.signOut();
       setUser(null);setEvents([]);setForms([]);
       setProfile({id:null,account:{bank:'',number:'',holder:''},groups:[],name:''});
@@ -949,6 +953,7 @@ function App() {
       const {data:newProf}=await api.getProfile(u.id);
       if(!newProf){
         // upsert 후에도 프로필을 읽을 수 없음 → RLS가 탈퇴 계정을 차단 중
+        deniedUidRef.current=uid;
         await api.signOut();
         setUser(null);setEvents([]);setForms([]);
         setProfile({id:null,account:{bank:'',number:'',holder:''},groups:[],name:''});
