@@ -823,6 +823,9 @@ function App() {
   const [showGuide,setShowGuide]=useState(false);
   const [showOnboarding,setShowOnboarding]=useState(false);
   const [showFeedback,setShowFeedback]=useState(false);
+  // 인증 재진입 루프 방지: 마지막 로드 완료 uid / 진행 중 플래그
+  const loadedUidRef=useRef(null);
+  const loadingRef=useRef(false);
 
   const showToast=(msg,color=C.green)=>{setToast({msg,color});setTimeout(()=>setToast(null),2500);};
 
@@ -843,6 +846,7 @@ function App() {
       if(!session){
         // OAuth 콜백 중 INITIAL_SESSION null은 PKCE 교환 대기 상태 — ready 설정 보류
         if(isOAuthCallback&&_evt==='INITIAL_SESSION') return;
+        loadedUidRef.current=null;loadingRef.current=false;
         setUser(null);setEvents([]);setForms([]);
         setProfile({id:null,account:{bank:'',number:'',holder:''},groups:[],name:''});
         // 참여자 화면이면 유지
@@ -851,18 +855,24 @@ function App() {
         if(!isParticipantPath) setReady(true);
         return;
       }
-      // onboarding 체크 — 참여자 화면이면 표시 안 함
-      if(_evt==='SIGNED_IN'||_evt==='INITIAL_SESSION'){
+      // 데이터 재로딩은 최초 진입/실제 로그인에서만. TOKEN_REFRESHED·USER_UPDATED·동일 uid 중복 SIGNED_IN 무시
+      if(_evt!=='SIGNED_IN'&&_evt!=='INITIAL_SESSION') return;
+      if(loadingRef.current||loadedUidRef.current===session.user.id) return;
+      loadingRef.current=true;
+      // Supabase 콜백은 auth 락 보유 중 — 내부에서 Supabase 호출 시 재진입 루프 발생.
+      // 락 밖(setTimeout 0)에서 처리하고, getUser() 대신 콜백이 준 session.user 사용.
+      const su=session.user;
+      setTimeout(()=>{
         const isParticipantView=['participantEvent','formSubmit'];
         if(!isParticipantView.some(v2=>view===v2||urlCode||urlForm)){
-          api.getProfileFields(session.user.id,'onboarding_done').then(({data})=>{
-            if(localStorage.getItem('onboarding_done_'+session.user.id)==='true') return;
+          api.getProfileFields(su.id,'onboarding_done').then(({data})=>{
+            if(localStorage.getItem('onboarding_done_'+su.id)==='true') return;
             if(data?.onboarding_done===true) return;
             setShowOnboarding(true);
           });
         }
-      }
-      loadUserData(session.user.id);
+        loadUserData(su.id,su);
+      },0);
     });
 
     // 신청폼 URL 처리
@@ -907,8 +917,10 @@ function App() {
     return()=>subscription.unsubscribe();
   },[]);
 
-  const loadUserData=async(uid)=>{
+  const loadUserData=async(uid,authUser)=>{
     console.log('[loadUserData] uid:',uid);
+    loadingRef.current=true;
+    try{
     const [{data:evData},{data:profData}]=await Promise.all([
       api.getEvents(uid),
       api.getProfile(uid),
@@ -923,7 +935,9 @@ function App() {
     }
     const formRes=await api.getForms(uid);
     const formData=formRes.data;
-    const {data:{user:u}}=await api.getUser();
+    // 콜백이 준 session.user를 우선 사용. sb.auth.getUser()를 콜백 경로에서 호출하면
+    // auth 락 재진입 → SIGNED_IN 폭주 루프가 발생하므로 제거 (직접 호출 경로만 fallback).
+    const u = authUser || (await api.getUser()).data?.user || null;
     setUser(u||null);
     if(evData) setEvents(evData.map(rowToEv));
     if(formData) setForms(formData.map(rowToForm));
@@ -959,10 +973,15 @@ function App() {
     if(resolvedProf&&u){
       posthog.identify(u.id,{email:u.email,name:resolvedProf.name||googleName||'',school:resolvedProf.school||''});
     }
+    // 정상 로드 완료 → 동일 uid 재호출 차단용 마커
+    loadedUidRef.current=u?.id||uid;
     console.log('[loadUserData] done | user:',u?.id,'prof:',resolvedProf?.id);
     setReady(true);
     // 참여자/신청폼 화면이면 유지, 나머지는 홈으로 (로그인 후 빈 화면 방지)
     setView(v=>['participantEvent','formSubmit'].includes(v)?v:(!v||v==='auth'||v==='home')?'home':v);
+    } finally {
+      loadingRef.current=false;
+    }
   };
 
   const saveProfile=async(prof)=>{
