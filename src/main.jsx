@@ -2945,18 +2945,19 @@ function ShareSection({event,showToast}){
   const copy=async(text,label)=>{await copyText(text);showToast(`${label} 복사됐어요`);};
   const isFcRound=i=>i===0&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
   const canShare=(r,i)=>!!isFcRound(i)||r.amount>0;
+  // 공유 메시지에서 학생회비 정보 제거 — 차수별 금액 + 계좌만 (feeConfig는 계산엔 그대로 사용)
+  const acctLine=event.account?.bank?`입금: ${event.account.bank} ${event.account.number}${event.account.holder?` (${event.account.holder})`:''}`:'';
   const roundMsg=(r,i)=>{
-    const head=`[${event.date} ${event.name}] ${r.label} 정산 안내`;
-    if(isFcRound(i)){
-      return [head,'',
-        ...(fc.paidFeeAmount>0?[`📌 학생회비 납부자: ${fmtKRW(fc.paidFeeAmount)}`]:[]),
-        ...(fc.unpaidFeeAmount>0?[`📌 학생회비 미납자: ${fmtKRW(fc.unpaidFeeAmount)}`]:[]),
-        '','아래 링크에서 내가 낼 돈을 확인하고 입금해주세요.','','(정산해 · 간편한 모임 정산 서비스)',
-        directLink].join('\n');
+    const lines=[`[${event.date} ${event.name}] ${r.label} 정산 안내`,''];
+    if(!isFcRound(i)){
+      const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0)+(r.includeOrganizer===true?1:0);
+      const perPerson=r.amount>0&&totalCount>0?Math.ceil(r.amount/totalCount):0;
+      lines.push(`1인당 ${fmtKRW(perPerson)} (${totalCount}명)`);
     }
-    const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0)+(r.includeOrganizer===true?1:0);
-    const perPerson=r.amount>0&&totalCount>0?Math.ceil(r.amount/totalCount):0;
-    return `${head}\n\n1인당 ${fmtKRW(perPerson)} (${totalCount}명)\n아래 링크에서 내가 낼 돈을 확인하고 입금해주세요.\n\n(정산해 · 간편한 모임 정산 서비스)\n${directLink}`;
+    lines.push('아래 링크에서 내가 낼 돈을 확인하고 입금해주세요.');
+    if(acctLine) lines.push('',acctLine);
+    lines.push('','(정산해 · 간편한 모임 정산 서비스)',directLink);
+    return lines.join('\n');
   };
   return(
     <div>
