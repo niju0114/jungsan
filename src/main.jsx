@@ -2130,7 +2130,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
 
   const update=async ev=>{setEvent(ev);if(updateEvent) await updateEvent(ev);};
 
-  const steps=['금액 입력','공유하기','정산현황'];
+  const steps=['행사 진행','공유','정산 현황'];
   const stepDone=steps.map((_,i)=>i<slide);
 
   const safeNavigate=fn=>{
