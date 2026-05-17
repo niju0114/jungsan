@@ -1752,9 +1752,7 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
                     style={{width:'100%',padding:'12px 14px',background:C.inputBg,border:`1.5px solid ${C.border}`,borderRadius:12,color:C.text,fontSize:14,outline:'none',resize:'vertical',lineHeight:1.75,marginBottom:10}}
                     onFocus={e=>e.target.style.border=`1.5px solid ${C.accent}`}
                     onBlur={e=>e.target.style.border=`1.5px solid ${C.border}`}
-                  />
-                  <div style={{fontSize:11,color:C.textDim,marginBottom:8,lineHeight:1.6}}>학번 없어도 됩니다. 동명이인은 이름을 다르게 적어주세요 (예: 민준2)</div>
-                  {displayMembers.length>0&&(
+                  />                  {displayMembers.length>0&&(
                     <div>
                       <div style={{display:'flex',gap:6,marginBottom:8}}>
                         <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="이름·학번 검색"
@@ -2060,7 +2058,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
         <Card>
           <Field label="정산 이름" value={name} onChange={setName} placeholder="5월 MT, 종강 회식…"/>
           <Field label="행사 날짜·시간" value={date+'T'+(time||'00:00')} onChange={v=>{setDate(v.slice(0,10));setTime(v.slice(11,16));}} type="datetime-local"/>
-          <div style={{fontSize:11,color:C.textDim,lineHeight:1.6}}>선택한 참여자가 1차 명단이 돼요. 금액·차수·정산방식·명단은 만든 뒤 '행사 진행'에서 자유롭게 바꿀 수 있어요.</div>
+          <div style={{fontSize:11,color:C.textDim,lineHeight:1.6}}>참여자 = 1차 명단</div>
         </Card>
         <Card>
           <div style={{fontWeight:800,color:C.text,marginBottom:12,fontSize:14,display:'flex',alignItems:'center',gap:6}}><Icon n="credit-card" size={14} color={C.text}/>입금 계좌</div>
@@ -2704,10 +2702,8 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   return(
     <div>
       {event.rounds.length===1&&(event.rounds[0]?.amount||0)<=0&&!event.feeConfig&&(
-        <div style={{background:C.accentBg,borderRadius:12,padding:'12px 14px',marginBottom:10,fontSize:13,color:C.textMid,lineHeight:1.7,border:`1px solid ${C.accent}20`}}>
-          <strong style={{color:C.text}}>출석 체크부터 시작하세요.</strong><br/>
-          <span style={{color:C.accent,fontWeight:700}}>① 출석 체크 → ② 차수별 금액 입력 → ③ 공유</span><br/>
-          행사 끝나고 금액을 입력하면 1/N이 자동 계산돼요. 금액·정산방식·명단은 언제든 바꿀 수 있어요.
+        <div style={{background:C.accentBg,borderRadius:12,padding:'10px 14px',marginBottom:10,fontSize:13,color:C.text,fontWeight:700,border:`1px solid ${C.accent}20`}}>
+          출석 체크부터 시작하세요
         </div>
       )}
       <FeeConfigSection event={event} updateEvent={updateEvent}/>
@@ -2725,7 +2721,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                 onKeyDown={e=>{if(e.key==='Enter')addMemberToRoster();}} placeholder="이름"
                 style={{flex:2,padding:'9px 12px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none',boxSizing:'border-box'}}/>
               <input value={newMemberSid} onChange={e=>setNewMemberSid(e.target.value)}
-                onKeyDown={e=>{if(e.key==='Enter')addMemberToRoster();}} placeholder="학번(선택)" inputMode="numeric"
+                onKeyDown={e=>{if(e.key==='Enter')addMemberToRoster();}} placeholder="학번" inputMode="numeric"
                 style={{flex:2,padding:'9px 12px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none',boxSizing:'border-box'}}/>
               <button onClick={addMemberToRoster} disabled={!newMemberName.trim()} style={{flex:1,padding:'9px 0',borderRadius:10,border:'none',background:newMemberName.trim()?C.accent:C.disabled,color:'#fff',fontSize:13,fontWeight:700,cursor:newMemberName.trim()?'pointer':'default'}}>추가</button>
             </div>
@@ -2734,12 +2730,11 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
               {(event.members||[]).map(k=>(
                 <span key={k} style={{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 8px 5px 12px',borderRadius:20,background:C.inputBg,border:`1px solid ${C.border}`,fontSize:13,color:C.textMid,fontWeight:600}}>
                   {mm[k]||k}
-                  <button onClick={()=>requestRemoveMember(k)} style={{background:'none',border:'none',cursor:'pointer',color:C.textDim,fontSize:15,lineHeight:1,padding:'0 2px'}}>×</button>
+                  <button onClick={()=>requestRemoveMember(k)} title="제거" aria-label="제거" style={{background:'none',border:'none',cursor:'pointer',color:C.textDim,fontSize:15,lineHeight:1,padding:'0 2px'}}>×</button>
                 </span>
               ))}
               {(event.members||[]).length===0&&<span style={{fontSize:12,color:C.textDim}}>명단이 비어 있어요. 위에서 추가하세요.</span>}
             </div>
-            <div style={{fontSize:11,color:C.textDim,marginTop:8,lineHeight:1.6}}>잘못 추가했으면 ×로 제거하세요. 이름을 바꾸려면 제거 후 다시 추가해주세요.</div>
           </div>
         )}
       </div>
@@ -2808,7 +2803,6 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
                     <div style={{fontSize:12,color:C.textMid,fontWeight:700}}>
                       출석 <span style={{fontWeight:400,color:C.textDim}}>{rMembers.length+(includeOrg?1:0)}명</span>
-                      {isFirst&&!(amtNum>0)&&!useFc&&<span style={{marginLeft:6,fontSize:11,color:C.accent,fontWeight:700}}>← 먼저 체크</span>}
                     </div>
                     <div style={{display:'flex',gap:8}}>
                       <button onClick={()=>setAttSort(s=>s==='group'?'name':'group')} style={{fontSize:11,color:C.textMid,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>{attSort==='group'?'가나다순':'그룹순'}</button>
