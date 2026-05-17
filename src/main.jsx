@@ -2467,6 +2467,11 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   const [roundSavedId,setRoundSavedId]=useState(null);
   const roundSavedTimerRef=useRef(null);
   const [deleteRoundConfirm,setDeleteRoundConfirm]=useState(null);
+  const [showRoster,setShowRoster]=useState(false);
+  const [newMemberName,setNewMemberName]=useState('');
+  const [newMemberSid,setNewMemberSid]=useState('');
+  const [rosterErr,setRosterErr]=useState('');
+  const [removeConfirm,setRemoveConfirm]=useState(null);
 
   const roundTimersRef=useRef({});
   const roundAmountsRef=useRef(roundAmounts);
@@ -2601,6 +2606,47 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
     }
   };
 
+  // 출석 화면에서 명단 인라인 편집 (추가/제거). 이름 수정은 미지원 → 제거 후 재추가.
+  const addMemberToRoster=()=>{
+    const nm=newMemberName.trim();
+    if(!nm) return;
+    const sid=newMemberSid.trim().replace(/\s/g,'');
+    const key=nm+(sid?`_${sid}`:'');
+    if((event.members||[]).includes(key)){
+      setRosterErr('이미 있는 이름이에요. 동명이인이면 이름을 다르게 적어주세요 (예: 민준2)');
+      return;
+    }
+    // 신규 멤버는 1차(rounds[0])에 즉시 포함 + 출석 true → 그 자리에서 체크 가능
+    const newRounds=event.rounds.map((r,i)=>i===0?{...r,members:[...new Set([...(r.members||[]),key])]}:r);
+    updateEvent({
+      ...event,
+      members:[...(event.members||[]),key],
+      memberMap:{...(event.memberMap||{}),[key]:sid?`${nm} (${sid})`:nm},
+      attendance:{...(event.attendance||{}),[key]:true},
+      rounds:newRounds,
+    });
+    setNewMemberName('');setNewMemberSid('');setRosterErr('');
+  };
+  const doRemoveMember=key=>{
+    const memberMap={...(event.memberMap||{})};delete memberMap[key];
+    const attendance={...(event.attendance||{})};delete attendance[key];
+    const payments={...(event.payments||{})};delete payments[key];
+    updateEvent({
+      ...event,
+      members:(event.members||[]).filter(k=>k!==key),
+      memberMap,attendance,payments,
+      paidFeeKeys:(event.paidFeeKeys||[]).filter(k=>k!==key),
+      rounds:event.rounds.map(r=>({...r,members:(r.members||[]).filter(k=>k!==key)})),
+    });
+    setRemoveConfirm(null);
+  };
+  const requestRemoveMember=key=>{
+    const p=event.payments?.[key];
+    const hasRecord=p&&(p.payStatus==='paid'||p.payStatus==='requested'||p.paid||p.requested);
+    if(hasRecord) setRemoveConfirm({key,name:mm[key]||key});
+    else doRemoveMember(key);
+  };
+
   // onAttDirtyChange는 더 이상 dirty 상태 없으므로 false 전달
   useEffect(()=>{onAttDirtyChange?.(false);},[]);
 
@@ -2626,6 +2672,38 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   return(
     <div>
       <FeeConfigSection event={event} updateEvent={updateEvent}/>
+
+      {/* 명단 관리 (출석 화면에서 인라인 추가/제거) */}
+      <div style={{background:C.cardBg,borderRadius:14,padding:'12px 14px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${C.border}`}}>
+        <div onClick={()=>setShowRoster(s=>!s)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
+          <div style={{fontWeight:800,fontSize:14,color:C.text}}>명단 관리 <span style={{fontSize:12,fontWeight:600,color:C.textDim}}>{(event.members||[]).length}명</span></div>
+          <span className="ms" style={{fontSize:20,color:C.textDim}}>{showRoster?'expand_less':'expand_more'}</span>
+        </div>
+        {showRoster&&(
+          <div style={{marginTop:12}}>
+            <div style={{display:'flex',gap:6,marginBottom:rosterErr?6:10}}>
+              <input value={newMemberName} onChange={e=>{setNewMemberName(e.target.value);setRosterErr('');}}
+                onKeyDown={e=>{if(e.key==='Enter')addMemberToRoster();}} placeholder="이름"
+                style={{flex:2,padding:'9px 12px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none',boxSizing:'border-box'}}/>
+              <input value={newMemberSid} onChange={e=>setNewMemberSid(e.target.value)}
+                onKeyDown={e=>{if(e.key==='Enter')addMemberToRoster();}} placeholder="학번(선택)" inputMode="numeric"
+                style={{flex:2,padding:'9px 12px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none',boxSizing:'border-box'}}/>
+              <button onClick={addMemberToRoster} disabled={!newMemberName.trim()} style={{flex:1,padding:'9px 0',borderRadius:10,border:'none',background:newMemberName.trim()?C.accent:C.disabled,color:'#fff',fontSize:13,fontWeight:700,cursor:newMemberName.trim()?'pointer':'default'}}>추가</button>
+            </div>
+            {rosterErr&&<div style={{fontSize:12,color:C.orange,fontWeight:600,marginBottom:10,lineHeight:1.5}}>{rosterErr}</div>}
+            <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+              {(event.members||[]).map(k=>(
+                <span key={k} style={{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 8px 5px 12px',borderRadius:20,background:C.inputBg,border:`1px solid ${C.border}`,fontSize:13,color:C.textMid,fontWeight:600}}>
+                  {mm[k]||k}
+                  <button onClick={()=>requestRemoveMember(k)} style={{background:'none',border:'none',cursor:'pointer',color:C.textDim,fontSize:15,lineHeight:1,padding:'0 2px'}}>×</button>
+                </span>
+              ))}
+              {(event.members||[]).length===0&&<span style={{fontSize:12,color:C.textDim}}>명단이 비어 있어요. 위에서 추가하세요.</span>}
+            </div>
+            <div style={{fontSize:11,color:C.textDim,marginTop:8,lineHeight:1.6}}>잘못 추가했으면 ×로 제거하세요. 이름을 바꾸려면 제거 후 다시 추가해주세요.</div>
+          </div>
+        )}
+      </div>
 
       {/* 차수 카드들 */}
       {event.rounds.map((r,ridx)=>{
@@ -2814,6 +2892,16 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
           </Modal>
         );
       })()}
+
+      {removeConfirm&&(
+        <Modal isOpen={true} onClose={()=>setRemoveConfirm(null)} title="명단에서 제거" closeOnBackdrop={false} showCloseButton={false}>
+          <div style={{fontSize:14,color:C.textMid,marginBottom:20,lineHeight:1.7}}><strong style={{color:C.text}}>{removeConfirm.name}</strong>님은 입금/요청 기록이 있어요.<br/>제거하면 이 정산의 입금 기록도 함께 삭제돼요. 계속할까요?</div>
+          <div style={{display:'flex',gap:10}}>
+            <Btn variant="ghost" onClick={()=>setRemoveConfirm(null)} style={{flex:1}}>취소</Btn>
+            <Btn onClick={()=>doRemoveMember(removeConfirm.key)} style={{flex:2,background:C.red}}>제거</Btn>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
