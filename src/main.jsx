@@ -2503,6 +2503,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   const [rosterErr,setRosterErr]=useState('');
   const [removeConfirm,setRemoveConfirm]=useState(null);
   const [attSort,setAttSort]=useState('group'); // 출석 명단 정렬: 'group'(기본) | 'name'(가나다). DB 미저장
+  const [collapsedGroups,setCollapsedGroups]=useState(()=>new Set()); // 그룹순일 때 접힌 그룹명. 기본 모두 펼침
 
   const roundTimersRef=useRef({});
   const roundAmountsRef=useRef(roundAmounts);
@@ -2845,7 +2846,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                       출석 <span style={{fontWeight:400,color:C.textDim}}>{rMembers.length+(includeOrg?1:0)}명</span>
                     </div>
                     <div style={{display:'flex',alignItems:'center',gap:10}}>
-                      <button onClick={()=>setAttSort(s=>s==='group'?'name':'group')} style={{fontSize:11,color:C.textMid,background:C.inputBg,border:`1px solid ${C.border}`,borderRadius:8,padding:'3px 8px',cursor:'pointer',fontWeight:600}}>{attSort==='group'?'가나다순':'그룹순'}</button>
+                      {groupSections&&<button onClick={()=>setAttSort(s=>s==='group'?'name':'group')} style={{fontSize:11,color:C.textMid,background:C.inputBg,border:`1px solid ${C.border}`,borderRadius:8,padding:'3px 8px',cursor:'pointer',fontWeight:600}}>{attSort==='group'?'가나다순':'그룹순'}</button>}
                       <div style={{display:'flex',gap:8}}>
                         <button onClick={()=>{const newM=[...event.members];const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:newM,...(eventHasLegacyOrganizer?{includeOrganizer:true}:{})}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,true])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전원 참석</button>
                         <button onClick={()=>{const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:[],...(eventHasLegacyOrganizer?{includeOrganizer:false}:{})}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,false])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.textDim,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전원 불참</button>
@@ -2855,13 +2856,17 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                   {(groupSections&&attSort==='group')?(
                     <>
                       {groupSections.map(sec=>{
-                        const secIn=sec.keys.filter(k=>rMembers.includes(k)).length;
+                        const collapsed=collapsedGroups.has(sec.name);
                         return(
                           <div key={sec.name} style={{marginBottom:10}}>
                             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:5}}>
-                              <span style={{fontSize:11,fontWeight:700,color:C.textDim,letterSpacing:0.3}}>{sec.name} {secIn}/{sec.keys.length}명</span>
+                              <div onClick={()=>setCollapsedGroups(p=>{const n=new Set(p);n.has(sec.name)?n.delete(sec.name):n.add(sec.name);return n;})} style={{display:'flex',alignItems:'center',gap:3,cursor:'pointer'}}>
+                                <span className="ms" style={{fontSize:16,color:C.textDim}}>{collapsed?'chevron_right':'expand_more'}</span>
+                                <span style={{fontSize:11,fontWeight:700,color:C.textDim,letterSpacing:0.3}}>{sec.name} ({sec.keys.length}명)</span>
+                              </div>
                               <button onClick={()=>{const newM=[...new Set([...rMembers,...sec.keys])];const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:newM}:r2);const newAtt=isFirst?{...event.attendance,...Object.fromEntries(sec.keys.map(k=>[k,true]))}:event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전체 선택</button>
                             </div>
+                            {!collapsed&&(
                             <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
                               {sec.keys.map(k=>{
                                 const isIn=rMembers.includes(k);
@@ -2874,6 +2879,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                                 );
                               })}
                             </div>
+                            )}
                           </div>
                         );
                       })}
@@ -2895,7 +2901,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                     </>
                   ):(
                     <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                      {(attSort==='name'?[...event.members].sort((a,b)=>(mm[a]||a).localeCompare(mm[b]||b,'ko')):event.members).map(k=>{
+                      {((!groupSections||attSort==='name')?[...event.members].sort((a,b)=>(mm[a]||a).localeCompare(mm[b]||b,'ko')):event.members).map(k=>{
                         const isIn=rMembers.includes(k);
                         return(
                           <div key={k} onClick={()=>toggleMemberInRound(r.id,k)} className="press"
