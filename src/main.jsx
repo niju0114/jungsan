@@ -2008,12 +2008,10 @@ function CreateScreen({nav,profile,events,createEvent,showToast,addProfileMember
     <div className="fade-up screen" style={{background:C.pageBg}}>
       {showOnboarding&&<SmallEventOnboardingModal onClose={()=>setShowOnboarding(false)} userId={profile.id}/>}
       <Header title="새 정산 만들기" onBack={()=>nav.setView('home')}/>
-      <div style={{padding:'6px 16px 0',fontSize:12,color:C.textDim,fontWeight:500}}>친구·동아리 모임에 적합. 명단 직접 입력</div>
       <div style={{padding:'16px 16px 24px'}}>
         <Card>
           <Field label="정산 이름" value={name} onChange={setName} placeholder="5월 MT, 종강 회식…"/>
           <Field label="행사 날짜·시간" value={date+'T'+(time||'00:00')} onChange={v=>{setDate(v.slice(0,10));setTime(v.slice(11,16));}} type="datetime-local"/>
-          <div style={{fontSize:11,color:C.textDim,lineHeight:1.6}}>등록된 전체 명단이 1차에 자동으로 들어가요. 출석은 다음 화면에서 체크/해제하면 돼요.</div>
         </Card>
         <Card>
           <div style={{fontWeight:800,color:C.text,marginBottom:12,fontSize:14,display:'flex',alignItems:'center',gap:6}}><Icon n="credit-card" size={14} color={C.text}/>입금 계좌</div>
@@ -4067,7 +4065,7 @@ function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
     onClose();
   };
   const SLIDES=[
-    {msIcon:'checklist',color:C.green,body:'참가자 출석 체크 후\n1차·2차 금액을 입력하면\n인당 분담금이 자동으로 계산돼요.'},
+    {msIcon:'checklist',color:C.green,body:'전체 명단이 1차에 자동으로 들어가요.\n출석 체크하고 금액만 입력하면\n인당 분담금이 자동 계산돼요.'},
     {msIcon:'upload_file',color:'#3B82F6',body:'은행 앱에서 거래내역서를 엑셀로 받아\n업로드하면 입금자를 자동으로 매칭해요.\n미입금자에게 콕 찌르기로 알림도 보낼 수 있어요.'},
     {msIcon:'hourglass_empty',color:'#F59E0B',body:'여유 있게 진행해도 괜찮아요.\n\n정산은 사람들이 모일 시간이 필요해요.\n콕 찌르기는 충분한 시간이 지난 후 사용하세요.'},
   ];
@@ -4248,7 +4246,6 @@ function FormCreateScreen({nav,profile,createForm}){
       <Header title="신청폼 만들기" onBack={()=>nav.setView('home')}/>
       <FlowStepper steps={['폼 생성+공유','대조']} current={0} done={[]}/>
       <div style={{flex:1,padding:'8px 16px 16px',overflow:'auto'}}>
-        <div style={{fontSize:12,color:C.textDim,fontWeight:500,marginBottom:8,padding:'4px 2px'}}>신청자가 보게 될 메시지를 작성해주세요</div>
         {/* 기본 정보 */}
         <Card>
           <Field label="행사명" value={name} onChange={setName} placeholder="5월 MT, 개강총회…"/>
@@ -4280,7 +4277,7 @@ function FormCreateScreen({nav,profile,createForm}){
               <Field label="참가비 (원)" value={amount} onChange={v=>setAmount(v.replace(/[^0-9]/g,''))} placeholder="0 입력 시 참가비 없음" inputMode="numeric"/>
             )}
           </div>
-          <Field label="장소 (선택)" value={place} onChange={setPlace} placeholder="강남 OO식당, 동아리방…"/>
+          <Field label="장소 (선택)" value={place} onChange={setPlace} placeholder=""/>
           <div style={{marginBottom:14}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:useLimit?10:0}}>
               <div>
