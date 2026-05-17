@@ -2545,6 +2545,10 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
   const [roundExtras,setRoundExtras]=useState(()=>{
     const m={};event.rounds.forEach(r=>{m[r.id]=[...(r.extraMembers||[])];});return m;
   });
+  // 차수별 학생회비 override 입력값 (비우면 전역 feeConfig 폴백)
+  const [feeOverride,setFeeOverride]=useState(()=>{
+    const m={};event.rounds.forEach(r=>{m[r.id]={p:r.paidFeeAmount!=null?String(r.paidFeeAmount):'',u:r.unpaidFeeAmount!=null?String(r.unpaidFeeAmount):''};});return m;
+  });
   const [extraInputs,setExtraInputs]=useState({});
   const [roundSavedId,setRoundSavedId]=useState(null);
   const roundSavedTimerRef=useRef(null);
@@ -2608,8 +2612,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
       if(!pendingRoundsRef.current.has(r.id)) return r; // 건드린 적 없는 차수는 그대로 보존
       const roundAmt=roundAmountsRef.current[r.id]||'';
       const extra=roundExtrasRef.current[r.id]||[];
-      const isFirst=ev.rounds[0]?.id===r.id;
-      const useFc=isFirst&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
+      const useFc=roundIsFeeTier(r,fc);
       const amtNum=Number(roundAmt.replace(/[^0-9]/g,''))||0;
       return useFc?{...r,extraMembers:[...extra]}:{...r,amount:amtNum,extraMembers:[...extra]};
     });
@@ -2619,8 +2622,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
   const saveRoundNow=(rid,amt,extra,ev)=>{
     const fc=ev.feeConfig;
-    const isFirstRound=ev.rounds[0]?.id===rid;
-    const useFc=isFirstRound&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
+    const useFc=roundIsFeeTier(ev.rounds.find(r=>r.id===rid)||{},fc);
     const amtNum=Number((amt||'').replace(/[^0-9]/g,''))||0;
     const roundPatch=useFc?{extraMembers:[...extra]}:{amount:amtNum,extraMembers:[...extra]};
     const newRounds=ev.rounds.map(r=>r.id===rid?{...r,...roundPatch}:r);
@@ -2647,6 +2649,28 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
       clearTimeout(roundTimersRef.current[rid]);
       roundTimersRef.current[rid]=setTimeout(()=>{
         saveRoundNow(rid,roundAmountsRef.current[rid]||'',next[rid]||[],eventRef.current);
+      },700);
+      return next;
+    });
+  };
+
+  // 차수 정산방식 토글 (즉시 저장). 'feeTier'=학생회비 차등, 'split'=1/N(명시 옵트아웃)
+  const setRoundFeeMode=(rid,mode)=>{
+    const ev=eventRef.current;
+    updateEventRef.current({...ev,rounds:ev.rounds.map(r=>r.id===rid?{...r,feeMode:mode}:r)});
+  };
+  // 차수별 학생회비 override 금액 (디바운스 저장). 빈값이면 null → 전역 폴백
+  const setRoundFeeAmt=(rid,which,val)=>{
+    setFeeOverride(p=>{
+      const cur=p[rid]||{p:'',u:''};
+      const next={...p,[rid]:{...cur,[which==='paid'?'p':'u']:val}};
+      clearTimeout(roundTimersRef.current['fee_'+rid]);
+      roundTimersRef.current['fee_'+rid]=setTimeout(()=>{
+        const o=next[rid]||{};
+        const pv=o.p===''?null:(Number(o.p)||0);
+        const uv=o.u===''?null:(Number(o.u)||0);
+        const ev=eventRef.current;
+        updateEventRef.current({...ev,rounds:ev.rounds.map(r=>r.id===rid?{...r,paidFeeAmount:pv,unpaidFeeAmount:uv}:r)});
       },700);
       return next;
     });
@@ -2799,7 +2823,9 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
       {event.rounds.map((r,ridx)=>{
         const isClosed=closedRoundIds.has(r.id);
         const isFirst=ridx===0;
-        const useFc=isFirst&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
+        const useFc=roundIsFeeTier(r,fc);
+        const showFeeToggle=fcActive(fc)||r.feeMode!=null;
+        const rFee=roundFeeAmounts(r,fc);
         const amt=roundAmounts[r.id]||'';
         const amtNum=Number(amt.replace(/[^0-9]/g,''))||0;
         const extraList=roundExtras[r.id]||[];
@@ -2832,11 +2858,24 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
             {!isClosed&&(
               <>
+                {/* 정산 방식 (차수별) */}
+                {showFeeToggle&&(
+                  <div style={{display:'flex',gap:6,marginBottom:10}}>
+                    {[['split','1/N'],['feeTier','학생회비 차등']].map(([m,lb])=>{
+                      const on=(m==='feeTier')===useFc;
+                      return <button key={m} onClick={()=>setRoundFeeMode(r.id,m)} style={{flex:1,padding:'7px',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer',border:'none',background:on?C.accent:C.inputBg,color:on?'#fff':C.textMid}}>{lb}</button>;
+                    })}
+                  </div>
+                )}
                 {/* 금액 입력 */}
                 {useFc?(
-                  <div style={{fontSize:12,color:C.textMid,background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
-                    금액은 위 정산 방식 설정에서 관리됩니다<br/>
-                    <span style={{color:C.accent,fontWeight:700}}>납부자 {fmtKRW(fc.paidFeeAmount)} · 미납자 {fmtKRW(fc.unpaidFeeAmount)}</span>
+                  <div style={{background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
+                    <div style={{fontSize:12,color:C.textMid,marginBottom:8}}>학생회비 차등 — <span style={{color:C.accent,fontWeight:700}}>납부자 {fmtKRW(rFee.paid)} · 미납자 {fmtKRW(rFee.unpaid)}</span></div>
+                    <div style={{display:'flex',gap:6}}>
+                      <input value={(feeOverride[r.id]||{}).p||''} onChange={e=>setRoundFeeAmt(r.id,'paid',e.target.value.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder={`납부자(기본 ${fc?.paidFeeAmount||0})`} style={{flex:1,minWidth:0,padding:'9px 10px',borderRadius:8,border:`1px solid ${C.border}`,background:'#fff',fontSize:16,color:C.text,outline:'none',boxSizing:'border-box'}}/>
+                      <input value={(feeOverride[r.id]||{}).u||''} onChange={e=>setRoundFeeAmt(r.id,'unpaid',e.target.value.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder={`미납자(기본 ${fc?.unpaidFeeAmount||0})`} style={{flex:1,minWidth:0,padding:'9px 10px',borderRadius:8,border:`1px solid ${C.border}`,background:'#fff',fontSize:16,color:C.text,outline:'none',boxSizing:'border-box'}}/>
+                    </div>
+                    <div style={{fontSize:11,color:C.textDim,marginTop:6,lineHeight:1.5}}>비우면 기본 금액 적용. 입력하면 이 차수만 다른 금액.</div>
                   </div>
                 ):(
                   <>
