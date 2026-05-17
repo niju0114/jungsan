@@ -1989,11 +1989,11 @@ function CreateScreen({nav,profile,events,createEvent,showToast,addProfileMember
     if(!name.trim()){setErr('정산 이름을 입력해주세요');return;}
     setLoading(true);
     const code=genCode();
-    // 전체 명단(profile.groups) 자동 → 1차 전원. 키 중복(동명이인 동일키) 제거. 출석은 다음 화면에서 조정.
+    // 전체 명단(profile.groups) 자동 등록. 1차는 빈 상태로 시작 → 다음 화면에서 참석자만 ✓ 체크 (체크 패러다임). 키 중복(동명이인 동일키) 제거.
     const memberKeys=[...new Set(allFromGroups.map(m=>m.name+(m.sid?`_${m.sid}`:'')))];
     const mMap={}; allFromGroups.forEach(m=>{mMap[m.name+(m.sid?`_${m.sid}`:'')]=m.name;});
     const paidFeeKeys=memberKeys.filter(k=>groups.some(g=>(g.paidFeeMembers||[]).includes(k)));
-    const ev={code,name:name.trim(),date,time:time||null,pin:'',account:{bank,number,holder},members:memberKeys,memberMap:mMap,rounds:[{id:'round_1',label:'1차',amount:0,members:[...memberKeys],extraMembers:[]}],payments:{},attendance:Object.fromEntries(memberKeys.map(k=>[k,true])),attendanceOpen:false,createdAt:new Date().toISOString(),paidFeeKeys,feeConfig:null,sourceFormCode:null};
+    const ev={code,name:name.trim(),date,time:time||null,pin:'',account:{bank,number,holder},members:memberKeys,memberMap:mMap,rounds:[{id:'round_1',label:'1차',amount:0,members:[],extraMembers:[]}],payments:{},attendance:Object.fromEntries(memberKeys.map(k=>[k,false])),attendanceOpen:false,createdAt:new Date().toISOString(),paidFeeKeys,feeConfig:null,sourceFormCode:null};
     const ok=await createEvent(ev);
     setLoading(false);
     if(ok){
@@ -2627,13 +2627,32 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
   if(event.rounds.length===0) return null;
 
+  // 진행 단계 스텝퍼: 안내 전용(행동 제한 X). event 변경 시 자동 재판정.
+  const _attCount=event.members.filter(k=>event.attendance[k]!==false).length;
+  const _amtDone=event.rounds.some(r=>(r.amount||0)>0)||!!event.feeConfig;
+  const _hasPay=Object.values(event.payments||{}).some(p=>getPayStatus(p)!=='none');
+  const flowStep=_hasPay?3:(_amtDone?2:(_attCount>0?1:0));
+  const FLOW=['참석한 사람 체크해주세요','총 금액 입력하세요','단톡방에 링크 공유해주세요','거래내역 엑셀로 자동 대조'];
+
   return(
     <div>
-      {event.rounds.length===1&&(event.rounds[0]?.amount||0)<=0&&!event.feeConfig&&(
-        <div style={{background:C.accentBg,borderRadius:12,padding:'10px 14px',marginBottom:10,fontSize:13,color:C.text,fontWeight:700,border:`1px solid ${C.accent}20`}}>
-          출석 체크부터 시작하세요
+      <div style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${C.border}`}}>
+        <div style={{display:'flex',alignItems:'center',marginBottom:10}}>
+          {FLOW.map((_,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',flex:i<FLOW.length-1?1:'0 0 auto'}}>
+              <div style={{width:20,height:20,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',
+                background:i<flowStep?C.textDim:(i===flowStep?C.accent:'transparent'),
+                border:i>flowStep?`2px solid ${C.border}`:'none'}}>
+                {i<flowStep&&<Icon n="check" size={12} color="#fff"/>}
+              </div>
+              {i<FLOW.length-1&&<div style={{flex:1,height:2,background:i<flowStep?C.textDim:C.border,margin:'0 6px'}}/>}
+            </div>
+          ))}
         </div>
-      )}
+        <div style={{fontSize:15,fontWeight:800,color:C.accent,letterSpacing:-0.3}}>
+          {['①','②','③','④'][flowStep]} {FLOW[flowStep]}
+        </div>
+      </div>
       <FeeConfigSection event={event} updateEvent={updateEvent}/>
 
       {/* 명단 관리 (출석 화면에서 인라인 추가/제거) */}
@@ -3827,7 +3846,7 @@ function UsageGuideScreen({nav}){
         <div>
           <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:4,display:'flex',alignItems:'center',gap:6}}><Icon n="users" size={15} color={C.accent}/>바로 정산하기</div>
           <div style={{fontSize:12,color:C.accent,fontWeight:600,marginBottom:10}}>술자리, 뒷풀이, 회식</div>
-          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8}}>① 정산 생성(전체 명단 자동) → ② 출석 체크(안 온 사람만 해제) → ③ 카톡 공유 → ④ 거래내역 엑셀 올리면 자동 대조. 1·2·3차 추가 가능.</div>
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8}}>① 정산 생성 → ② 참석자 체크(온 사람만 ✓) → ③ 카톡 공유 → ④ 거래내역 엑셀 올리면 자동 대조. 1·2·3차 추가 가능.</div>
         </div>
         <Sep/>
         <div>
@@ -4031,7 +4050,7 @@ function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
   };
   const STEPS=[
     {ms:'edit', t:'정산 생성하기', d:'명단·차수 입력'},
-    {ms:'checklist', t:'출석 체크', d:'안 온 사람만 체크 해제'},
+    {ms:'checklist', t:'출석 체크', d:'참석한 사람만 ✓ 체크'},
     {ms:'share', t:'링크 공유', d:'카톡으로 한 번에 공유'},
     {ms:'upload_file', t:'자동 대조', d:'거래내역 엑셀 올리면 자동 확인'},
   ];
