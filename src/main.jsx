@@ -4030,7 +4030,7 @@ function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
     onClose();
   };
   const STEPS=[
-    {done:true, ms:'check', t:'정산 생성', d:'완료!'},
+    {ms:'edit', t:'정산 생성하기', d:'명단·차수 입력'},
     {ms:'checklist', t:'출석 체크', d:'안 온 사람만 체크 해제'},
     {ms:'share', t:'링크 공유', d:'카톡으로 한 번에 공유'},
     {ms:'upload_file', t:'자동 대조', d:'거래내역 엑셀 올리면 자동 확인'},
@@ -4082,7 +4082,7 @@ function FormOnboardingModal({onClose,showNeverShow=true,userId=null}){
     onClose();
   };
   const STEPS=[
-    {done:true, ms:'check', t:'신청폼 생성', d:'완료!'},
+    {ms:'edit', t:'신청폼 생성하기', d:'참가비·정원 입력'},
     {ms:'share', t:'링크 공유', d:'카톡으로 신청 받기'},
     {ms:'receipt_long', t:'신청자 확인', d:'신청 명단이 자동으로 모여요'},
   ];
