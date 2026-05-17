@@ -2705,7 +2705,9 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
     <div>
       {event.rounds.length===1&&(event.rounds[0]?.amount||0)<=0&&!event.feeConfig&&(
         <div style={{background:C.accentBg,borderRadius:12,padding:'12px 14px',marginBottom:10,fontSize:13,color:C.textMid,lineHeight:1.7,border:`1px solid ${C.accent}20`}}>
-          <strong style={{color:C.text}}>출석 체크부터 시작하세요.</strong><br/>행사 끝나고 금액을 입력하면 1/N이 자동 계산돼요. 금액·정산방식·명단은 언제든 바꿀 수 있어요.
+          <strong style={{color:C.text}}>출석 체크부터 시작하세요.</strong><br/>
+          <span style={{color:C.accent,fontWeight:700}}>① 출석 체크 → ② 차수별 금액 입력 → ③ 공유</span><br/>
+          행사 끝나고 금액을 입력하면 1/N이 자동 계산돼요. 금액·정산방식·명단은 언제든 바꿀 수 있어요.
         </div>
       )}
       <FeeConfigSection event={event} updateEvent={updateEvent}/>
@@ -2806,6 +2808,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
                     <div style={{fontSize:12,color:C.textMid,fontWeight:700}}>
                       출석 <span style={{fontWeight:400,color:C.textDim}}>{rMembers.length+(includeOrg?1:0)}명</span>
+                      {isFirst&&!(amtNum>0)&&!useFc&&<span style={{marginLeft:6,fontSize:11,color:C.accent,fontWeight:700}}>← 먼저 체크</span>}
                     </div>
                     <div style={{display:'flex',gap:8}}>
                       <button onClick={()=>setAttSort(s=>s==='group'?'name':'group')} style={{fontSize:11,color:C.textMid,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>{attSort==='group'?'가나다순':'그룹순'}</button>
