@@ -2754,14 +2754,16 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
         </div>
         {showRoster&&(
           <div style={{marginTop:12}}>
-            <div style={{display:'flex',gap:6,marginBottom:rosterErr?6:10}}>
-              <input value={newMemberName} onChange={e=>{setNewMemberName(e.target.value);setRosterErr('');}}
-                onKeyDown={e=>{if(e.key==='Enter')addMemberToRoster();}} placeholder="이름"
-                style={{flex:2,padding:'9px 12px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none',boxSizing:'border-box'}}/>
-              <input value={newMemberSid} onChange={e=>setNewMemberSid(e.target.value)}
-                onKeyDown={e=>{if(e.key==='Enter')addMemberToRoster();}} placeholder="학번" inputMode="numeric"
-                style={{flex:2,padding:'9px 12px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:13,color:C.text,outline:'none',boxSizing:'border-box'}}/>
-              <button onClick={addMemberToRoster} disabled={!newMemberName.trim()} style={{flex:1,padding:'9px 0',borderRadius:10,border:'none',background:newMemberName.trim()?C.accent:C.disabled,color:'#fff',fontSize:13,fontWeight:700,cursor:newMemberName.trim()?'pointer':'default'}}>추가</button>
+            <div style={{marginBottom:rosterErr?6:10}}>
+              <div style={{display:'flex',gap:6,marginBottom:6}}>
+                <input value={newMemberName} onChange={e=>{setNewMemberName(e.target.value);setRosterErr('');}}
+                  onKeyDown={e=>{if(e.key==='Enter')addMemberToRoster();}} placeholder="이름"
+                  style={{flex:1,minWidth:0,padding:'10px 12px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:16,color:C.text,outline:'none',boxSizing:'border-box'}}/>
+                <input value={newMemberSid} onChange={e=>setNewMemberSid(e.target.value)}
+                  onKeyDown={e=>{if(e.key==='Enter')addMemberToRoster();}} placeholder="학번" inputMode="numeric"
+                  style={{flex:1,minWidth:0,padding:'10px 12px',borderRadius:10,border:`1.5px solid ${C.border}`,background:C.inputBg,fontSize:16,color:C.text,outline:'none',boxSizing:'border-box'}}/>
+              </div>
+              <button onClick={addMemberToRoster} disabled={!newMemberName.trim()} style={{width:'100%',padding:'11px 0',borderRadius:10,border:'none',background:newMemberName.trim()?C.accent:C.disabled,color:'#fff',fontSize:15,fontWeight:700,cursor:newMemberName.trim()?'pointer':'default'}}>추가</button>
             </div>
             {rosterErr&&<div style={{fontSize:12,color:C.orange,fontWeight:600,marginBottom:10,lineHeight:1.5}}>{rosterErr}</div>}
             <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
