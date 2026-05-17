@@ -3821,13 +3821,13 @@ function UsageGuideScreen({nav}){
         <div>
           <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:4,display:'flex',alignItems:'center',gap:6}}><Icon n="inbox" size={15} color={C.orange}/>신청 받고 정산하기</div>
           <div style={{fontSize:12,color:C.orange,fontWeight:600,marginBottom:10}}>MT, 학생회비, 야식 등</div>
-          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8}}>신청폼을 만들어 공유하면 사용자가 직접 신청하고 송금해요. 거래내역 Excel을 올리면 입금이 자동 확인되고, 미입금자에게 콕 찌르기 메시지를 보낼 수 있어요.</div>
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8}}>① 신청폼 생성 → ② 카톡으로 신청 받기 → ③ 신청 명단 자동 확인. 거래내역 엑셀을 올리면 입금이 자동 확인되고, 미입금자에게 콕 찌르기도 가능해요.</div>
         </div>
         <Sep/>
         <div>
           <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:4,display:'flex',alignItems:'center',gap:6}}><Icon n="users" size={15} color={C.accent}/>바로 정산하기</div>
           <div style={{fontSize:12,color:C.accent,fontWeight:600,marginBottom:10}}>술자리, 뒷풀이, 회식</div>
-          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8}}>모인 사람들로 즉석 정산. 출석 체크하고 금액 입력하면 멤버별 본인 금액이 자동 계산돼요. 1차·2차·3차 차수도 추가 가능. 거래내역 Excel로 입금 자동 확인.</div>
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8}}>① 정산 생성(전체 명단 자동) → ② 출석 체크(안 온 사람만 해제) → ③ 카톡 공유 → ④ 거래내역 엑셀 올리면 자동 대조. 1·2·3차 추가 가능.</div>
         </div>
         <Sep/>
         <div>
@@ -4019,7 +4019,6 @@ function OnboardingModal({nav,onClose}){
 
 // ── SmallEventOnboardingModal (소규모 첫 진입 1회) ──────────
 function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
-  const [slide,setSlide]=useState(0);
   const [neverShow,setNeverShow]=useState(false);
   useEffect(()=>{posthog.capture('온보딩_정산_표시');},[]);
   const finish=()=>{
@@ -4030,36 +4029,41 @@ function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
     posthog.capture('온보딩_정산_완료',{다시_보지_않기:neverShow});
     onClose();
   };
-  const SLIDES=[
-    {msIcon:'checklist',color:C.green,body:'전체 명단이 1차에 자동으로 들어가요.\n출석 체크하고 금액만 입력하면\n인당 분담금이 자동 계산돼요.'},
-    {msIcon:'upload_file',color:'#3B82F6',body:'은행 앱에서 거래내역서를 엑셀로 받아\n업로드하면 입금자를 자동으로 매칭해요.\n미입금자에게 콕 찌르기로 알림도 보낼 수 있어요.'},
-    {msIcon:'hourglass_empty',color:'#F59E0B',body:'여유 있게 진행해도 괜찮아요.\n\n정산은 사람들이 모일 시간이 필요해요.\n콕 찌르기는 충분한 시간이 지난 후 사용하세요.'},
+  const STEPS=[
+    {done:true, ms:'check', t:'정산 생성', d:'완료!'},
+    {ms:'checklist', t:'출석 체크', d:'안 온 사람만 체크 해제'},
+    {ms:'share', t:'링크 공유', d:'카톡으로 한 번에 공유'},
+    {ms:'upload_file', t:'자동 대조', d:'거래내역 엑셀 올리면 자동 확인'},
   ];
-  const s=SLIDES[slide];
-  const isLast=slide===SLIDES.length-1;
   return(
-    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
-      <div className="fade-up" style={{padding:'8px 4px 4px'}}>
-        <div style={{textAlign:'center',marginBottom:24}}>
-          <div style={{marginBottom:14}}><span style={{fontFamily:'Material Symbols Rounded',fontSize:72,lineHeight:1,color:s.color,fontVariationSettings:"'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 48",display:'block'}}>{s.msIcon}</span></div>
-          <div style={{fontSize:14,color:C.textMid,lineHeight:1.9,whiteSpace:'pre-line'}}>{s.body}</div>
+    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} maxWidth={380}>
+      <div className="fade-up" style={{padding:'4px 2px'}}>
+        <div style={{fontSize:18,fontWeight:900,color:C.text,marginBottom:18,letterSpacing:-0.4}}>이렇게 진행돼요</div>
+        <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:22}}>
+          {STEPS.map((s,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:12}}>
+              <div style={{width:30,height:30,borderRadius:15,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:s.done?C.green:C.accentBg,color:s.done?'#fff':C.accent,fontWeight:800,fontSize:14}}>
+                {s.done?<span style={{fontFamily:'Material Symbols Rounded',fontSize:18}}>check</span>:i+1}
+              </div>
+              <span style={{fontFamily:'Material Symbols Rounded',fontSize:20,color:s.done?C.textDim:C.accent,flexShrink:0}}>{s.ms}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <span style={{fontSize:14,fontWeight:700,color:C.text}}>{s.t}</span>
+                <span style={{fontSize:13,color:C.textMid,marginLeft:6}}>{s.d}</span>
+              </div>
+            </div>
+          ))}
         </div>
-        <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:20}}>
-          {SLIDES.map((_,i)=><div key={i} style={{width:i===slide?18:6,height:6,borderRadius:3,background:slide===i?C.accent:C.border,transition:'all 0.25s'}}/>)}
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          {showNeverShow&&(
+            <button onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',cursor:'pointer',padding:'8px 4px',flexShrink:0}}>
+              <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.15s'}}>
+                {neverShow&&<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              </div>
+              <span style={{fontSize:12,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
+            </button>
+          )}
+          <Btn style={{flex:1,width:'auto'}} onClick={finish}>시작하기</Btn>
         </div>
-        {isLast?(
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            {showNeverShow&&(
-              <button onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',cursor:'pointer',padding:'8px 4px',flexShrink:0}}>
-                <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.15s'}}>
-                  {neverShow&&<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                </div>
-                <span style={{fontSize:12,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
-              </button>
-            )}
-            <Btn style={{flex:1,width:'auto'}} onClick={finish}>확인</Btn>
-          </div>
-        ):<Btn onClick={()=>setSlide(v=>v+1)}>다음</Btn>}
       </div>
     </Modal>
   );
@@ -4067,7 +4071,6 @@ function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
 
 // ── FormOnboardingModal (신청폼 첫 진입 1회) ──────────────────
 function FormOnboardingModal({onClose,showNeverShow=true,userId=null}){
-  const [slide,setSlide]=useState(0);
   const [neverShow,setNeverShow]=useState(false);
   useEffect(()=>{posthog.capture('온보딩_신청폼_표시');},[]);
   const finish=()=>{
@@ -4078,36 +4081,40 @@ function FormOnboardingModal({onClose,showNeverShow=true,userId=null}){
     posthog.capture('온보딩_신청폼_완료',{다시_보지_않기:neverShow});
     onClose();
   };
-  const SLIDES=[
-    {msIcon:'share',color:C.orange,body:'신청폼을 만들고 링크를 공유하면\n신청자 명단이 실시간으로 쌓여요.\n이름·학번·연락처 등 원하는 항목을 받을 수 있어요.'},
-    {msIcon:'receipt_long',color:'#F59E0B',body:'거래내역서를 업로드하면\n정산과 동일하게 자동 매칭됩니다.\n행사 끝나면 신청자 명단 그대로 뒷풀이 정산도 이어갈 수 있어요.'},
-    {msIcon:'hourglass_empty',color:'#F59E0B',body:'여유 있게 진행해도 괜찮아요.\n\n신청과 입금은 사람들이 결정할 시간이 필요해요.\n콕 찌르기는 충분한 시간이 지난 후 사용하세요.'},
+  const STEPS=[
+    {done:true, ms:'check', t:'신청폼 생성', d:'완료!'},
+    {ms:'share', t:'링크 공유', d:'카톡으로 신청 받기'},
+    {ms:'receipt_long', t:'신청자 확인', d:'신청 명단이 자동으로 모여요'},
   ];
-  const s=SLIDES[slide];
-  const isLast=slide===SLIDES.length-1;
   return(
-    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
-      <div className="fade-up" style={{padding:'8px 4px 4px'}}>
-        <div style={{textAlign:'center',marginBottom:24}}>
-          <div style={{marginBottom:14}}><span style={{fontFamily:'Material Symbols Rounded',fontSize:72,lineHeight:1,color:s.color,fontVariationSettings:"'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 48",display:'block'}}>{s.msIcon}</span></div>
-          <div style={{fontSize:14,color:C.textMid,lineHeight:1.9,whiteSpace:'pre-line'}}>{s.body}</div>
+    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} maxWidth={380}>
+      <div className="fade-up" style={{padding:'4px 2px'}}>
+        <div style={{fontSize:18,fontWeight:900,color:C.text,marginBottom:18,letterSpacing:-0.4}}>이렇게 진행돼요</div>
+        <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:22}}>
+          {STEPS.map((s,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:12}}>
+              <div style={{width:30,height:30,borderRadius:15,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:s.done?C.green:C.accentBg,color:s.done?'#fff':C.accent,fontWeight:800,fontSize:14}}>
+                {s.done?<span style={{fontFamily:'Material Symbols Rounded',fontSize:18}}>check</span>:i+1}
+              </div>
+              <span style={{fontFamily:'Material Symbols Rounded',fontSize:20,color:s.done?C.textDim:C.accent,flexShrink:0}}>{s.ms}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <span style={{fontSize:14,fontWeight:700,color:C.text}}>{s.t}</span>
+                <span style={{fontSize:13,color:C.textMid,marginLeft:6}}>{s.d}</span>
+              </div>
+            </div>
+          ))}
         </div>
-        <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:20}}>
-          {SLIDES.map((_,i)=><div key={i} style={{width:i===slide?18:6,height:6,borderRadius:3,background:slide===i?C.accent:C.border,transition:'all 0.25s'}}/>)}
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          {showNeverShow&&(
+            <button onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',cursor:'pointer',padding:'8px 4px',flexShrink:0}}>
+              <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.15s'}}>
+                {neverShow&&<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              </div>
+              <span style={{fontSize:12,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
+            </button>
+          )}
+          <Btn style={{flex:1,width:'auto'}} onClick={finish}>시작하기</Btn>
         </div>
-        {isLast?(
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            {showNeverShow&&(
-              <button onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',cursor:'pointer',padding:'8px 4px',flexShrink:0}}>
-                <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.15s'}}>
-                  {neverShow&&<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                </div>
-                <span style={{fontSize:12,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
-              </button>
-            )}
-            <Btn style={{flex:1,width:'auto'}} onClick={finish}>확인</Btn>
-          </div>
-        ):<Btn onClick={()=>setSlide(v=>v+1)}>다음</Btn>}
       </div>
     </Modal>
   );
