@@ -1616,6 +1616,9 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
   const [pfmOpen,setPfmOpen]=useState(false);
   const [searchQ,setSearchQ]=useState('');
   const [sortBy,setSortBy]=useState('default');
+  // 명단·계좌 재사용 안내 (첫 진입자 1회, localStorage로 다시 안 뜨게)
+  const [reuseHintDismissed,setReuseHintDismissed]=useState(()=>{try{return !!localStorage.getItem('setup_reuse_hint_'+(profile.id||'anon'));}catch{return false;}});
+  const dismissReuseHint=()=>{try{localStorage.setItem('setup_reuse_hint_'+(profile.id||'anon'),'1');}catch{}setReuseHintDismissed(true);};
 
   const updateRaw=(idx,text)=>{
     const members=parseMembers(text);
@@ -1677,6 +1680,13 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
           <button onClick={()=>setActiveTab('profile')} style={{flex:1,padding:'8px 0',borderRadius:8,border:'none',background:activeTab==='profile'?C.cardBg:'transparent',color:activeTab==='profile'?C.text:C.textDim,fontSize:14,fontWeight:activeTab==='profile'?700:500,cursor:'pointer',transition:'all 0.15s'}}>프로필</button>
         </div>
         {activeTab==='members'&&<>
+        {!reuseHintDismissed&&!(profile.groups||[]).some(g=>(g.members||[]).length>0)&&!(profile.account?.bank)&&!(profile.account?.number)&&(
+          <div style={{display:'flex',alignItems:'flex-start',gap:8,background:C.accentBg,border:`1px solid ${C.accent}20`,borderRadius:12,padding:'12px 14px',marginBottom:12}}>
+            <Icon n="lightbulb" size={15} color={C.accent} style={{marginTop:1,flexShrink:0}}/>
+            <div style={{flex:1,fontSize:13,color:C.textMid,lineHeight:1.6}}>한 번 등록하면 다음 행사부터 자동으로 사용돼요. 매번 다시 입력 안 해도 돼요.</div>
+            <button onClick={dismissReuseHint} style={{background:'none',border:'none',cursor:'pointer',color:C.textDim,fontSize:16,lineHeight:1,padding:'0 2px',flexShrink:0}}>×</button>
+          </div>
+        )}
         <Card>
           <div style={{fontWeight:800,color:C.text,marginBottom:4,fontSize:15,display:'flex',alignItems:'center',gap:6}}><Icon n="credit-card" size={15} color={C.accent}/>입금 계좌</div>
           <div style={{color:C.textDim,fontSize:12,marginBottom:14}}>한 번 저장하면 모든 정산에 자동 적용돼요</div>
