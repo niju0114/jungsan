@@ -5,6 +5,9 @@
     "preview": "vite preview",
     "test": "vitest run"
   },
+  "engines": {
+    "node": ">=24"
+  },
   "dependencies": {
     "posthog-js": "^1.372.10",
     "react": "^18",
