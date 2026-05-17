@@ -1592,7 +1592,7 @@ function ModeSelectModal({profile,nav,onClose}){
         <div style={{display:'flex',alignItems:'center',gap:14}}>
           <div style={{width:48,height:48,borderRadius:14,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center'}}><Icon n="users" size={24} color="#fff"/></div>
           <div style={{flex:1}}>
-            <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:4}}>그냥 바로 정산하면 돼요</div>
+            <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:4}}>출석체크부터 하면 돼요</div>
             <div style={{fontSize:11,color:C.accent,fontWeight:600}}>뒷풀이, 공지 후 술자리(회식)</div>
           </div>
           <span className="ms" style={{color:C.accent}}>chevron_right</span>
