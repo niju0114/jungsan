@@ -2808,9 +2808,8 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
             {/* 차수 상태 한 줄 (접힘/펼침 공통) */}
             <div style={{display:'flex',flexWrap:'wrap',gap:'4px 12px',fontSize:11,color:C.textDim,marginBottom:isClosed?0:12}}>
               <span>출석 {rMembers.length+(includeOrg?1:0)}/{(event.members||[]).length+(includeOrg?1:0)}</span>
-              <span>금액 {r.amount>0?fmtKRW(r.amount):(useFc?'학생회비':'미입력')}</span>
-              <span>공유 {(useFc||r.amount>0)?'가능':'금액 입력 후'}</span>
-              <span>입금 {rMembers.filter(k=>getPayStatus(event.payments?.[k])==='paid').length}/{rMembers.length}</span>
+              <span>{r.amount>0?fmtKRW(r.amount):(useFc?'학생회비':'금액 미입력')}</span>
+              {(r.amount>0||useFc)&&<span>입금 {rMembers.filter(k=>getPayStatus(event.payments?.[k])==='paid').length}/{rMembers.length}</span>}
             </div>
 
             {!isClosed&&(
@@ -2824,7 +2823,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                 ):(
                   <>
                     <Field label="총 금액 (원)" value={amt} onChange={v=>setRoundAmount(r.id,v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="150000"/>
-                    {!(amtNum>0)&&<div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:-4,marginBottom:12}}>행사 끝나고 금액을 입력하세요. 먼저 출석부터 체크해도 좋아요.</div>}
+                    {!(amtNum>0)&&<div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:-4,marginBottom:12}}>행사 끝나고 입력하세요</div>}
                     {perPerson>0&&(
                       <div style={{background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
                         <div style={{display:'flex',justifyContent:'space-between'}}>
@@ -2842,10 +2841,12 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                     <div style={{fontSize:12,color:C.textMid,fontWeight:700}}>
                       출석 <span style={{fontWeight:400,color:C.textDim}}>{rMembers.length+(includeOrg?1:0)}명</span>
                     </div>
-                    <div style={{display:'flex',gap:8}}>
-                      <button onClick={()=>setAttSort(s=>s==='group'?'name':'group')} style={{fontSize:11,color:C.textMid,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>{attSort==='group'?'가나다순':'그룹순'}</button>
-                      <button onClick={()=>{const newM=[...event.members];const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:newM,...(eventHasLegacyOrganizer?{includeOrganizer:true}:{})}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,true])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전원 참석</button>
-                      <button onClick={()=>{const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:[],...(eventHasLegacyOrganizer?{includeOrganizer:false}:{})}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,false])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.textDim,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전원 불참</button>
+                    <div style={{display:'flex',alignItems:'center',gap:10}}>
+                      <button onClick={()=>setAttSort(s=>s==='group'?'name':'group')} style={{fontSize:11,color:C.textMid,background:C.inputBg,border:`1px solid ${C.border}`,borderRadius:8,padding:'3px 8px',cursor:'pointer',fontWeight:600}}>{attSort==='group'?'가나다순':'그룹순'}</button>
+                      <div style={{display:'flex',gap:8}}>
+                        <button onClick={()=>{const newM=[...event.members];const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:newM,...(eventHasLegacyOrganizer?{includeOrganizer:true}:{})}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,true])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전원 참석</button>
+                        <button onClick={()=>{const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:[],...(eventHasLegacyOrganizer?{includeOrganizer:false}:{})}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,false])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.textDim,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전원 불참</button>
+                      </div>
                     </div>
                   </div>
                   {(groupSections&&attSort==='group')?(
@@ -2915,7 +2916,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
                 {/* 임시 인원 */}
                 <div style={{marginBottom:12}}>
-                  <div style={{fontSize:12,color:C.textMid,fontWeight:700,marginBottom:6}}>임시 인원 ({extraList.length}명) <span style={{fontWeight:400,color:C.orange,fontSize:11}}>링크 공유 제외</span></div>
+                  <div style={{marginBottom:6}}>{extraList.length>0?<span style={{fontSize:12,color:C.textMid,fontWeight:700}}>임시 인원 ({extraList.length}명)</span>:<span style={{fontSize:11,color:C.textDim,fontWeight:600}}>+ 임시 인원</span>}</div>
                   {extraList.length>0&&(
                     <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>
                       {extraList.map((em,ei)=>(
