@@ -2641,8 +2641,8 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
     setRemoveConfirm(null);
   };
   const requestRemoveMember=key=>{
-    const p=event.payments?.[key];
-    const hasRecord=p&&(p.payStatus==='paid'||p.payStatus==='requested'||p.paid||p.requested);
+    // 앱 표준 getPayStatus 기준 — none이 아니면(paid/requested/rejected) 입금·요청 흔적 있음
+    const hasRecord=getPayStatus(event.payments?.[key])!=='none';
     if(hasRecord) setRemoveConfirm({key,name:mm[key]||key});
     else doRemoveMember(key);
   };
