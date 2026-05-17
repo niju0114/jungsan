@@ -3048,13 +3048,13 @@ function ShareSection({event,showToast}){
   const directLink=getLink(`code=${event.code}`);
   const fc=event.feeConfig;
   const copy=async(text,label)=>{await copyText(text);showToast(`${label} 복사됐어요`);};
-  const isFcRound=i=>i===0&&fc?.paidFeeAmount!=null&&(fc.paidFeeAmount||fc.unpaidFeeAmount);
-  const canShare=(r,i)=>!!isFcRound(i)||r.amount>0;
+  const isFeeR=r=>roundIsFeeTier(r,fc); // 차수별(다차수 차등 대응) — 더이상 1차 한정 아님
+  const canShare=r=>isFeeR(r)||r.amount>0;
   // 공유 메시지에서 학생회비 정보 제거 — 차수별 금액 + 계좌만 (feeConfig는 계산엔 그대로 사용)
   const acctLine=event.account?.bank?`입금: ${event.account.bank} ${event.account.number}${event.account.holder?` (${event.account.holder})`:''}`:'';
-  const roundMsg=(r,i)=>{
+  const roundMsg=r=>{
     const lines=[`[${event.date} ${event.name}] ${r.label} 정산 안내`,''];
-    if(!isFcRound(i)){
+    if(!isFeeR(r)){
       const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0)+(r.includeOrganizer===true?1:0);
       const perPerson=r.amount>0&&totalCount>0?Math.ceil(r.amount/totalCount):0;
       lines.push(`1인당 ${fmtKRW(perPerson)} (${totalCount}명)`);
@@ -3067,10 +3067,10 @@ function ShareSection({event,showToast}){
   return(
     <div>
       <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:10,lineHeight:1.6}}>차수별로 따로 공유할 수 있어요. 금액을 입력한 차수만 공유돼요.</div>
-      {event.rounds.map((r,i)=>{
-        const ok=canShare(r,i);
-        const fcR=isFcRound(i);
-        const msg=roundMsg(r,i);
+      {event.rounds.map(r=>{
+        const ok=canShare(r);
+        const fcR=isFeeR(r);
+        const msg=roundMsg(r);
         return(
           <div key={r.id} style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${ok?C.accent+'40':C.border}`}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:ok?10:0}}>
