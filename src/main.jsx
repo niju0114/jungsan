@@ -2731,6 +2731,14 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                   <>
                     <Field label="총 금액 (원)" value={amt} onChange={v=>setRoundAmount(r.id,v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="150000"/>
                     {!(amtNum>0)&&<div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:-4,marginBottom:12}}>행사 끝나고 입력하세요</div>}
+                    {perPerson>0&&(
+                      <div style={{background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
+                        <div style={{display:'flex',justifyContent:'space-between'}}>
+                          <span style={{fontSize:13,color:C.textMid}}>1인당 ({totalCount}명)</span>
+                          <span style={{fontSize:15,fontWeight:900,color:C.accent}}>{fmtKRW(perPerson)}</span>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
 
