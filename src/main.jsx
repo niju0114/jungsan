@@ -1001,6 +1001,27 @@ function App() {
     }
   };
 
+  // 명단 동기화(방향 B): 정산 내에서 추가한 사람을 전체 명단(profile.groups '기본')에 단방향 upsert.
+  // 이벤트는 건드리지 않음(재키잉/마이그레이션/금액변동 없음). 제거는 event 한정(여기서 안 함).
+  const addProfileMember=async(name,sid)=>{
+    if(!user?.id||!name) return;
+    const key=name+(sid?'_'+sid:'');
+    const groups=profile.groups||[];
+    if(groups.some(g=>(g.members||[]).some(m=>m.name+(m.sid?'_'+m.sid:'')===key))) return; // 이미 있으면 스킵
+    let placed=false;
+    let next=groups.map(g=>{
+      if(!placed&&g.name==='기본'){
+        placed=true;
+        const rt=(g.rawText||'').replace(/\s*$/,'');
+        return {...g,members:[...(g.members||[]),{name,sid:sid||''}],rawText:(rt?rt+'\n':'')+name+(sid?` ${sid}`:'')};
+      }
+      return g;
+    });
+    if(!placed) next=[{id:'g1',name:'기본',rawText:name+(sid?` ${sid}`:''),members:[{name,sid:sid||''}],paidFeeMembers:[]},...groups];
+    setProfile(p=>({...p,groups:next}));
+    try{await api.upsertProfile({id:user.id,name:profile.name||'',account:profile.account,groups:next,school:profile.school||'',updated_at:new Date().toISOString()});}catch(e){}
+  };
+
   const createEvent=async(ev)=>{
     const {error}=await api.insertEvent(evToRow(ev,user.id));
     if(error){showToast('저장 실패: '+error.message,C.red);return false;}
@@ -1111,7 +1132,7 @@ function App() {
       {user&&view==='setup'&&<SetupScreen nav={nav} profile={profile} saveProfile={saveProfile} showToast={showToast}/>}
       {user&&view==='create'&&<CreateScreen nav={nav} profile={profile} events={events} createEvent={createEvent} showToast={showToast}/>}
       {user&&view==='formCreate'&&<FormCreateScreen nav={nav} profile={profile} createForm={createForm}/>}
-      {user&&view==='adminEvent'&&currentEvent&&<AdminEventScreen nav={nav} event={currentEvent} updateEvent={updateEvent} showToast={showToast} profile={profile}/>}
+      {user&&view==='adminEvent'&&currentEvent&&<AdminEventScreen nav={nav} event={currentEvent} updateEvent={updateEvent} showToast={showToast} profile={profile} addProfileMember={addProfileMember}/>}
       {user&&view==='formAdmin'&&currentForm&&<FormAdminScreen nav={nav} form={currentForm} updateForm={updateForm} showToast={showToast} profile={profile} saveProfile={saveProfile} createEvent={createEvent}/>}
       {user&&view==='history'&&<HistoryScreen nav={nav} events={events} forms={forms} deleteEvent={deleteEvent} deleteForm={deleteForm}/>}
       {user&&view==='help'&&<HelpScreen nav={nav}/>}
@@ -2143,7 +2164,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
 }
 
 // ── AdminEventScreen (플로우 구조) ───────────────────────
-function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
+function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile,addProfileMember}){
   const [event,setEvent]=useState(initEvent);
   const [viewCount,setViewCount]=useState(0);
   const slideKey=`jungsan_slide_${initEvent.code}`;
@@ -2199,7 +2220,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile}){
         <div style={{padding:'16px 18px'}}>
           {slide===0&&(
             <div className="fade-up">
-              <RoundsSection event={event} updateEvent={update} onRoundAdded={()=>setSlide(1)} groups={profile?.groups} onAttDirtyChange={setAttDirty} saveAttFnRef={saveAttRef} profile={profile}/>
+              <RoundsSection event={event} updateEvent={update} onRoundAdded={()=>setSlide(1)} groups={profile?.groups} onAttDirtyChange={setAttDirty} saveAttFnRef={saveAttRef} profile={profile} addProfileMember={addProfileMember}/>
             </div>
           )}
           {slide===1&&(
@@ -2478,7 +2499,7 @@ function FeeConfigSection({event,updateEvent}){
 }
 
 // ── RoundsSection ──────────────────────────────────────────
-function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,saveAttFnRef,profile}){
+function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,saveAttFnRef,profile,addProfileMember}){
   const mm=event.memberMap||{};
   const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
 
@@ -2655,6 +2676,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
       attendance:{...(event.attendance||{}),[key]:true},
       rounds:newRounds,
     });
+    addProfileMember?.(nm,sid); // 방향 B: 전체 명단(profile.groups '기본')에 단방향 반영
     setNewMemberName('');setNewMemberSid('');setRosterErr('');
   };
   const doRemoveMember=key=>{
