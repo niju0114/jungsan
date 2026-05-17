@@ -2082,19 +2082,16 @@ function CreateScreen({nav,profile,events,createEvent,showToast,addProfileMember
   const create=async()=>{
     setErr('');
     if(!name.trim()){setErr('정산 이름을 입력해주세요');return;}
-
-    if(selected.length===0){setErr('참여자를 1명 이상 선택해주세요');return;}
     setLoading(true);
     const code=genCode();
-    const paidFeeKeys=selected.filter(k=>groups.some(g=>(g.paidFeeMembers||[]).includes(k)));
-    const fullMemberMap={...memberMap,...extraMemberMap};
-    // 선택한 참여자 = 1차 명단(전원 출석). 금액·정산방식은 만든 뒤 '행사 진행'에서 입력/수정.
-    const ev={code,name:name.trim(),date,time:time||null,pin:'',account:{bank,number,holder},members:selected,memberMap:fullMemberMap,rounds:[{id:'round_1',label:'1차',amount:0,members:[...selected],extraMembers:[]}],payments:{},attendance:Object.fromEntries(selected.map(k=>[k,true])),attendanceOpen:false,createdAt:new Date().toISOString(),paidFeeKeys,feeConfig:null,sourceFormCode:null};
+    // 전체 명단(profile.groups) 자동 → 1차 전원. 키 중복(동명이인 동일키) 제거. 출석은 다음 화면에서 조정.
+    const memberKeys=[...new Set(allFromGroups.map(m=>m.name+(m.sid?`_${m.sid}`:'')))];
+    const mMap={}; allFromGroups.forEach(m=>{mMap[m.name+(m.sid?`_${m.sid}`:'')]=m.name;});
+    const paidFeeKeys=memberKeys.filter(k=>groups.some(g=>(g.paidFeeMembers||[]).includes(k)));
+    const ev={code,name:name.trim(),date,time:time||null,pin:'',account:{bank,number,holder},members:memberKeys,memberMap:mMap,rounds:[{id:'round_1',label:'1차',amount:0,members:[...memberKeys],extraMembers:[]}],payments:{},attendance:Object.fromEntries(memberKeys.map(k=>[k,true])),attendanceOpen:false,createdAt:new Date().toISOString(),paidFeeKeys,feeConfig:null,sourceFormCode:null};
     const ok=await createEvent(ev);
     setLoading(false);
     if(ok){
-      // 방향 B: 추가 참여자(자유입력, 명단에 없던 사람)도 전체 명단 '기본' 그룹에 단방향 반영(배치)
-      addProfileMembers?.(extraMembers);
       posthog.capture('정산_만들기_완료',{차수_수:ev.rounds.length,명단_수:ev.members.length});
       nav.setCurrentCode(ev.code);nav.setView('adminEvent');
     }
@@ -2111,7 +2108,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast,addProfileMember
         <Card>
           <Field label="정산 이름" value={name} onChange={setName} placeholder="5월 MT, 종강 회식…"/>
           <Field label="행사 날짜·시간" value={date+'T'+(time||'00:00')} onChange={v=>{setDate(v.slice(0,10));setTime(v.slice(11,16));}} type="datetime-local"/>
-          <div style={{fontSize:11,color:C.textDim,lineHeight:1.6}}>참여자 = 1차 명단</div>
+          <div style={{fontSize:11,color:C.textDim,lineHeight:1.6}}>등록된 전체 명단이 1차에 자동으로 들어가요. 출석은 다음 화면에서 체크/해제하면 돼요.</div>
         </Card>
         <Card>
           <div style={{fontWeight:800,color:C.text,marginBottom:12,fontSize:14,display:'flex',alignItems:'center',gap:6}}><Icon n="credit-card" size={14} color={C.text}/>입금 계좌</div>
@@ -2128,66 +2125,13 @@ function CreateScreen({nav,profile,events,createEvent,showToast,addProfileMember
             </>
           )}
         </Card>
-        <Card>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-            <div style={{fontWeight:800,color:C.text,fontSize:14,display:'flex',alignItems:'center',gap:6}}><Icon n="users" size={14} color={C.text}/>참여자 선택 <span style={{color:C.accent}}>({selected.length}명)</span></div>
+        {(profile.groups||[]).flatMap(g=>g.members||[]).length===0&&(
+          <div style={{background:C.accentBg,borderRadius:14,padding:'14px 16px',marginBottom:12,border:`1px solid ${C.accent}20`}}>
+            <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:4}}>등록된 명단이 없어요</div>
+            <div style={{fontSize:13,color:C.textMid,lineHeight:1.7,marginBottom:10}}>지금 만들어도 돼요. 행사 진행 화면의 '명단 관리'에서 바로 추가할 수 있어요.</div>
+            <button onClick={()=>nav.setView('setup')} style={{background:C.accent,color:'#fff',border:'none',borderRadius:10,padding:'8px 16px',fontSize:13,fontWeight:700,cursor:'pointer'}}>명단 등록하러 가기 →</button>
           </div>
-          {groups.length>0&&(
-            <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12}}>
-              <button onClick={()=>{
-                const allKeys=allMembers.map(m=>m.name+(m.sid?`_${m.sid}`:''));
-                const allSelected=allKeys.length>0&&allKeys.every(k=>selected.includes(k));
-                setSelected(allSelected?[]:allKeys);
-                setActiveG(-1);
-              }} className="press" style={{padding:'6px 13px',borderRadius:16,border:`1.5px solid ${selected.length===allMembers.length&&allMembers.length>0?C.accent:C.border}`,background:selected.length===allMembers.length&&allMembers.length>0?C.accent:C.cardBg,color:selected.length===allMembers.length&&allMembers.length>0?'#fff':C.textMid,fontSize:12,fontWeight:700,cursor:'pointer'}}>
-                전체 {selected.length===allMembers.length&&allMembers.length>0?<Icon n="check" size={11} color="#fff"/>:''}
-              </button>
-              {groups.map((g,i)=>({g,i})).filter(({g})=>(g.members||[]).length>0).map(({g,i})=>{
-                const keys=(g.members||[]).map(m=>m.name+(m.sid?`_${m.sid}`:''));
-                const allSel=keys.length>0&&keys.every(k=>selected.includes(k));
-                return(
-                  <button key={g.id} onClick={()=>{setActiveG(i);selectGroup(i);}} className="press" style={{padding:'6px 13px',borderRadius:16,border:`1.5px solid ${allSel?C.accent:C.border}`,background:allSel?C.accentBg:C.cardBg,color:allSel?C.accent:C.textMid,fontSize:12,fontWeight:700,cursor:'pointer',transition:'all 0.12s'}}>
-                    {g.name} {allSel?<Icon n="check" size={11} color={C.accent}/>:''}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          <div style={{display:'flex',flexWrap:'wrap',gap:7,marginBottom:allMembers.length>0?14:0}}>
-            {visibleMembers.map((m,mi)=>{
-              const k=m.name+(m.sid?`_${m.sid}`:'');
-              const isDup=dupBaseKeys.has(k);
-              const dupCount=isDup?selected.filter(sk=>sk.startsWith(k+'__')).length:0;
-              const sel=isDup?dupCount>0:selected.includes(k);
-              return(
-                <button key={`${k}_${mi}`} onClick={()=>toggle(m)} className="press" style={{padding:'8px 14px',borderRadius:20,border:`2px solid ${sel?C.accent:C.border}`,cursor:'pointer',fontSize:13,fontWeight:600,background:sel?C.accentBg:C.cardBg,color:sel?C.accent:C.textMid,transition:'all 0.12s'}}>
-                  {displayName(m)}{isDup&&dupCount>0?` ✓${dupCount}`:''}
-                </button>
-              );
-            })}
-          </div>
-          {Object.entries(extraMemberMap).filter(([k])=>selected.includes(k)).length>0&&(
-            <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:8}}>
-              {Object.entries(extraMemberMap).filter(([k])=>selected.includes(k)).map(([k,label])=>(
-                <span key={k} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'4px 10px 4px 12px',borderRadius:16,background:C.accentBg,border:`1.5px solid ${C.accent}40`,fontSize:12,color:C.accent,fontWeight:600}}>
-                  {label}
-                  <button onClick={()=>setSelected(s=>s.filter(x=>x!==k))} style={{background:'none',border:'none',cursor:'pointer',color:C.accent,fontSize:16,lineHeight:1,padding:'0 2px'}}>×</button>
-                </span>
-              ))}
-            </div>
-          )}
-          {allMembers.length===0&&(
-            <div style={{background:C.accentBg,borderRadius:14,padding:'14px 16px',marginBottom:10,border:`1px solid ${C.accent}20`}}>
-              <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:4}}>등록된 명단이 없네요</div>
-              <div style={{fontSize:13,color:C.textMid,lineHeight:1.7,marginBottom:10}}>명단을 먼저 등록하면 매번 이름 없이 바로 선택할 수 있어요.</div>
-              <button onClick={()=>nav.setView('setup')} style={{background:C.accent,color:'#fff',border:'none',borderRadius:10,padding:'8px 16px',fontSize:13,fontWeight:700,cursor:'pointer'}}>명단 등록하러 가기 →</button>
-            </div>
-          )}
-          <div style={{marginTop:6}}>
-            <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:6}}>추가 참여자</div>
-            <Field value={extraText} onChange={setExtraText} placeholder="홍길동&#10;김철수" multiline rows={2}/>
-          </div>
-        </Card>
+        )}
         {err&&<div style={{color:C.red,fontSize:13,marginBottom:12,padding:'11px 14px',background:C.redBg,borderRadius:10,display:'flex',alignItems:'center',gap:6}}><Icon n="triangle-alert" size={14} color={C.red}/>{err}</div>}
         <Btn onClick={create} loading={loading}>정산 생성하기 →</Btn>
       </div>
@@ -2678,7 +2622,9 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
 
   const doAddRound=()=>{
-    const newRound={id:Date.now().toString(),label:`${event.rounds.length+1}차`,amount:0,members:[...presentMembers],extraMembers:[],...(eventHasLegacyOrganizer?{includeOrganizer:true}:{})};
+    // 직전(마지막) 차수의 출석자만 새 차수에 자동 채움 (3차+도 1차가 아닌 직전 차수 기준)
+    const prevMembers=event.rounds[event.rounds.length-1]?.members||presentMembers;
+    const newRound={id:Date.now().toString(),label:`${event.rounds.length+1}차`,amount:0,members:[...prevMembers],extraMembers:[],...(eventHasLegacyOrganizer?{includeOrganizer:true}:{})};
     updateEvent({...event,rounds:[...event.rounds,newRound]});
     setRoundAmounts(p=>({...p,[newRound.id]:''}));
     setRoundExtras(p=>({...p,[newRound.id]:[]}));
