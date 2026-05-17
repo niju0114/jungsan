@@ -2668,6 +2668,11 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
   return(
     <div>
+      {event.rounds.length===1&&(event.rounds[0]?.amount||0)<=0&&!event.feeConfig&&(
+        <div style={{background:C.accentBg,borderRadius:12,padding:'12px 14px',marginBottom:10,fontSize:13,color:C.textMid,lineHeight:1.7,border:`1px solid ${C.accent}20`}}>
+          <strong style={{color:C.text}}>출석 체크부터 시작하세요.</strong><br/>행사 끝나고 금액을 입력하면 1/N이 자동 계산돼요. 금액·정산방식·명단은 언제든 바꿀 수 있어요.
+        </div>
+      )}
       <FeeConfigSection event={event} updateEvent={updateEvent}/>
 
       {/* 명단 관리 (출석 화면에서 인라인 추가/제거) */}
@@ -2727,10 +2732,15 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                   :<span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:11,color:C.textDim,fontWeight:400,marginLeft:6}}><span style={{width:5,height:5,borderRadius:'50%',background:C.green,display:'inline-block',flexShrink:0}}/>자동 저장</span>
                 )}
               </div>
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
-                {isClosed&&<div style={{fontSize:13,color:r.amount>0?C.textMid:C.textDim}}>{r.amount>0?fmtKRW(r.amount):'금액 미입력'}</div>}
-                <span className="ms" style={{fontSize:20,color:C.textDim}}>{isClosed?'expand_more':'expand_less'}</span>
-              </div>
+              <span className="ms" style={{fontSize:20,color:C.textDim}}>{isClosed?'expand_more':'expand_less'}</span>
+            </div>
+
+            {/* 차수 상태 한 줄 (접힘/펼침 공통) */}
+            <div style={{display:'flex',flexWrap:'wrap',gap:'4px 12px',fontSize:11,color:C.textDim,marginBottom:isClosed?0:12}}>
+              <span>출석 {rMembers.length+(includeOrg?1:0)}/{(event.members||[]).length+(includeOrg?1:0)}</span>
+              <span>금액 {r.amount>0?fmtKRW(r.amount):(useFc?'학생회비':'미입력')}</span>
+              <span>공유 {(useFc||r.amount>0)?'가능':'금액 입력 후'}</span>
+              <span>입금 {rMembers.filter(k=>getPayStatus(event.payments?.[k])==='paid').length}/{rMembers.length}</span>
             </div>
 
             {!isClosed&&(
@@ -2744,6 +2754,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                 ):(
                   <>
                     <Field label="총 금액 (원)" value={amt} onChange={v=>setRoundAmount(r.id,v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="150000"/>
+                    {!(amtNum>0)&&<div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:-4,marginBottom:12}}>행사 끝나고 금액을 입력하세요. 먼저 출석부터 체크해도 좋아요.</div>}
                     {perPerson>0&&(
                       <div style={{background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
                         <div style={{display:'flex',justifyContent:'space-between'}}>
