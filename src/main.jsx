@@ -2893,51 +2893,17 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 // ── ShareSection ───────────────────────────────────────────
 function ShareSection({event,showToast}){
   const directLink=getLink(`code=${event.code}`);
-  const fc=event.feeConfig;
   const copy=async(text,label)=>{await copyText(text);showToast(`${label} 복사됐어요`);};
-  const isFeeR=r=>roundIsFeeTier(r,fc); // 차수별(다차수 차등 대응) — 더이상 1차 한정 아님
-  const canShare=r=>isFeeR(r)||r.amount>0;
-  // 공유 메시지에서 학생회비 정보 제거 — 차수별 금액 + 계좌만 (feeConfig는 계산엔 그대로 사용)
-  const acctLine=event.account?.bank?`입금: ${event.account.bank} ${event.account.number}${event.account.holder?` (${event.account.holder})`:''}`:'';
-  const roundMsg=r=>{
-    const lines=[`[${event.date} ${event.name}] ${r.label} 정산 안내`,''];
-    if(!isFeeR(r)){
-      const totalCount=(r.members?.length||0)+(r.extraMembers?.length||0)+(r.includeOrganizer===true?1:0);
-      const perPerson=r.amount>0&&totalCount>0?Math.ceil(r.amount/totalCount):0;
-      lines.push(`1인당 ${fmtKRW(perPerson)} (${totalCount}명)`);
-    }
-    lines.push('아래 링크에서 내가 낼 돈을 확인하고 입금해주세요.');
-    if(acctLine) lines.push('',acctLine);
-    lines.push('','(정산해 · 간편한 모임 정산 서비스)',directLink);
-    return lines.join('\n');
-  };
+  // 공유는 짧은 안내 + 링크만. 금액·계좌·차수 정보는 링크 안 참여자 페이지에서 표시.
+  const msg=`[${event.date} ${event.name}] 정산 안내\n\n아래 링크에서 내가 낼 돈 확인하고 입금해주세요.\n${directLink}\n\n(정산해 · 간편한 모임 정산 서비스)`;
   return(
     <div>
-      <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:10,lineHeight:1.6}}>차수별로 따로 공유할 수 있어요. 금액을 입력한 차수만 공유돼요.</div>
-      {event.rounds.map(r=>{
-        const ok=canShare(r);
-        const fcR=isFeeR(r);
-        const msg=roundMsg(r);
-        return(
-          <div key={r.id} style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${ok?C.accent+'40':C.border}`}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:ok?10:0}}>
-              <div style={{fontWeight:800,fontSize:15,color:C.text}}>{r.label}</div>
-              <div style={{fontSize:13,fontWeight:700,color:ok?C.accent:C.textDim}}>{r.amount>0?fmtKRW(r.amount):(fcR?'학생회비 정산':'금액 미입력')}</div>
-            </div>
-            {ok?(
-              <>
-                <div style={{background:C.inputBg,borderRadius:10,padding:'10px 12px',fontSize:12,color:C.textMid,lineHeight:1.8,marginBottom:8,whiteSpace:'pre-wrap',border:`1px solid ${C.border}`}}>{msg}</div>
-                <div style={{display:'flex',gap:8}}>
-                  <Btn onClick={async()=>{posthog.capture('정산_링크_공유',{차수:r.label});const shared=await shareText(msg);if(!shared){await copy(msg,'메시지');}else showToast('공유 완료');}} small style={{flex:2}}><Icon n="message-circle" size={14} color="#fff" style={{marginRight:4}}/>카톡 공유</Btn>
-                  <Btn onClick={()=>copy(directLink,'링크')} variant="secondary" small style={{flex:1}}><Icon n="link" size={14} color={C.textMid} style={{marginRight:4}}/>링크</Btn>
-                </div>
-              </>
-            ):(
-              <div style={{fontSize:12,color:C.textDim,marginTop:6,lineHeight:1.6}}>금액 입력 후 공유 가능 — '행사 진행' 탭에서 {r.label} 금액을 입력하세요.</div>
-            )}
-          </div>
-        );
-      })}
+      <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:10,lineHeight:1.6}}>참여자는 링크에서 자기 금액·계좌를 확인하고 입금해요.</div>
+      <div style={{background:C.inputBg,borderRadius:10,padding:'12px 14px',fontSize:13,color:C.textMid,lineHeight:1.9,marginBottom:10,whiteSpace:'pre-wrap',border:`1px solid ${C.border}`}}>{msg}</div>
+      <div style={{display:'flex',gap:8}}>
+        <Btn onClick={async()=>{posthog.capture('정산_링크_공유');const shared=await shareText(msg);if(!shared){await copy(msg,'메시지');}else showToast('공유 완료');}} style={{flex:2}}><Icon n="message-circle" size={16} color="#fff" style={{marginRight:4}}/>카톡 공유</Btn>
+        <Btn onClick={()=>copy(directLink,'링크')} variant="secondary" style={{flex:1}}><Icon n="link" size={16} color={C.textMid} style={{marginRight:4}}/>링크</Btn>
+      </div>
     </div>
   );
 }
