@@ -1003,24 +1003,38 @@ function App() {
 
   // 명단 동기화(방향 B): 정산 내에서 추가한 사람을 전체 명단(profile.groups '기본')에 단방향 upsert.
   // 이벤트는 건드리지 않음(재키잉/마이그레이션/금액변동 없음). 제거는 event 한정(여기서 안 함).
-  const addProfileMember=async(name,sid)=>{
-    if(!user?.id||!name) return;
-    const key=name+(sid?'_'+sid:'');
+  // 배치 처리(한 번의 setProfile/upsert) — 여러 명을 forEach로 호출 시 stale 클로저로
+  // 마지막 1명만 남던 레이스 방지. 단건은 addProfileMember 래퍼가 1건 배열로 위임.
+  const addProfileMembers=async(list)=>{
+    if(!user?.id||!list?.length) return;
     const groups=profile.groups||[];
-    if(groups.some(g=>(g.members||[]).some(m=>m.name+(m.sid?'_'+m.sid:'')===key))) return; // 이미 있으면 스킵
+    const seen=new Set(groups.flatMap(g=>(g.members||[]).map(m=>m.name+(m.sid?'_'+m.sid:''))));
+    const toAdd=[];
+    for(const it of list){
+      const name=(it?.name||'').trim();
+      if(!name) continue;
+      const sid=(it?.sid||'').trim();
+      const key=name+(sid?'_'+sid:'');
+      if(seen.has(key)) continue; // 이미 있으면(어느 그룹에든) 스킵, 배치 내 중복도 방지
+      seen.add(key);
+      toAdd.push({name,sid:sid||''});
+    }
+    if(!toAdd.length) return;
+    const addText=toAdd.map(m=>m.name+(m.sid?` ${m.sid}`:'')).join('\n');
     let placed=false;
     let next=groups.map(g=>{
       if(!placed&&g.name==='기본'){
         placed=true;
         const rt=(g.rawText||'').replace(/\s*$/,'');
-        return {...g,members:[...(g.members||[]),{name,sid:sid||''}],rawText:(rt?rt+'\n':'')+name+(sid?` ${sid}`:'')};
+        return {...g,members:[...(g.members||[]),...toAdd],rawText:(rt?rt+'\n':'')+addText};
       }
       return g;
     });
-    if(!placed) next=[{id:'g1',name:'기본',rawText:name+(sid?` ${sid}`:''),members:[{name,sid:sid||''}],paidFeeMembers:[]},...groups];
+    if(!placed) next=[{id:'g1',name:'기본',rawText:addText,members:toAdd,paidFeeMembers:[]},...groups];
     setProfile(p=>({...p,groups:next}));
     try{await api.upsertProfile({id:user.id,name:profile.name||'',account:profile.account,groups:next,school:profile.school||'',updated_at:new Date().toISOString()});}catch(e){}
   };
+  const addProfileMember=(name,sid)=>addProfileMembers([{name,sid}]);
 
   const createEvent=async(ev)=>{
     const {error}=await api.insertEvent(evToRow(ev,user.id));
@@ -1130,7 +1144,7 @@ function App() {
       {view==='formSubmit'&&currentForm&&<FormSubmitScreen nav={nav} form={currentForm} updateForm={updateForm} showToast={showToast}/>}
       {user&&view==='home'&&<HomeScreen nav={nav} user={user} profile={profile} events={events} forms={forms} showToast={showToast} onGuide={()=>setShowGuide(true)} showFeedback={showFeedback} onFeedbackDone={()=>setShowFeedback(false)}/>}
       {user&&view==='setup'&&<SetupScreen nav={nav} profile={profile} saveProfile={saveProfile} showToast={showToast}/>}
-      {user&&view==='create'&&<CreateScreen nav={nav} profile={profile} events={events} createEvent={createEvent} showToast={showToast}/>}
+      {user&&view==='create'&&<CreateScreen nav={nav} profile={profile} events={events} createEvent={createEvent} showToast={showToast} addProfileMembers={addProfileMembers}/>}
       {user&&view==='formCreate'&&<FormCreateScreen nav={nav} profile={profile} createForm={createForm}/>}
       {user&&view==='adminEvent'&&currentEvent&&<AdminEventScreen nav={nav} event={currentEvent} updateEvent={updateEvent} showToast={showToast} profile={profile} addProfileMember={addProfileMember}/>}
       {user&&view==='formAdmin'&&currentForm&&<FormAdminScreen nav={nav} form={currentForm} updateForm={updateForm} showToast={showToast} profile={profile} saveProfile={saveProfile} createEvent={createEvent}/>}
@@ -2001,7 +2015,7 @@ function DeleteAccountBtn({showToast,nav}){
 }
 
 // ── CreateScreen ───────────────────────────────────────────
-function CreateScreen({nav,profile,events,createEvent,showToast}){
+function CreateScreen({nav,profile,events,createEvent,showToast,addProfileMembers}){
   const [showOnboarding,setShowOnboarding]=useState(false);
   useEffect(()=>{
     if(!profile?.id) return;
@@ -2063,6 +2077,8 @@ function CreateScreen({nav,profile,events,createEvent,showToast}){
     const ok=await createEvent(ev);
     setLoading(false);
     if(ok){
+      // 방향 B: 추가 참여자(자유입력, 명단에 없던 사람)도 전체 명단 '기본' 그룹에 단방향 반영(배치)
+      addProfileMembers?.(extraMembers);
       posthog.capture('정산_만들기_완료',{차수_수:ev.rounds.length,명단_수:ev.members.length});
       nav.setCurrentCode(ev.code);nav.setView('adminEvent');
     }
