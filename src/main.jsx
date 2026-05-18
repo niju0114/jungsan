@@ -2047,8 +2047,14 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile,add
   const [event,setEvent]=useState(initEvent);
   const [viewCount,setViewCount]=useState(0);
   const slideKey=`jungsan_slide_${initEvent.code}`;
-  const [slide,setSlide]=useState(()=>{const n=parseInt(sessionStorage.getItem(slideKey)||'0',10)||0;return Math.max(0,Math.min(3,n));});
-  useEffect(()=>{sessionStorage.setItem(slideKey,String(slide));},[slide]);
+  // 구 3슬라이드(0 행사진행/1 공유/2 정산현황) → 신 4슬라이드 1회 매핑. 'v2:' 태그로 레거시 구분.
+  const [slide,setSlide]=useState(()=>{
+    const raw=sessionStorage.getItem(slideKey)||'';
+    if(raw.indexOf('v2:')===0){const n=parseInt(raw.slice(3),10)||0;return Math.max(0,Math.min(3,n));}
+    const old=parseInt(raw,10)||0;const mp={0:0,1:2,2:3};
+    return mp[old]!==undefined?mp[old]:0;
+  });
+  useEffect(()=>{sessionStorage.setItem(slideKey,'v2:'+slide);},[slide]);
   const [attDirty,setAttDirty]=useState(false);
   const saveAttRef=useRef(null);
   const [savePrompt,setSavePrompt]=useState(null);
@@ -2126,7 +2132,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile,add
         <div style={{padding:'16px 18px'}}>
           {(slide===0||slide===1)&&(
             <div className="fade-up">
-              <RoundsSection event={event} updateEvent={update} slide={slide} groups={profile?.groups} onAttDirtyChange={setAttDirty} saveAttFnRef={saveAttRef} profile={profile} addProfileMember={addProfileMember}/>
+              <RoundsSection event={event} updateEvent={update} mode={slide===0?'att':'amt'} groups={profile?.groups} onAttDirtyChange={setAttDirty} saveAttFnRef={saveAttRef} profile={profile} addProfileMember={addProfileMember}/>
             </div>
           )}
           {slide===2&&(
@@ -2405,7 +2411,7 @@ function FeeConfigSection({event,updateEvent}){
 }
 
 // ── RoundsSection ──────────────────────────────────────────
-function RoundsSection({event,updateEvent,slide,groups,onAttDirtyChange,saveAttFnRef,profile,addProfileMember}){
+function RoundsSection({event,updateEvent,mode,groups,onAttDirtyChange,saveAttFnRef,profile,addProfileMember}){
   const mm=event.memberMap||{};
   const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
 
@@ -2559,13 +2565,13 @@ function RoundsSection({event,updateEvent,slide,groups,onAttDirtyChange,saveAttF
     updateEvent({...event,rounds:[...event.rounds,newRound]});
     setRoundAmounts(p=>({...p,[newRound.id]:''}));
     setRoundExtras(p=>({...p,[newRound.id]:[]}));
-    setClosedRoundIds(s=>{const n=new Set(s);n.delete(newRound.id);return n;});
+    setClosedRoundIds(s=>{const n=new Set(s);n.delete('att_'+newRound.id);n.delete('amt_'+newRound.id);return n;});
   };
 
   const confirmDeleteRound=rid=>{
     const newRounds=event.rounds.filter(r=>r.id!==rid);
     updateEvent({...event,rounds:newRounds});
-    setClosedRoundIds(s=>{const n=new Set(s);n.delete(rid);return n;});
+    setClosedRoundIds(s=>{const n=new Set(s);n.delete('att_'+rid);n.delete('amt_'+rid);return n;});
     setDeleteRoundConfirm(null);
   };
 
@@ -2656,10 +2662,10 @@ function RoundsSection({event,updateEvent,slide,groups,onAttDirtyChange,saveAttF
 
   return(
     <div>
-      {slide===0&&<FeeConfigSection event={event} updateEvent={updateEvent}/>}
+      {mode==='att'&&<FeeConfigSection event={event} updateEvent={updateEvent}/>}
 
       {/* 명단 관리 (출석 슬라이드 전용) */}
-      {slide===0&&(
+      {mode==='att'&&(
       <div style={{background:C.cardBg,borderRadius:14,padding:'12px 14px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${C.border}`}}>
         <div onClick={()=>setShowRoster(s=>!s)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
           <div style={{fontWeight:800,fontSize:14,color:C.text}}>명단 관리 <span style={{fontSize:12,fontWeight:600,color:C.textDim}}>{(event.members||[]).length}명</span></div>
@@ -2695,7 +2701,8 @@ function RoundsSection({event,updateEvent,slide,groups,onAttDirtyChange,saveAttF
 
       {/* 차수 카드들 */}
       {event.rounds.map((r,ridx)=>{
-        const isClosed=closedRoundIds.has(r.id);
+        const ckey=mode+'_'+r.id; // 접기 상태는 슬라이드(mode)별 독립
+        const isClosed=closedRoundIds.has(ckey);
         const isFirst=ridx===0;
         const useFc=roundIsFeeTier(r,fc);
         const showFeeToggle=true; // 모든 차수에서 1/N↔학생회비 차등 직접 선택 (B2: 전역 feeConfig 선설정 없이도 노출)
@@ -2712,7 +2719,7 @@ function RoundsSection({event,updateEvent,slide,groups,onAttDirtyChange,saveAttF
           <div key={r.id} style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${!isClosed?C.accent+'50':C.border}`}}>
             {/* 차수 헤더 (클릭으로 접기/펼치기) */}
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',marginBottom:isClosed?0:12}}
-              onClick={()=>setClosedRoundIds(s=>{const n=new Set(s);isClosed?n.delete(r.id):n.add(r.id);return n;})}>
+              onClick={()=>setClosedRoundIds(s=>{const n=new Set(s);isClosed?n.delete(ckey):n.add(ckey);return n;})}>
               <div style={{fontWeight:800,fontSize:15,color:C.text}}>
                 {r.label}
                 {!isClosed&&(roundSavedId===r.id
@@ -2732,7 +2739,7 @@ function RoundsSection({event,updateEvent,slide,groups,onAttDirtyChange,saveAttF
 
             {!isClosed&&(
               <>
-                {slide===0&&(<>
+                {mode==='att'&&(<>
                 {/* 출석 체크 (차수별) */}
                 <div style={{marginBottom:12}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
@@ -2846,7 +2853,7 @@ function RoundsSection({event,updateEvent,slide,groups,onAttDirtyChange,saveAttF
                   </div>
                 )}
                 </>)}
-                {slide===1&&(<>
+                {mode==='amt'&&(<>
                 {/* 정산 방식 (차수별) */}
                 {showFeeToggle&&(
                   <>
@@ -2891,11 +2898,11 @@ function RoundsSection({event,updateEvent,slide,groups,onAttDirtyChange,saveAttF
         );
       })}
 
-      {slide===0&&(<button onClick={doAddRound} style={{width:'100%',padding:'12px',borderRadius:14,border:`2px dashed ${C.border}`,background:'none',color:C.textMid,fontWeight:700,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+      {mode==='att'&&(<button onClick={doAddRound} style={{width:'100%',padding:'12px',borderRadius:14,border:`2px dashed ${C.border}`,background:'none',color:C.textMid,fontWeight:700,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
         <Icon n="add" size={16} color={C.textMid}/>차수 추가
       </button>)}
 
-      {slide===1&&event.rounds.length>1&&event.rounds.some(r=>r.amount>0)&&(
+      {mode==='amt'&&event.rounds.length>1&&event.rounds.some(r=>r.amount>0)&&(
         <div style={{textAlign:'right',fontSize:13,color:C.textMid,marginTop:10}}>
           합계 <span style={{color:C.text,fontWeight:900}}>{fmtKRW(event.rounds.reduce((s,r)=>s+r.amount,0))}</span>
         </div>
