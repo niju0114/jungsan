@@ -2017,39 +2017,30 @@ function CreateScreen({nav,profile,events,createEvent,showToast,addProfileMember
 
   const hasAccount=profile.account?.bank&&profile.account?.number;
 
+  const canCreate=!!name.trim()&&!!date;
   return(
-    <div className="fade-up screen" style={{background:C.pageBg}}>
+    <div className="fade-up screen" style={{background:'var(--bg-page)'}}>
       {showOnboarding&&<SmallEventOnboardingModal onClose={()=>setShowOnboarding(false)} userId={profile.id}/>}
-      <Header title="새 정산 만들기" onBack={()=>nav.setView('home')}/>
-      <div style={{padding:'16px 16px 24px'}}>
-        <Card>
-          <Field label="정산 이름" value={name} onChange={setName} placeholder="5월 MT, 종강 회식…"/>
-          <Field label="행사 날짜·시간" value={date+'T'+(time||'00:00')} onChange={v=>{setDate(v.slice(0,10));setTime(v.slice(11,16));}} type="datetime-local"/>
-        </Card>
-        <Card>
-          <div style={{fontWeight:800,color:C.text,marginBottom:12,fontSize:14,display:'flex',alignItems:'center',gap:6}}><Icon n="credit-card" size={14} color={C.text}/>입금 계좌</div>
+      <div style={{display:'flex',alignItems:'center',gap:8,padding:'14px 12px',position:'sticky',top:0,background:'var(--bg-page)',zIndex:10}}>
+        <button onClick={()=>nav.setView('home')} aria-label="뒤로" style={{width:36,height:36,borderRadius:18,background:'var(--bg-card)',border:'1px solid var(--border)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon n="chevron-left" size={18} color="var(--text-body)"/></button>
+        <div style={{fontSize:18,fontWeight:700,color:'var(--text-strong)',letterSpacing:-0.5}}>정산 만들기</div>
+      </div>
+      <div style={{padding:'8px 16px 24px'}}>
+        <input value={name} onChange={e=>setName(e.target.value)} placeholder="5월 엠티"
+          style={{width:'100%',padding:'16px',fontSize:18,fontWeight:600,border:'1px solid var(--border)',borderRadius:14,background:'var(--bg-card)',color:'var(--text-strong)',outline:'none',marginBottom:10,letterSpacing:-0.3,boxSizing:'border-box'}}/>
+        <input type="date" value={date} onChange={e=>setDate(e.target.value)}
+          style={{width:'100%',padding:'16px',fontSize:16,border:'1px solid var(--border)',borderRadius:14,background:'var(--bg-card)',color:'var(--text-strong)',outline:'none',marginBottom:10,letterSpacing:-0.3,boxSizing:'border-box'}}/>
+        <div style={{background:'var(--bg-page)',border:'1px solid var(--border)',borderRadius:14,padding:'14px 16px',marginBottom:10}}>
+          <div style={{fontSize:11.5,color:'var(--text-label)',marginBottom:4,letterSpacing:-0.2}}>입금 계좌</div>
           {hasAccount?(
-            <div style={{fontSize:13,color:C.textMid,padding:'11px 14px',background:C.inputBg,borderRadius:10,display:'flex',justifyContent:'space-between',alignItems:'center',border:`1.5px solid ${C.border}`}}>
-              <span>{bank} {number} ({holder})</span>
-              <Badge color={C.green}>자동 적용</Badge>
-            </div>
+            <div style={{fontSize:14,color:'var(--text-strong)',fontWeight:600,letterSpacing:-0.3}}>{bank} {number} <span style={{color:'var(--text-faint)',fontWeight:400}}>({holder})</span></div>
           ):(
-            <>
-              <Field label="은행" value={bank} onChange={setBank} placeholder="카카오뱅크"/>
-              <Field label="계좌번호" value={number} onChange={setNumber} placeholder="계좌번호" inputMode="numeric"/>
-              <Field label="예금주" value={holder} onChange={setHolder} placeholder="이름"/>
-            </>
+            <div style={{fontSize:13,color:'var(--text-faint)'}}>계좌 미설정 — 메뉴 ＞ 명단·계좌에서 설정</div>
           )}
-        </Card>
-        {(profile.groups||[]).flatMap(g=>g.members||[]).length===0&&(
-          <div style={{background:C.accentBg,borderRadius:14,padding:'14px 16px',marginBottom:12,border:`1px solid ${C.accent}20`}}>
-            <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:4}}>등록된 명단이 없어요</div>
-            <div style={{fontSize:13,color:C.textMid,lineHeight:1.7,marginBottom:10}}>지금 만들어도 돼요. 행사 진행 화면의 '명단 관리'에서 바로 추가할 수 있어요.</div>
-            <button onClick={()=>nav.setView('setup')} style={{background:C.accent,color:'#fff',border:'none',borderRadius:10,padding:'8px 16px',fontSize:13,fontWeight:700,cursor:'pointer'}}>명단 등록하러 가기 →</button>
-          </div>
-        )}
-        {err&&<div style={{color:C.red,fontSize:13,marginBottom:12,padding:'11px 14px',background:C.redBg,borderRadius:10,display:'flex',alignItems:'center',gap:6}}><Icon n="triangle-alert" size={14} color={C.red}/>{err}</div>}
-        <Btn onClick={create} loading={loading}>정산 생성하기 →</Btn>
+        </div>
+        <div style={{fontSize:12.5,color:'var(--text-body)',marginBottom:20,letterSpacing:-0.2,paddingLeft:2}}>명단은 다음 화면에서 출석 체크하면서 골라요</div>
+        {err&&<div style={{color:'#C0392B',fontSize:13,marginBottom:12,padding:'11px 14px',background:'var(--tint-coral)',borderRadius:10}}>{err}</div>}
+        <button onClick={(canCreate&&!loading)?create:undefined} style={{width:'100%',padding:'16px',borderRadius:14,border:'none',background:'var(--c-purple)',color:'#fff',fontSize:16,fontWeight:700,letterSpacing:-0.3,cursor:canCreate?'pointer':'default',opacity:canCreate?1:0.5,transition:'opacity 0.15s'}}>{loading?'만드는 중…':'정산 만들기'}</button>
       </div>
     </div>
   );
