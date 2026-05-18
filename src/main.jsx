@@ -508,6 +508,7 @@ const ICONS={
   'log-out':'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>',
   'dots-vertical':'<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>',
   plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',
+  'brand-kakao':'<path d="M12 4C7 4 3 7.1 3 11c0 2.5 1.7 4.7 4.2 6-.2.7-.7 2.5-.8 2.9-.1.4.2.4.4.3.2-.1 2.6-1.7 3.6-2.4.5.1 1.1.1 1.6.1 5 0 9-3.1 9-7s-4-7-9-7Z"/>',
 };
 const Icon=({n,size=18,color='currentColor',style={}})=>(
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:'inline-block',verticalAlign:'middle',flexShrink:0,...style}} dangerouslySetInnerHTML={{__html:ICONS[n]}}/>
@@ -593,7 +594,7 @@ const SelectGrid = ({options,value,onChange}) => (
 
 const FlowStepper = ({steps, current, done=[], onStepClick}) => (
   <div style={{background:C.cardBg,padding:'14px 18px 0',borderBottom:`1px solid ${C.border}`}}>
-    <div style={{display:'flex',alignItems:'flex-start',gap:0}}>
+    <div style={{display:'flex',alignItems:'flex-start',gap:0,maxWidth:300,margin:'0 auto'}}>
       {steps.map((label,i)=>{
         const isActive=current===i;
         const isDone=done[i];
@@ -605,7 +606,7 @@ const FlowStepper = ({steps, current, done=[], onStepClick}) => (
               </div>
               <div style={{fontSize:10,fontWeight:isActive?700:400,color:isDone?C.green:isActive?C.accent:C.textDim,transition:'all 0.3s',whiteSpace:'nowrap'}}>{label}</div>
             </button>
-            {i<steps.length-1&&<div style={{height:2,flex:2,background:isDone?C.green:C.border,marginTop:12,transition:'all 0.3s'}}/>}
+            {i<steps.length-1&&<div style={{height:2,flex:1,background:isDone?C.green:C.border,marginTop:12,transition:'all 0.3s'}}/>}
           </React.Fragment>
         );
       })}
@@ -2952,10 +2953,7 @@ function ShareSection({event,showToast}){
         <Icon n="info" size={13} color="var(--c-purple)" style={{flexShrink:0}}/>
         <span>참여자는 링크 누르면 자기 낼 돈 확인 + 입금해요</span>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-        <button onClick={async()=>{posthog.capture('정산_링크_공유');const shared=await shareText(msg);if(!shared){await copy(msg,'메시지');}else showToast('공유 완료');}} style={{padding:'14px',borderRadius:14,border:'none',background:'#FEE500',color:'#191600',fontSize:16,fontWeight:700,letterSpacing:-0.3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Icon n="message-circle" size={17} color="#191600"/>카톡 공유</button>
-        <button onClick={()=>copy(directLink,'링크')} style={{padding:'14px',borderRadius:14,border:'1px solid var(--c-purple)',background:'var(--bg-card)',color:'var(--c-purple)',fontSize:16,fontWeight:700,letterSpacing:-0.3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Icon n="link" size={17} color="var(--c-purple)"/>링크 복사</button>
-      </div>
+      <button onClick={async()=>{posthog.capture('정산_링크_공유');const shared=await shareText(msg);if(!shared){await copy(msg,'메시지');}else showToast('공유 완료');}} style={{width:'100%',padding:'16px',borderRadius:14,border:'1.5px solid #FEE500',background:'var(--bg-card)',color:'#191600',fontSize:16,fontWeight:700,letterSpacing:-0.3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:7}}><Icon n="brand-kakao" size={18} color="#391B1B"/>카톡 공유</button>
     </div>
   );
 }
