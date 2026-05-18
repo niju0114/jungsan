@@ -2032,8 +2032,8 @@ function CreateScreen({nav,profile,events,createEvent,showToast,addProfileMember
         <div style={{fontSize:13,fontWeight:500,color:'var(--text-label)',marginBottom:8,letterSpacing:-0.2}}>행사 이름</div>
         <input value={name} onChange={e=>setName(e.target.value)} placeholder="5월 엠티"
           style={{width:'100%',padding:'14px',fontSize:16,border:'1px solid var(--border)',borderRadius:12,background:'var(--bg-card)',color:'var(--text-strong)',outline:'none',marginBottom:16,letterSpacing:-0.3,boxSizing:'border-box'}}/>
-        <div style={{fontSize:13,fontWeight:500,color:'var(--text-label)',marginBottom:8,letterSpacing:-0.2}}>행사 날짜</div>
-        <input type="date" value={date} onChange={e=>setDate(e.target.value)}
+        <div style={{fontSize:13,fontWeight:500,color:'var(--text-label)',marginBottom:8,letterSpacing:-0.2}}>행사 날짜·시간</div>
+        <input type="datetime-local" value={date+'T'+(time||'00:00')} onChange={e=>{const v=e.target.value;setDate(v.slice(0,10));setTime(v.slice(11,16));}}
           style={{width:'100%',padding:'14px',fontSize:16,border:'1px solid var(--border)',borderRadius:12,background:'var(--bg-card)',color:'var(--text-strong)',outline:'none',marginBottom:16,letterSpacing:-0.3,boxSizing:'border-box'}}/>
         <div style={{background:'var(--bg-page)',border:'1px solid var(--border)',borderRadius:14,padding:'14px 16px',marginBottom:10}}>
           <div style={{fontSize:11.5,color:'var(--text-label)',marginBottom:4,letterSpacing:-0.2}}>입금 계좌</div>
