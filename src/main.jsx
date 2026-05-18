@@ -2354,7 +2354,7 @@ function FeeConfigSection({event,updateEvent}){
 
   const activate=()=>updateEvent({...event,feeConfig:{mode:'auto',totalCost:0,subsidyPerPaid:0,paidFeeAmount:0,unpaidFeeAmount:0}});
   const deactivate=()=>{
-    if(!window.confirm('정산 방식 설정을 해제할까요? 기본 1/n 계산으로 돌아갑니다.')) return;
+    if(!window.confirm('학생회비 낸 사람 설정을 해제할까요? 기본 1/n 계산으로 돌아갑니다.')) return;
     updateEvent({...event,feeConfig:null});
   };
 
@@ -2363,14 +2363,14 @@ function FeeConfigSection({event,updateEvent}){
   return(
     <div style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:12,border:`1.5px solid ${C.accent}30`,boxShadow:C.shadow}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:fc?12:6}}>
-        <div style={{fontWeight:800,fontSize:14,color:C.text}}>정산 방식{saved&&<span style={{fontSize:11,color:C.textDim,fontWeight:400,marginLeft:6}}>방금 저장됨</span>}</div>
+        <div style={{fontWeight:800,fontSize:14,color:C.text}}>학생회비 낸 사람{saved&&<span style={{fontSize:11,color:C.textDim,fontWeight:400,marginLeft:6}}>방금 저장됨</span>}</div>
         {fc?(
           <button onClick={deactivate} style={{fontSize:11,color:C.textMid,background:'none',border:'none',cursor:'pointer',padding:'2px 4px'}}>해제</button>
         ):(
           <button onClick={activate} style={{fontSize:12,color:C.accent,fontWeight:700,background:C.accentBg,border:'none',borderRadius:8,padding:'5px 12px',cursor:'pointer'}}>설정하기</button>
         )}
       </div>
-      {!fc&&<div style={{fontSize:12,color:C.textDim,lineHeight:1.5}}>학생회비 납부 여부에 따라 금액을 다르게 설정할 수 있어요</div>}
+      {!fc&&<div style={{fontSize:12,color:C.textDim,lineHeight:1.5}}>학생회비 낸 사람을 설정하면 차수별로 다른 금액 받을 수 있어요</div>}
       {fc&&(
         <>
           <div style={{display:'flex',gap:6,marginBottom:14}}>
@@ -2746,8 +2746,8 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                     <div style={{display:'flex',alignItems:'center',gap:10}}>
                       {groupSections&&<button onClick={()=>setAttSort(s=>s==='group'?'name':'group')} style={{fontSize:11,color:C.textMid,background:C.inputBg,border:`1px solid ${C.border}`,borderRadius:8,padding:'3px 8px',cursor:'pointer',fontWeight:600}}>{attSort==='group'?'가나다순':'그룹순'}</button>}
                       <div style={{display:'flex',gap:8}}>
-                        <button onClick={()=>{const newM=[...event.members];const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:newM,...(eventHasLegacyOrganizer?{includeOrganizer:true}:{})}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,true])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전원 참석</button>
-                        <button onClick={()=>{const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:[],...(eventHasLegacyOrganizer?{includeOrganizer:false}:{})}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,false])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.textDim,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:600}}>전원 불참</button>
+                        <button onClick={()=>{const newM=[...event.members];const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:newM,...(eventHasLegacyOrganizer?{includeOrganizer:true}:{})}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,true])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.accent,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:700}}>전원 참석</button>
+                        <button onClick={()=>{const newRounds=event.rounds.map(r2=>r2.id===r.id?{...r2,members:[],...(eventHasLegacyOrganizer?{includeOrganizer:false}:{})}:r2);const newAtt=isFirst?Object.fromEntries(event.members.map(k=>[k,false])):event.attendance;updateEvent({...event,rounds:newRounds,...(isFirst?{attendance:newAtt}:{})});}} style={{fontSize:11,color:C.textDim,background:'none',border:'none',cursor:'pointer',padding:0,fontWeight:500}}>전원 불참</button>
                       </div>
                     </div>
                   </div>
@@ -2849,12 +2849,15 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                 <div style={{border:`1px solid ${cardStage===1?C.accent:'transparent'}`,borderRadius:10,padding:'10px',opacity:cardStage===1?1:0.6,transition:'all 0.2s',marginBottom:12}}>
                 {/* 정산 방식 (차수별) */}
                 {showFeeToggle&&(
+                  <>
+                  <div style={{fontSize:12,fontWeight:700,color:C.textMid,marginBottom:6}}>이 차수 정산 방식</div>
                   <div style={{display:'flex',gap:6,marginBottom:10}}>
                     {[['split','1/N'],['feeTier','학생회비 차등']].map(([m,lb])=>{
                       const on=(m==='feeTier')===useFc;
                       return <button key={m} onClick={()=>setRoundFeeMode(r.id,m)} style={{flex:1,padding:'7px',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer',border:'none',background:on?C.accent:C.inputBg,color:on?'#fff':C.textMid}}>{lb}</button>;
                     })}
                   </div>
+                  </>
                 )}
                 {/* 금액 입력 */}
                 {useFc?(
@@ -2939,8 +2942,11 @@ function ShareSection({event,showToast}){
   const msg=`[${event.date} ${event.name}] 정산 안내\n\n아래 링크에서 내가 낼 돈 확인하고 입금해주세요.\n${directLink}\n\n(정산해 · 간편한 모임 정산 서비스)`;
   return(
     <div>
-      <div style={{fontSize:12,color:C.textDim,fontWeight:600,marginBottom:10,lineHeight:1.6}}>참여자는 링크에서 자기 금액·계좌를 확인하고 입금해요.</div>
       <div style={{background:C.inputBg,borderRadius:10,padding:'12px 14px',fontSize:13,color:C.textMid,lineHeight:1.9,marginBottom:10,whiteSpace:'pre-wrap',border:`1px solid ${C.border}`}}>{msg}</div>
+      <div style={{display:'flex',alignItems:'center',gap:6,background:C.accentBg,borderRadius:10,padding:'9px 12px',marginBottom:10,fontSize:12,color:C.textMid,lineHeight:1.5}}>
+        <Icon n="info" size={13} color={C.accent} style={{flexShrink:0}}/>
+        <span>참여자는 링크 누르면 자기 낼 돈 확인 + 입금해요</span>
+      </div>
       <div style={{display:'flex',gap:8}}>
         <Btn onClick={async()=>{posthog.capture('정산_링크_공유');const shared=await shareText(msg);if(!shared){await copy(msg,'메시지');}else showToast('공유 완료');}} style={{flex:2}}><Icon n="message-circle" size={16} color="#fff" style={{marginRight:4}}/>카톡 공유</Btn>
         <Btn onClick={()=>copy(directLink,'링크')} variant="secondary" style={{flex:1}}><Icon n="link" size={16} color={C.textMid} style={{marginRight:4}}/>링크</Btn>
