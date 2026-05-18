@@ -23,8 +23,15 @@
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <style>.ms{font-family:'Material Symbols Rounded';font-size:22px;line-height:1;font-style:normal;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;-webkit-font-feature-settings:'liga';font-feature-settings:'liga';-webkit-font-smoothing:antialiased;color:inherit;vertical-align:middle;}.ms-sm{font-size:18px;}.ms-lg{font-size:26px;}</style>
   <style>
+    :root {
+      --c-purple:#534AB7; --c-coral:#C26B4A; --c-teal:#0F6E56;
+      --bg-page:#F7F7F5; --bg-card:#FFFFFF; --border:#EEEEEC;
+      --text-strong:#1A1A19; --text-body:#71717A; --text-faint:#A8A8A2; --text-label:#9B9B96;
+      --tint-purple:#F0EEFB; --tint-coral:#FAEEE7; --tint-teal:#E1F5EE;
+      --font:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,system-ui,'Apple SD Gothic Neo',sans-serif;
+    }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html, body { height: 100%; background: #F2F3F5; padding: env(safe-area-inset-top) 0 0 0; }
+    html, body { height: 100%; background: #F2F3F5; padding: env(safe-area-inset-top) 0 0 0; font-family: var(--font); }
     #root { max-width: 480px; margin: 0 auto; min-height: 100vh; min-height: -webkit-fill-available; min-height: 100dvh; background: #F2F3F5; padding-bottom: env(safe-area-inset-bottom); }
     .screen { min-height: 100vh; min-height: -webkit-fill-available; min-height: 100dvh; }
     input, textarea, button { font-family: inherit; }
@@ -40,6 +47,8 @@
     .fade-up { animation: fadeUp 0.2s ease both; }
     .press { transition: transform 0.12s; }
     .press:active { transform: scale(0.96); }
+    @keyframes slideInRight { from { transform:translateX(100%); } to { transform:none; } }
+    .slide-right { animation: slideInRight 0.22s ease both; }
   </style>
 </head>
 <body>
