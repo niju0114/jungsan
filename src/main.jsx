@@ -1287,6 +1287,48 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
 
 
 // ── HomeScreen ─────────────────────────────────────────────
+// ── HamburgerMenu (홈 우슬라이드 패널) ──────────────────────
+function HamburgerMenu({nav,profile,doneCount,onClose}){
+  const [loggingOut,setLoggingOut]=useState(false);
+  const setupDone=!!profile?.account?.bank&&(profile?.groups||[]).some(g=>(g.members||[]).length>0);
+  const go=v=>{onClose();nav.setView(v);};
+  const doLogout=async()=>{setLoggingOut(true);await api.signOut();onClose();nav.setView('home');};
+  const row={width:'100%',display:'flex',alignItems:'center',gap:12,padding:'16px',background:'none',border:'none',borderBottom:'1px solid var(--border)',cursor:'pointer',textAlign:'left'};
+  const dot={width:24,height:24,borderRadius:12,background:'var(--bg-page)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0};
+  return createPortal(
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.35)',zIndex:300,display:'flex',justifyContent:'flex-end'}}>
+      <div className="slide-right" onClick={e=>e.stopPropagation()} style={{width:'82%',maxWidth:340,height:'100%',background:'var(--bg-card)',display:'flex',flexDirection:'column',overflowY:'auto'}}>
+        <div style={{display:'flex',justifyContent:'flex-end',padding:'14px 14px 8px'}}>
+          <button onClick={onClose} aria-label="닫기" style={{width:36,height:36,borderRadius:18,background:'var(--bg-page)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><Icon n="x" size={16} color="var(--text-body)"/></button>
+        </div>
+        <button onClick={()=>go('setup')} className="press" style={row}>
+          <div style={dot}><Icon n="users" size={14} color="var(--text-body)"/></div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:14.5,fontWeight:600,color:'var(--text-strong)',letterSpacing:-0.3}}>명단·계좌</div>
+            <div style={{fontSize:12,marginTop:2,color:setupDone?'var(--text-faint)':'var(--c-teal)',fontWeight:setupDone?400:700}}>{setupDone?'설정 완료':'설정 필요'}</div>
+          </div>
+          <Icon n="chevron-right" size={16} color="var(--text-faint)"/>
+        </button>
+        <button onClick={()=>go('history')} className="press" style={row}>
+          <div style={dot}><Icon n="archive" size={14} color="var(--text-body)"/></div>
+          <div style={{flex:1,minWidth:0,fontSize:14.5,fontWeight:600,color:'var(--text-strong)',letterSpacing:-0.3}}>완료된 정산</div>
+          <span style={{background:'var(--tint-purple)',color:'var(--c-purple)',borderRadius:10,padding:'2px 8px',fontSize:11,fontWeight:700}}>{doneCount}</span>
+          <Icon n="chevron-right" size={16} color="var(--text-faint)" style={{marginLeft:8}}/>
+        </button>
+        <button onClick={()=>go('help')} className="press" style={row}>
+          <div style={dot}><Icon n="help-circle" size={14} color="var(--text-body)"/></div>
+          <div style={{flex:1,minWidth:0,fontSize:14.5,fontWeight:600,color:'var(--text-strong)',letterSpacing:-0.3}}>도움말</div>
+          <Icon n="chevron-right" size={16} color="var(--text-faint)"/>
+        </button>
+        <button onClick={doLogout} className="press" style={{...row,borderBottom:'none'}}>
+          <div style={dot}><Icon n="log-out" size={14} color="var(--c-coral)"/></div>
+          <div style={{flex:1,minWidth:0,fontSize:14.5,fontWeight:600,color:'var(--c-coral)',letterSpacing:-0.3}}>{loggingOut?'로그아웃 중…':'로그아웃'}</div>
+        </button>
+      </div>
+    </div>, document.body
+  );
+}
+
 function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedback,onFeedbackDone}){
   const [loggingOut,setLoggingOut]=useState(false);
   const [menuOpen,setMenuOpen]=useState(false);
@@ -1330,113 +1372,75 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
     showToast('건의사항이 전달됐어요');
   };
 
+  const setupDone=!!profile?.account?.bank&&(profile?.groups||[]).some(g=>(g.members||[]).length>0);
+  const doneCount=events.filter(ev=>isEventDone(ev)).length;
+  const prog=[
+    ...activeEvents.map(ev=>{const pm=ev.members.filter(k=>ev.attendance[k]!==false);const pc=pm.filter(k=>getPayStatus(ev.payments?.[k])==='paid').length;return{kind:'event',key:ev.code,name:ev.name,date:ev.date,pm:pm.length,pc};}),
+    ...activeForms.map(f=>({kind:'form',key:f.code,name:f.name,date:f.date,sub:f.submissions?.length||0,max:f.maxPeople})),
+  ].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  const actCard=(color,icon,title,sub,onClick)=>(
+    <button onClick={setupDone?onClick:undefined} className="press" style={{width:'100%',display:'flex',alignItems:'center',gap:14,padding:'18px',borderRadius:16,background:'var(--bg-card)',border:'1px solid var(--border)',cursor:setupDone?'pointer':'default',opacity:setupDone?1:0.5,pointerEvents:setupDone?'auto':'none',textAlign:'left',marginBottom:10}}>
+      <div style={{width:40,height:40,borderRadius:20,background:color,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon n={icon} size={20} color="#fff"/></div>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:15.5,fontWeight:700,color:'var(--text-strong)',letterSpacing:-0.3}}>{title}</div>
+        <div style={{fontSize:12,color:'var(--text-body)',marginTop:2,letterSpacing:-0.2}}>{sub}</div>
+      </div>
+      {setupDone?<Icon n="arrow-right" size={18} color="var(--text-faint)"/>:<Icon n="lock" size={16} color="var(--text-faint)"/>}
+    </button>
+  );
+
   return(
-    <div className="fade-up screen" style={{background:C.pageBg}}>
-      {/* 프로필 영역 */}
-      <div style={{background:'#FFFFFF',borderRadius:'0 0 24px 24px',padding:'24px 24px 20px'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+    <div className="fade-up screen" style={{background:'var(--bg-page)'}}>
+      <div style={{background:'var(--bg-card)',borderRadius:'0 0 24px 24px',padding:'24px 24px 20px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
           <div>
-            <div style={{fontSize:14,color:C.textDim,marginBottom:4}}>안녕하세요</div>
-            <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:-0.5}}>{profile?.name||profile?.username||'총무'}님</div>
+            <div style={{fontSize:13,color:'var(--text-label)',letterSpacing:-0.2,marginBottom:4}}>안녕하세요</div>
+            <div style={{fontSize:22,fontWeight:700,color:'var(--text-strong)',letterSpacing:-0.5}}>{profile?.name||profile?.username||'총무'}님</div>
           </div>
-          <div style={{position:'relative'}}>
-            <button onClick={()=>setMenuOpen(o=>!o)} style={{background:C.inputBg,border:'none',borderRadius:12,color:C.textMid,cursor:'pointer',width:40,height:40,display:'flex',alignItems:'center',justifyContent:'center'}}><span className="ms" style={{fontSize:22}}>more_horiz</span></button>
-            {menuOpen&&(
-              <div style={{position:'absolute',right:0,top:48,background:'#fff',borderRadius:16,boxShadow:'0 8px 32px rgba(0,0,0,0.12)',zIndex:50,minWidth:160,overflow:'hidden'}}>
-                <button onClick={logout} style={{width:'100%',padding:'15px 18px',background:'none',border:'none',cursor:'pointer',fontSize:15,color:C.red,textAlign:'left',fontWeight:600,display:'flex',alignItems:'center',gap:10}}><span className="ms ms-sm">logout</span>{loggingOut?'..':'로그아웃'}</button>
-              </div>
-            )}
-          </div>
+          <button onClick={()=>setMenuOpen(true)} aria-label="메뉴" style={{width:36,height:36,borderRadius:18,background:'var(--bg-page)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon n="menu" size={18} color="var(--text-body)"/></button>
         </div>
-        <div style={{display:'flex',gap:10,marginBottom:16}}>
-          {[[events.length,'총 정산',C.accent],[activeEvents.length,'진행 중',C.green]].map(([v,l,c])=>(
-            <div key={l} onClick={()=>nav.setView('history')} className="press" style={{background:C.inputBg,borderRadius:16,padding:'14px 18px',flex:1,cursor:'pointer'}}>
-              <div style={{fontSize:24,fontWeight:900,color:c,letterSpacing:-0.5}}>{v}</div>
-              <div style={{fontSize:12,color:C.textDim,marginTop:4,fontWeight:600}}>{l}</div>
-            </div>
-          ))}
-        </div>
-        {/* 새 정산 CTA — 프로필 영역 하단, 스크롤 없이 항상 보이도록 */}
-        <Btn onClick={()=>setModeSelect(true)} style={{padding:'18px',fontSize:17,borderRadius:20}}>＋ 새로 만들기</Btn>
       </div>
 
-      <div style={{padding:'16px 16px 32px'}}>
-        {/* 메뉴 그리드 */}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:8,marginBottom:20}}>
-          {[
-            {icon:'manage_accounts',label:'명단·계좌',action:()=>nav.setView('setup')},
-            {icon:'help',label:'도움말',action:()=>nav.setView('help')},
-          ].map(({icon,label,action})=>(
-            <button key={label} onClick={action} className="press" style={{
-              padding:'18px 8px',borderRadius:16,background:'#fff',
-              border:'none',cursor:'pointer',
-              display:'flex',flexDirection:'column',alignItems:'center',gap:8,
-            }}>
-              <span className="ms" style={{fontSize:24,color:C.textMid}}>{icon}</span>
-              <span style={{fontSize:12,fontWeight:700,color:C.textMid,textAlign:'center',lineHeight:1.3}}>{label}</span>
-            </button>
-          ))}
+      <div style={{padding:'20px 16px 32px'}}>
+        {!setupDone&&(
+          <button onClick={()=>nav.setView('setup')} className="press" style={{width:'100%',display:'flex',alignItems:'center',gap:14,padding:'18px',borderRadius:16,background:'var(--tint-teal)',border:'1px solid rgba(15,110,86,0.5)',cursor:'pointer',textAlign:'left',marginBottom:20}}>
+            <div style={{width:38,height:38,borderRadius:19,background:'var(--c-teal)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon n="users" size={19} color="#fff"/></div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:14,fontWeight:700,color:'var(--text-strong)',letterSpacing:-0.3}}>먼저 명단·계좌를 설정해주세요</div>
+              <div style={{fontSize:11.5,color:'var(--text-body)',marginTop:2}}>한 번만 하면 정산 만들기 끝</div>
+            </div>
+            <Icon n="arrow-right" size={18} color="var(--c-teal)"/>
+          </button>
+        )}
+
+        <div style={{fontSize:12,fontWeight:500,color:'var(--text-label)',marginBottom:10,letterSpacing:-0.2}}>새로 만들기</div>
+        {actCard('var(--c-purple)','receipt','정산 만들기','현장 출석부터 공유·자동 대조까지',()=>{posthog.capture('정산_만들기_시작');nav.setView('create');})}
+        {actCard('var(--c-coral)','clipboard-list','신청 받기','MT·야식마차, 신청폼부터 자동 대조',()=>{posthog.capture('신청폼_만들기_시작');nav.setView('formCreate');})}
+
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',margin:'24px 0 10px'}}>
+          <div style={{fontSize:12,fontWeight:500,color:'var(--text-label)',letterSpacing:-0.2}}>진행 중</div>
+          <div style={{fontSize:12,color:'var(--text-faint)'}}>{prog.length}</div>
         </div>
 
-        {/* 대규모 신청폼 있으면 표시 */}
-        {activeForms.length>0&&(
-          <>
-            <div style={{fontSize:11,color:C.textDim,fontWeight:700,marginBottom:10,letterSpacing:1.2,textTransform:'uppercase'}}>신청폼</div>
-            {activeForms.map(form=>(
-              <div key={form.code} onClick={()=>{nav.setCurrentFormCode(form.code);nav.setView('formAdmin');}} className="press"
-                style={{background:C.cardBg,borderRadius:16,padding:'16px 20px',marginBottom:8,cursor:'pointer'}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                  <div style={{flex:1}}>
-                    <div style={{fontWeight:800,color:C.text,fontSize:16}}>{form.name}</div>
-                    <div style={{fontSize:13,color:C.textDim,marginTop:4}}>{form.date} · {form.amountPaid?`${fmtKRW(form.amount)} / ${fmtKRW(form.amountPaid)}`:fmtKRW(form.amount)} · <span style={{color:C.orange,fontWeight:700}}>{form.submissions?.length||0}/{form.maxPeople||'∞'}명</span></div>
-                  </div>
-                  <span className="ms" style={{color:C.textDim,fontSize:20,flexShrink:0,marginLeft:8}}>chevron_right</span>
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-
-        {activeEvents.length===0&&activeForms.length===0?(
-          <div style={{textAlign:'center',padding:'40px 0'}}>
-            <div style={{width:64,height:64,borderRadius:32,background:C.textDim+'18',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}><Icon n="clipboard-list" size={32} color={C.textDim}/></div>
-            <div style={{color:C.textMid,fontSize:14,fontWeight:600,marginBottom:6}}>진행 중인 정산이 없어요</div>
-            <div style={{color:C.textDim,fontSize:13}}>위 버튼으로 새 정산을 만들어보세요</div>
-          </div>
-        ):(
-          <>
-            <div style={{marginBottom:12}}>
-              <div style={{fontSize:11,color:C.textDim,fontWeight:700,letterSpacing:1.2,textTransform:'uppercase'}}>진행 중</div>
+        {prog.length===0?(
+          <div style={{textAlign:'center',padding:'32px 0',color:'var(--text-faint)',fontSize:13}}>진행 중인 정산·신청이 없어요</div>
+        ):prog.map(p=>(
+          <div key={p.kind+p.key} onClick={()=>{if(p.kind==='event'){nav.setCurrentCode(p.key);nav.setView('adminEvent');}else{nav.setCurrentFormCode(p.key);nav.setView('formAdmin');}}} className="press"
+            style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:14,padding:'15px',marginBottom:8,cursor:'pointer'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <div style={{width:24,height:24,borderRadius:12,background:p.kind==='event'?'var(--tint-purple)':'var(--tint-coral)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon n={p.kind==='event'?'receipt':'clipboard-list'} size={13} color={p.kind==='event'?'var(--c-purple)':'var(--c-coral)'}/></div>
+              <div style={{flex:1,minWidth:0,fontSize:15,fontWeight:600,color:'var(--text-strong)',letterSpacing:-0.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
+              <span style={{fontSize:10.5,fontWeight:600,color:p.kind==='event'?'var(--c-purple)':'var(--c-coral)',background:p.kind==='event'?'var(--tint-purple)':'var(--tint-coral)',borderRadius:8,padding:'2px 7px',flexShrink:0}}>{p.kind==='event'?'정산':'신청'}</span>
             </div>
-            {activeEvents.map(ev=>{
-              const presentMembers=ev.members.filter(k=>ev.attendance[k]!==false);
-              const pc=presentMembers.filter(k=>getPayStatus(ev.payments?.[k])==='paid').length;
-              return(
-                <div key={ev.code} onClick={()=>{nav.setCurrentCode(ev.code);nav.setView('adminEvent');}} className="press"
-                  style={{background:C.cardBg,borderRadius:16,padding:'16px 20px',marginBottom:8,cursor:'pointer'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                    <div style={{flex:1}}>
-                      <div style={{fontWeight:800,color:C.text,fontSize:16}}>{ev.name}</div>
-                      <div style={{color:C.textDim,fontSize:13,marginTop:4}}>
-                        {ev.date} · <span style={{color:pc===presentMembers.length&&presentMembers.length>0?C.green:C.accent,fontWeight:700}}>{pc}/{presentMembers.length}명 입금</span>
-                      </div>
-                    </div>
-                    <span className="ms" style={{color:C.textDim,fontSize:20,flexShrink:0,marginLeft:8}}>chevron_right</span>
-                  </div>
-                </div>
-              );
-            })}
-          </>
-        )}
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8,fontSize:12.5,color:'var(--text-body)',letterSpacing:-0.2}}>
+              <span>{p.date} · {p.kind==='event'?`${p.pm}명`:`${p.sub}/${p.max||'∞'}명`}</span>
+              {p.kind==='event'&&p.pm>0&&<span style={{fontWeight:700,color:p.pc===p.pm?'var(--c-teal)':'var(--c-purple)'}}>{p.pc} / {p.pm} 입금</span>}
+            </div>
+          </div>
+        ))}
 
-        {/* 피드백 버튼 */}
-        <button onClick={()=>setFeedbackOpen(true)} style={{
-          width:'100%',marginTop:16,padding:'14px',borderRadius:16,
-          border:`2px dashed ${C.accent}50`,background:C.accentBg,
-          color:C.accent,fontWeight:700,fontSize:14,cursor:'pointer',
-          display:'flex',alignItems:'center',justifyContent:'center',gap:8,
-        }}>
-          <Icon n="message-circle" size={16} color={C.accent}/>건의사항 · 불편한 점 알려주세요
+        <button onClick={()=>setFeedbackOpen(true)} style={{width:'100%',marginTop:16,padding:'14px',borderRadius:14,border:'1px dashed var(--border)',background:'var(--bg-card)',color:'var(--text-body)',fontWeight:600,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+          <Icon n="message-circle" size={15} color="var(--text-body)"/>건의사항 · 불편한 점 알려주세요
         </button>
       </div>
 
@@ -1446,9 +1450,7 @@ function HomeScreen({nav,user,profile,events,forms,showToast,onGuide,showFeedbac
           feedbackLoading={feedbackLoading} onSubmit={submitFeedback} onClose={()=>setFeedbackOpen(false)}
         />
       )}
-      {modeSelect&&(
-        <ModeSelectModal profile={profile} nav={nav} onClose={()=>setModeSelect(false)}/>
-      )}
+      {menuOpen&&<HamburgerMenu nav={nav} profile={profile} doneCount={doneCount} onClose={()=>setMenuOpen(false)}/>}
     </div>
   );
 }
