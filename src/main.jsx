@@ -2357,7 +2357,7 @@ function FeeConfigSection({event,updateEvent}){
 
   const activate=()=>updateEvent({...event,feeConfig:{mode:'auto',totalCost:0,subsidyPerPaid:0,paidFeeAmount:0,unpaidFeeAmount:0}});
   const deactivate=()=>{
-    if(!window.confirm('학생회비 낸 사람 설정을 해제할까요? 기본 1/n 계산으로 돌아갑니다.')) return;
+    if(!window.confirm('학생회비 차등 정산 설정을 해제할까요? 기본 1/n 계산으로 돌아갑니다.')) return;
     updateEvent({...event,feeConfig:null});
   };
 
@@ -2366,14 +2366,14 @@ function FeeConfigSection({event,updateEvent}){
   return(
     <div style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:12,border:`1.5px solid ${C.accent}30`,boxShadow:C.shadow}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:fc?12:6}}>
-        <div style={{fontWeight:800,fontSize:14,color:C.text}}>학생회비 낸 사람{saved&&<span style={{fontSize:11,color:C.textDim,fontWeight:400,marginLeft:6}}>방금 저장됨</span>}</div>
+        <div style={{fontWeight:800,fontSize:14,color:C.text}}>학생회비 차등 정산{saved&&<span style={{fontSize:11,color:C.textDim,fontWeight:400,marginLeft:6}}>방금 저장됨</span>}</div>
         {fc?(
           <button onClick={deactivate} style={{fontSize:11,color:C.textMid,background:'none',border:'none',cursor:'pointer',padding:'2px 4px'}}>해제</button>
         ):(
           <button onClick={activate} style={{fontSize:12,color:C.accent,fontWeight:700,background:C.accentBg,border:'none',borderRadius:8,padding:'5px 12px',cursor:'pointer'}}>설정하기</button>
         )}
       </div>
-      {!fc&&<div style={{fontSize:12,color:C.textDim,lineHeight:1.5}}>학생회비 낸 사람을 설정하면 차수별로 다른 금액 받을 수 있어요</div>}
+      {!fc&&<div style={{fontSize:12,color:C.textDim,lineHeight:1.5}}>학생회비 차등 정산을 설정하면 차수별로 다른 금액 받을 수 있어요</div>}
       {fc&&(
         <>
           <div style={{display:'flex',gap:6,marginBottom:14}}>
@@ -2717,9 +2717,6 @@ function RoundsSection({event,updateEvent,mode,groups,onAttDirtyChange,saveAttFn
       </div>
       )}
 
-      {/* 학생회비 낸 사람: 금액 슬라이드에서 어떤 차수든 학생회비 차등일 때만 노출 */}
-      {mode==='amt'&&event.rounds.some(r=>roundIsFeeTier(r,fc))&&<FeeConfigSection event={event} updateEvent={updateEvent}/>}
-
       {/* 차수 카드들 */}
       {event.rounds.map((r,ridx)=>{
         const ckey=mode+'_'+r.id; // 접기 상태는 슬라이드(mode)별 독립
@@ -2884,14 +2881,7 @@ function RoundsSection({event,updateEvent,mode,groups,onAttDirtyChange,saveAttFn
                 )}
                 {/* 금액 입력 */}
                 {useFc?(
-                  <div style={{background:'var(--bg-page)',borderRadius:10,padding:'12px',marginBottom:12}}>
-                    <div style={{fontSize:12,color:'var(--text-body)',marginBottom:8,letterSpacing:-0.2}}>학생회비 차등 — <span style={{color:'var(--c-purple)',fontWeight:700}}>낸 사람 {fmtKRW(rFee.paid)} · 안 낸 사람 {fmtKRW(rFee.unpaid)}</span></div>
-                    <div style={{display:'flex',gap:6}}>
-                      <input value={(feeOverride[r.id]||{}).p||''} onChange={e=>setRoundFeeAmt(r.id,'paid',e.target.value.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder={`낸 사람(기본 ${fc?.paidFeeAmount||0})`} style={{flex:1,minWidth:0,padding:'10px',borderRadius:10,border:'1px solid var(--border)',background:'var(--bg-card)',fontSize:15,color:'var(--text-strong)',outline:'none',boxSizing:'border-box'}}/>
-                      <input value={(feeOverride[r.id]||{}).u||''} onChange={e=>setRoundFeeAmt(r.id,'unpaid',e.target.value.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder={`안 낸 사람(기본 ${fc?.unpaidFeeAmount||0})`} style={{flex:1,minWidth:0,padding:'10px',borderRadius:10,border:'1px solid var(--border)',background:'var(--bg-card)',fontSize:15,color:'var(--text-strong)',outline:'none',boxSizing:'border-box'}}/>
-                    </div>
-                    <div style={{fontSize:11,color:'var(--text-faint)',marginTop:6,lineHeight:1.5}}>비우면 기본 금액 적용. 입력하면 이 차수만 다른 금액.</div>
-                  </div>
+                  <FeeConfigSection event={event} updateEvent={updateEvent}/>
                 ):(
                   <>
                     <input value={amt} onChange={e=>setRoundAmount(r.id,e.target.value.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="50,000원"
