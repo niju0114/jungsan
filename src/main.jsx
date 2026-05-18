@@ -2028,10 +2028,12 @@ function CreateScreen({nav,profile,events,createEvent,showToast,addProfileMember
         <div style={{fontSize:18,fontWeight:700,color:'var(--text-strong)',letterSpacing:-0.5}}>정산 만들기</div>
       </div>
       <div style={{padding:'8px 16px 24px'}}>
+        <div style={{fontSize:13,fontWeight:500,color:'var(--text-label)',marginBottom:8,letterSpacing:-0.2}}>행사 이름</div>
         <input value={name} onChange={e=>setName(e.target.value)} placeholder="5월 엠티"
-          style={{width:'100%',padding:'16px',fontSize:18,fontWeight:600,border:'1px solid var(--border)',borderRadius:14,background:'var(--bg-card)',color:'var(--text-strong)',outline:'none',marginBottom:10,letterSpacing:-0.3,boxSizing:'border-box'}}/>
+          style={{width:'100%',padding:'14px',fontSize:16,border:'1px solid var(--border)',borderRadius:12,background:'var(--bg-card)',color:'var(--text-strong)',outline:'none',marginBottom:16,letterSpacing:-0.3,boxSizing:'border-box'}}/>
+        <div style={{fontSize:13,fontWeight:500,color:'var(--text-label)',marginBottom:8,letterSpacing:-0.2}}>행사 날짜</div>
         <input type="date" value={date} onChange={e=>setDate(e.target.value)}
-          style={{width:'100%',padding:'16px',fontSize:16,border:'1px solid var(--border)',borderRadius:14,background:'var(--bg-card)',color:'var(--text-strong)',outline:'none',marginBottom:10,letterSpacing:-0.3,boxSizing:'border-box'}}/>
+          style={{width:'100%',padding:'14px',fontSize:16,border:'1px solid var(--border)',borderRadius:12,background:'var(--bg-card)',color:'var(--text-strong)',outline:'none',marginBottom:16,letterSpacing:-0.3,boxSizing:'border-box'}}/>
         <div style={{background:'var(--bg-page)',border:'1px solid var(--border)',borderRadius:14,padding:'14px 16px',marginBottom:10}}>
           <div style={{fontSize:11.5,color:'var(--text-label)',marginBottom:4,letterSpacing:-0.2}}>입금 계좌</div>
           {hasAccount?(
@@ -2121,9 +2123,6 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile,add
             );
           })}
         </div>
-        <button onClick={()=>safeNavigate(()=>setSlide(FLOW_SLIDE[flowStep]))} style={{padding:0,background:'none',border:'none',cursor:'pointer',textAlign:'left',width:'100%'}}>
-          <span style={{fontSize:15,fontWeight:700,color:'var(--c-purple)',letterSpacing:-0.3}}>{['①','②','③','④'][flowStep]} {FLOW[flowStep]}</span>
-        </button>
       </div>
 
       {/* 슬라이드 콘텐츠 */}
@@ -2153,7 +2152,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile,add
         {slide<steps.length-1&&(
           <Btn onClick={()=>safeNavigate(()=>setSlide(s=>s+1))} style={{flex:2}}>다음</Btn>
         )}
-        {slide===steps.length-1&&<Btn variant="green" onClick={()=>nav.setView('home')} style={{flex:2}}>홈으로</Btn>}
+        {slide===steps.length-1&&<Btn onClick={()=>nav.setView('home')} style={{flex:2,background:'var(--c-purple)'}}>홈으로</Btn>}
       </div>
 
       {savePrompt&&(
@@ -2745,9 +2744,12 @@ function RoundsSection({event,updateEvent,mode,groups,onAttDirtyChange,saveAttFn
                   :<span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:11,color:'var(--text-faint)',fontWeight:400}}><span style={{width:5,height:5,borderRadius:'50%',background:'var(--c-teal)',display:'inline-block',flexShrink:0}}/>자동 저장</span>
                 )}
               </div>
-              {mode==='att'
-                ?<span style={{fontSize:20,fontWeight:700,color:'var(--c-purple)',letterSpacing:-0.5,flexShrink:0}}>{rMembers.length+(includeOrg?1:0)} / {(event.members||[]).length+(includeOrg?1:0)}</span>
-                :<span style={{fontSize:12.5,color:'var(--text-body)',flexShrink:0}}>{rMembers.length+(includeOrg?1:0)}명</span>}
+              <div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
+                {mode==='att'
+                  ?<span style={{fontSize:20,fontWeight:700,color:'var(--c-purple)',letterSpacing:-0.5}}>{rMembers.length+(includeOrg?1:0)} / {(event.members||[]).length+(includeOrg?1:0)}</span>
+                  :<span style={{fontSize:12.5,color:'var(--text-body)'}}>{rMembers.length+(includeOrg?1:0)}명</span>}
+                <Icon n={isClosed?'chevron-down':'chevron-up'} size={18} color="var(--text-faint)"/>
+              </div>
             </div>
 
             {!isClosed&&(
@@ -3337,6 +3339,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
 
   return(
     <div>
+      <div style={{fontSize:18,fontWeight:700,color:'var(--text-strong)',letterSpacing:-0.4,marginBottom:14}}>입금 확인할게요</div>
       <input ref={excelFileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleExcel} style={{display:'none'}}/>
       {event.account?.bank&&(
         <div style={{display:'flex',gap:8,marginBottom:12}}>
