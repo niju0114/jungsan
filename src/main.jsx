@@ -2063,13 +2063,12 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile,add
   const update=async ev=>{setEvent(ev);if(updateEvent) await updateEvent(ev);};
 
   const steps=['행사 진행','공유','정산 현황'];
-  // 4단계 진행 스텝퍼(기존 3단계 대체). 자동판정은 calcAmounts 단일 소스 →
-  // 출석·정산방식(1/N↔학생회비 차등·feeConfig) 변경에 표시 금액과 항상 일치하게 유기적 연동.
+  // 4단계 진행 스텝퍼: 슬라이드 위치 우선. 슬라이드1→③, 슬라이드2→④,
+  // 슬라이드0은 출석 0→①, 1명+→②(금액 입력해도 ② 유지). 점 클릭=슬라이드 이동.
   const flowAtt=event.members.filter(k=>event.attendance[k]!==false).length;
-  const flowAmtDone=Object.values(calcAmounts(event)).some(v=>v>0);
-  const flowHasPay=Object.values(event.payments||{}).some(p=>getPayStatus(p)!=='none');
-  const flowStep=flowHasPay?3:(flowAmtDone?2:(flowAtt>0?1:0));
+  const flowStep=slide===1?2:(slide===2?3:(flowAtt>0?1:0));
   const FLOW=['참석한 사람 체크해주세요','총 금액 입력하세요','단톡방에 링크 공유해주세요','거래내역 엑셀로 자동 대조'];
+  const FLOW_SHORT=['출석','금액','공유','대조'];
   const FLOW_SLIDE=[0,0,1,2];
 
   const safeNavigate=fn=>{
@@ -2101,19 +2100,23 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile,add
 
       {/* 4단계 진행 스텝퍼: 점·텍스트 클릭 시 해당 슬라이드 이동(기존 3단계 대체) */}
       <div style={{background:C.cardBg,padding:'14px 18px 14px',borderBottom:`1px solid ${C.border}`}}>
-        <div style={{display:'flex',alignItems:'center',marginBottom:8}}>
-          {FLOW.map((_,i)=>(
-            <div key={i} style={{display:'flex',alignItems:'center',flex:i<FLOW.length-1?1:'0 0 auto'}}>
-              <button onClick={()=>safeNavigate(()=>setSlide(FLOW_SLIDE[i]))} aria-label={FLOW[i]} style={{padding:0,margin:0,background:'none',border:'none',cursor:'pointer',flexShrink:0,display:'flex'}}>
-                <div style={{width:22,height:22,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',
-                  background:i<flowStep?C.textDim:(i===flowStep?C.accent:'transparent'),
-                  border:i>flowStep?`2px solid ${C.border}`:'none',transition:'all 0.2s'}}>
-                  {i<flowStep&&<Icon n="check" size={12} color="#fff"/>}
-                </div>
-              </button>
-              {i<FLOW.length-1&&<div style={{flex:1,height:2,background:i<flowStep?C.textDim:C.border,margin:'0 6px'}}/>}
-            </div>
-          ))}
+        <div style={{display:'flex',alignItems:'flex-start',marginBottom:10}}>
+          {FLOW.map((_,i)=>{
+            const done=i<flowStep, active=i===flowStep;
+            return(
+              <React.Fragment key={i}>
+                <button onClick={()=>safeNavigate(()=>setSlide(FLOW_SLIDE[i]))} aria-label={FLOW[i]} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,flex:1,minWidth:0,background:'none',border:'none',cursor:'pointer',padding:0}}>
+                  <div style={{width:14,height:14,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',
+                    background:done?C.textDim:(active?C.accent:'transparent'),
+                    border:(!done&&!active)?`2px solid ${C.border}`:'none',transition:'all 0.2s'}}>
+                    {done&&<Icon n="check" size={9} color="#fff"/>}
+                  </div>
+                  <span style={{fontSize:11,fontWeight:active?700:500,color:done?C.textDim:(active?C.accent:C.textDim),whiteSpace:'nowrap'}}>{FLOW_SHORT[i]}</span>
+                </button>
+                {i<FLOW.length-1&&<div style={{height:2,flex:0.5,background:done?C.textDim:C.border,marginTop:6}}/>}
+              </React.Fragment>
+            );
+          })}
         </div>
         <button onClick={()=>safeNavigate(()=>setSlide(FLOW_SLIDE[flowStep]))} style={{padding:0,background:'none',border:'none',cursor:'pointer',textAlign:'left',width:'100%'}}>
           <span style={{fontSize:15,fontWeight:800,color:C.accent,letterSpacing:-0.3}}>{['①','②','③','④'][flowStep]} {FLOW[flowStep]}</span>
@@ -2653,6 +2656,9 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
   if(event.rounds.length===0) return null;
 
+  // 단계↔시각 일치: 출석 0명=① 출석 강조 / 1명+=② 금액 강조 (슬라이드0 flowStep와 동일 기준)
+  const cardStage=event.members.filter(k=>event.attendance[k]!==false).length===0?0:1;
+
   return(
     <div>
       <FeeConfigSection event={event} updateEvent={updateEvent}/>
@@ -2729,40 +2735,8 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
             {!isClosed&&(
               <>
-                {/* 정산 방식 (차수별) */}
-                {showFeeToggle&&(
-                  <div style={{display:'flex',gap:6,marginBottom:10}}>
-                    {[['split','1/N'],['feeTier','학생회비 차등']].map(([m,lb])=>{
-                      const on=(m==='feeTier')===useFc;
-                      return <button key={m} onClick={()=>setRoundFeeMode(r.id,m)} style={{flex:1,padding:'7px',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer',border:'none',background:on?C.accent:C.inputBg,color:on?'#fff':C.textMid}}>{lb}</button>;
-                    })}
-                  </div>
-                )}
-                {/* 금액 입력 */}
-                {useFc?(
-                  <div style={{background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
-                    <div style={{fontSize:12,color:C.textMid,marginBottom:8}}>학생회비 차등 — <span style={{color:C.accent,fontWeight:700}}>납부자 {fmtKRW(rFee.paid)} · 미납자 {fmtKRW(rFee.unpaid)}</span></div>
-                    <div style={{display:'flex',gap:6}}>
-                      <input value={(feeOverride[r.id]||{}).p||''} onChange={e=>setRoundFeeAmt(r.id,'paid',e.target.value.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder={`납부자(기본 ${fc?.paidFeeAmount||0})`} style={{flex:1,minWidth:0,padding:'9px 10px',borderRadius:8,border:`1px solid ${C.border}`,background:'#fff',fontSize:16,color:C.text,outline:'none',boxSizing:'border-box'}}/>
-                      <input value={(feeOverride[r.id]||{}).u||''} onChange={e=>setRoundFeeAmt(r.id,'unpaid',e.target.value.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder={`미납자(기본 ${fc?.unpaidFeeAmount||0})`} style={{flex:1,minWidth:0,padding:'9px 10px',borderRadius:8,border:`1px solid ${C.border}`,background:'#fff',fontSize:16,color:C.text,outline:'none',boxSizing:'border-box'}}/>
-                    </div>
-                    <div style={{fontSize:11,color:C.textDim,marginTop:6,lineHeight:1.5}}>비우면 기본 금액 적용. 입력하면 이 차수만 다른 금액.</div>
-                  </div>
-                ):(
-                  <>
-                    <Field label="총 금액 (원)" value={amt} onChange={v=>setRoundAmount(r.id,v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="150000"/>
-                    {!(amtNum>0)&&<div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:-4,marginBottom:12}}>행사 끝나고 입력하세요</div>}
-                    {perPerson>0&&(
-                      <div style={{background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
-                        <div style={{display:'flex',justifyContent:'space-between'}}>
-                          <span style={{fontSize:13,color:C.textMid}}>1인당 ({totalCount}명)</span>
-                          <span style={{fontSize:15,fontWeight:900,color:C.accent}}>{fmtKRW(perPerson)}</span>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-
+                {/* 출석 섹션 (① 출석 강조) — 비활성도 클릭/수정 가능, 시각만 */}
+                <div style={{border:`1px solid ${cardStage===0?C.accent:'transparent'}`,borderRadius:10,padding:'10px',opacity:cardStage===0?1:0.6,transition:'all 0.2s'}}>
                 {/* 출석 체크 (차수별) */}
                 <div style={{marginBottom:12}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
@@ -2868,6 +2842,44 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                     />
                     <button onClick={()=>{const name=(extraInputs[r.id]||'').trim();if(name){setRoundExtra(r.id,s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name}]);setExtraInputs(p=>({...p,[r.id]:''}));}}} style={{padding:'7px 12px',borderRadius:8,background:C.orange+'20',border:`1.5px solid ${C.orange}50`,color:C.orange,fontWeight:700,fontSize:13,cursor:'pointer'}}>추가</button>
                   </div>
+                </div>
+                </div>
+                <div style={{height:1,background:C.border,margin:'12px 0'}}/>
+                {/* 금액 섹션 (② 금액 강조) — 비활성도 클릭/수정 가능, 시각만 */}
+                <div style={{border:`1px solid ${cardStage===1?C.accent:'transparent'}`,borderRadius:10,padding:'10px',opacity:cardStage===1?1:0.6,transition:'all 0.2s',marginBottom:12}}>
+                {/* 정산 방식 (차수별) */}
+                {showFeeToggle&&(
+                  <div style={{display:'flex',gap:6,marginBottom:10}}>
+                    {[['split','1/N'],['feeTier','학생회비 차등']].map(([m,lb])=>{
+                      const on=(m==='feeTier')===useFc;
+                      return <button key={m} onClick={()=>setRoundFeeMode(r.id,m)} style={{flex:1,padding:'7px',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer',border:'none',background:on?C.accent:C.inputBg,color:on?'#fff':C.textMid}}>{lb}</button>;
+                    })}
+                  </div>
+                )}
+                {/* 금액 입력 */}
+                {useFc?(
+                  <div style={{background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
+                    <div style={{fontSize:12,color:C.textMid,marginBottom:8}}>학생회비 차등 — <span style={{color:C.accent,fontWeight:700}}>납부자 {fmtKRW(rFee.paid)} · 미납자 {fmtKRW(rFee.unpaid)}</span></div>
+                    <div style={{display:'flex',gap:6}}>
+                      <input value={(feeOverride[r.id]||{}).p||''} onChange={e=>setRoundFeeAmt(r.id,'paid',e.target.value.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder={`납부자(기본 ${fc?.paidFeeAmount||0})`} style={{flex:1,minWidth:0,padding:'9px 10px',borderRadius:8,border:`1px solid ${C.border}`,background:'#fff',fontSize:16,color:C.text,outline:'none',boxSizing:'border-box'}}/>
+                      <input value={(feeOverride[r.id]||{}).u||''} onChange={e=>setRoundFeeAmt(r.id,'unpaid',e.target.value.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder={`미납자(기본 ${fc?.unpaidFeeAmount||0})`} style={{flex:1,minWidth:0,padding:'9px 10px',borderRadius:8,border:`1px solid ${C.border}`,background:'#fff',fontSize:16,color:C.text,outline:'none',boxSizing:'border-box'}}/>
+                    </div>
+                    <div style={{fontSize:11,color:C.textDim,marginTop:6,lineHeight:1.5}}>비우면 기본 금액 적용. 입력하면 이 차수만 다른 금액.</div>
+                  </div>
+                ):(
+                  <>
+                    <Field label="총 금액 (원)" value={amt} onChange={v=>setRoundAmount(r.id,v.replace(/[^0-9]/g,''))} inputMode="numeric" placeholder="150000"/>
+                    {!(amtNum>0)&&<div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:-4,marginBottom:12}}>행사 끝나고 입력하세요</div>}
+                    {perPerson>0&&(
+                      <div style={{background:C.accentBg,borderRadius:10,padding:'10px 14px',marginBottom:12}}>
+                        <div style={{display:'flex',justifyContent:'space-between'}}>
+                          <span style={{fontSize:13,color:C.textMid}}>1인당 ({totalCount}명)</span>
+                          <span style={{fontSize:15,fontWeight:900,color:C.accent}}>{fmtKRW(perPerson)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
                 </div>
 
                 {/* 차수 삭제 */}
