@@ -4079,7 +4079,7 @@ function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
     {ms:'upload_file', t:'자동 대조', d:'거래내역 엑셀 올리면 자동 확인'},
   ];
   return(
-    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} maxWidth={440}>
+    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={440}>
       <div className="fade-up" style={{padding:'4px 2px'}}>
         <div style={{fontSize:18,fontWeight:900,color:C.text,marginBottom:18,letterSpacing:-0.4}}>이렇게 진행돼요</div>
         <div style={{display:'flex',flexDirection:'column',gap:18,marginBottom:24}}>
@@ -4130,7 +4130,7 @@ function FormOnboardingModal({onClose,showNeverShow=true,userId=null}){
     {ms:'receipt_long', t:'신청자 확인', d:'신청 명단이 자동으로 모여요'},
   ];
   return(
-    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} maxWidth={440}>
+    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={440}>
       <div className="fade-up" style={{padding:'4px 2px'}}>
         <div style={{fontSize:18,fontWeight:900,color:C.text,marginBottom:18,letterSpacing:-0.4}}>이렇게 진행돼요</div>
         <div style={{display:'flex',flexDirection:'column',gap:18,marginBottom:24}}>
@@ -5373,6 +5373,11 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
           <div style={{marginTop:12}}>
             <Btn onClick={()=>setShareOpen(true)} style={{background:C.purple}}><Icon n="users" size={14} color="#fff" style={{marginRight:4}}/>공유하기</Btn>
           </div>
+          {(form.submissions||[]).length>0?(
+            <button onClick={()=>setSlide(1)} className="press" style={{width:'100%',marginTop:10,padding:'13px',borderRadius:12,background:C.cardBg,border:`1px solid ${C.purple}`,color:C.purple,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>신청 {(form.submissions||[]).length}명 · 대조하러 가기 <Icon n="arrow-right" size={15} color={C.purple}/></button>
+          ):(
+            <div style={{marginTop:10,textAlign:'center',fontSize:12,color:C.textMid}}>신청이 들어오면 여기서 대조해요</div>
+          )}
           {form.amountPaid&&(
             <div style={{marginTop:10}}>
               <button onClick={async()=>{const newList=buildMemberList(profile);await updateForm({...form,memberList:newList});showToast(`명단 업데이트 완료 (${newList.length}명)`);}} style={{width:'100%',padding:'11px',borderRadius:12,background:C.inputBg,border:`1px solid ${C.border}`,color:C.textMid,fontSize:13,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Icon n="refresh-cw" size={13} color={C.textMid}/>명단 업데이트</button>
