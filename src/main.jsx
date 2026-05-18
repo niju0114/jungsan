@@ -2047,7 +2047,7 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile,add
   const [event,setEvent]=useState(initEvent);
   const [viewCount,setViewCount]=useState(0);
   const slideKey=`jungsan_slide_${initEvent.code}`;
-  const [slide,setSlide]=useState(()=>parseInt(sessionStorage.getItem(slideKey)||'0',10));
+  const [slide,setSlide]=useState(()=>{const n=parseInt(sessionStorage.getItem(slideKey)||'0',10)||0;return Math.max(0,Math.min(3,n));});
   useEffect(()=>{sessionStorage.setItem(slideKey,String(slide));},[slide]);
   const [attDirty,setAttDirty]=useState(false);
   const saveAttRef=useRef(null);
@@ -2062,14 +2062,12 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile,add
 
   const update=async ev=>{setEvent(ev);if(updateEvent) await updateEvent(ev);};
 
-  const steps=['행사 진행','공유','정산 현황'];
-  // 4단계 진행 스텝퍼: 슬라이드 위치 우선. 슬라이드1→③, 슬라이드2→④,
-  // 슬라이드0은 출석 0→①, 1명+→②(금액 입력해도 ② 유지). 점 클릭=슬라이드 이동.
-  const flowAtt=event.members.filter(k=>event.attendance[k]!==false).length;
-  const flowStep=slide===1?2:(slide===2?3:(flowAtt>0?1:0));
+  const steps=['출석','금액','공유','대조'];
+  // 4슬라이드=4스텝 1:1. 현재 단계=현재 슬라이드. 점 클릭=해당 슬라이드 이동.
+  const flowStep=slide;
   const FLOW=['참석한 사람 체크해주세요','총 금액 입력하세요','단톡방에 링크 공유해주세요','거래내역 엑셀로 자동 대조'];
   const FLOW_SHORT=['출석','금액','공유','대조'];
-  const FLOW_SLIDE=[0,0,1,2];
+  const FLOW_SLIDE=[0,1,2,3];
 
   const safeNavigate=fn=>{
     if(slide===0&&attDirty){setSavePrompt({navigateFn:fn});}
@@ -2126,17 +2124,17 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile,add
       {/* 슬라이드 콘텐츠 */}
       <div style={{flex:1,overflow:'auto'}}>
         <div style={{padding:'16px 18px'}}>
-          {slide===0&&(
+          {(slide===0||slide===1)&&(
             <div className="fade-up">
-              <RoundsSection event={event} updateEvent={update} onRoundAdded={()=>setSlide(1)} groups={profile?.groups} onAttDirtyChange={setAttDirty} saveAttFnRef={saveAttRef} profile={profile} addProfileMember={addProfileMember}/>
+              <RoundsSection event={event} updateEvent={update} slide={slide} groups={profile?.groups} onAttDirtyChange={setAttDirty} saveAttFnRef={saveAttRef} profile={profile} addProfileMember={addProfileMember}/>
             </div>
           )}
-          {slide===1&&(
+          {slide===2&&(
             <div className="fade-up">
               <ShareSection event={event} showToast={showToast}/>
             </div>
           )}
-          {slide===2&&(
+          {slide===3&&(
             <div className="fade-up">
               <StatusSection event={event} updateEvent={update} groups={profile?.groups} showToast={showToast}/>
             </div>
@@ -2407,7 +2405,7 @@ function FeeConfigSection({event,updateEvent}){
 }
 
 // ── RoundsSection ──────────────────────────────────────────
-function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,saveAttFnRef,profile,addProfileMember}){
+function RoundsSection({event,updateEvent,slide,groups,onAttDirtyChange,saveAttFnRef,profile,addProfileMember}){
   const mm=event.memberMap||{};
   const presentMembers=event.members.filter(k=>event.attendance[k]!==false);
 
@@ -2656,14 +2654,12 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
   if(event.rounds.length===0) return null;
 
-  // 단계↔시각 일치: 출석 0명=① 출석 강조 / 1명+=② 금액 강조 (슬라이드0 flowStep와 동일 기준)
-  const cardStage=event.members.filter(k=>event.attendance[k]!==false).length===0?0:1;
-
   return(
     <div>
-      <FeeConfigSection event={event} updateEvent={updateEvent}/>
+      {slide===0&&<FeeConfigSection event={event} updateEvent={updateEvent}/>}
 
-      {/* 명단 관리 (출석 화면에서 인라인 추가/제거) */}
+      {/* 명단 관리 (출석 슬라이드 전용) */}
+      {slide===0&&(
       <div style={{background:C.cardBg,borderRadius:14,padding:'12px 14px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${C.border}`}}>
         <div onClick={()=>setShowRoster(s=>!s)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
           <div style={{fontWeight:800,fontSize:14,color:C.text}}>명단 관리 <span style={{fontSize:12,fontWeight:600,color:C.textDim}}>{(event.members||[]).length}명</span></div>
@@ -2695,6 +2691,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
           </div>
         )}
       </div>
+      )}
 
       {/* 차수 카드들 */}
       {event.rounds.map((r,ridx)=>{
@@ -2735,8 +2732,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
             {!isClosed&&(
               <>
-                {/* 출석 섹션 (① 출석 강조) — 비활성도 클릭/수정 가능, 시각만 */}
-                <div style={{border:`1px solid ${cardStage===0?C.accent:'transparent'}`,borderRadius:10,padding:'10px',opacity:cardStage===0?1:0.6,transition:'all 0.2s'}}>
+                {slide===0&&(<>
                 {/* 출석 체크 (차수별) */}
                 <div style={{marginBottom:12}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
@@ -2843,10 +2839,14 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                     <button onClick={()=>{const name=(extraInputs[r.id]||'').trim();if(name){setRoundExtra(r.id,s=>[...s,{id:'em_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name}]);setExtraInputs(p=>({...p,[r.id]:''}));}}} style={{padding:'7px 12px',borderRadius:8,background:C.orange+'20',border:`1.5px solid ${C.orange}50`,color:C.orange,fontWeight:700,fontSize:13,cursor:'pointer'}}>추가</button>
                   </div>
                 </div>
-                </div>
-                <div style={{height:1,background:C.border,margin:'12px 0'}}/>
-                {/* 금액 섹션 (② 금액 강조) — 비활성도 클릭/수정 가능, 시각만 */}
-                <div style={{border:`1px solid ${cardStage===1?C.accent:'transparent'}`,borderRadius:10,padding:'10px',opacity:cardStage===1?1:0.6,transition:'all 0.2s',marginBottom:12}}>
+                {/* 차수 삭제 (출석 슬라이드) */}
+                {!isFirst&&(
+                  <div style={{marginBottom:10,textAlign:'right'}}>
+                    <button onClick={()=>setDeleteRoundConfirm(r.id)} style={{fontSize:12,color:C.red,background:'none',border:'none',cursor:'pointer'}}>이 차수 삭제</button>
+                  </div>
+                )}
+                </>)}
+                {slide===1&&(<>
                 {/* 정산 방식 (차수별) */}
                 {showFeeToggle&&(
                   <>
@@ -2883,14 +2883,7 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
                     )}
                   </>
                 )}
-                </div>
-
-                {/* 차수 삭제 */}
-                {!isFirst&&(
-                  <div style={{marginBottom:10,textAlign:'right'}}>
-                    <button onClick={()=>setDeleteRoundConfirm(r.id)} style={{fontSize:12,color:C.red,background:'none',border:'none',cursor:'pointer'}}>이 차수 삭제</button>
-                  </div>
-                )}
+                </>)}
 
               </>
             )}
@@ -2898,11 +2891,11 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
         );
       })}
 
-      <button onClick={doAddRound} style={{width:'100%',padding:'12px',borderRadius:14,border:`2px dashed ${C.border}`,background:'none',color:C.textMid,fontWeight:700,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+      {slide===0&&(<button onClick={doAddRound} style={{width:'100%',padding:'12px',borderRadius:14,border:`2px dashed ${C.border}`,background:'none',color:C.textMid,fontWeight:700,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
         <Icon n="add" size={16} color={C.textMid}/>차수 추가
-      </button>
+      </button>)}
 
-      {event.rounds.length>1&&event.rounds.some(r=>r.amount>0)&&(
+      {slide===1&&event.rounds.length>1&&event.rounds.some(r=>r.amount>0)&&(
         <div style={{textAlign:'right',fontSize:13,color:C.textMid,marginTop:10}}>
           합계 <span style={{color:C.text,fontWeight:900}}>{fmtKRW(event.rounds.reduce((s,r)=>s+r.amount,0))}</span>
         </div>
