@@ -2540,7 +2540,10 @@ function RoundsSection({event,updateEvent,mode,groups,onAttDirtyChange,saveAttFn
   // 차수 정산방식 토글 (즉시 저장). 'feeTier'=학생회비 차등, 'split'=1/N(명시 옵트아웃)
   const setRoundFeeMode=(rid,mode)=>{
     const ev=eventRef.current;
-    updateEventRef.current({...ev,rounds:ev.rounds.map(r=>r.id===rid?{...r,feeMode:mode}:r)});
+    const next={...ev,rounds:ev.rounds.map(r=>r.id===rid?{...r,feeMode:mode}:r)};
+    // 학생회비 차등 선택 시 설정 카드를 바로 활성(FeeConfigSection 설정하기 누른 효과 = 두 입력 즉시 노출)
+    if(mode==='feeTier'&&!ev.feeConfig) next.feeConfig={mode:'auto',totalCost:0,subsidyPerPaid:0,paidFeeAmount:0,unpaidFeeAmount:0};
+    updateEventRef.current(next);
   };
   // 차수별 학생회비 override 금액 (디바운스 저장). 빈값이면 null → 전역 폴백
   const setRoundFeeAmt=(rid,which,val)=>{
@@ -2875,7 +2878,7 @@ function RoundsSection({event,updateEvent,mode,groups,onAttDirtyChange,saveAttFn
                   <>
                   <div style={{fontSize:12,fontWeight:600,color:'var(--text-label)',marginBottom:6,letterSpacing:-0.2}}>정산 방식</div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:14}}>
-                    {[['split','1/N로 나누기'],['feeTier','학생회비 낸 사람 따로']].map(([m,lb])=>{
+                    {[['split','1/N로 나누기'],['feeTier','학생회비 차등 정산']].map(([m,lb])=>{
                       const on=(m==='feeTier')===useFc;
                       return <button key={m} onClick={()=>setRoundFeeMode(r.id,m)} style={{padding:'11px 8px',borderRadius:12,fontSize:13,fontWeight:600,letterSpacing:-0.2,cursor:'pointer',border:`1px solid ${on?'var(--c-purple)':'var(--border)'}`,background:on?'var(--tint-purple)':'var(--bg-card)',color:on?'var(--c-purple)':'var(--text-body)'}}>{lb}</button>;
                     })}
@@ -2953,7 +2956,7 @@ function ShareSection({event,showToast}){
         <Icon n="info" size={13} color="var(--c-purple)" style={{flexShrink:0}}/>
         <span>참여자는 링크 누르면 자기 낼 돈 확인 + 입금해요</span>
       </div>
-      <button onClick={async()=>{posthog.capture('정산_링크_공유');const shared=await shareText(msg);if(!shared){await copy(msg,'메시지');}else showToast('공유 완료');}} style={{width:'100%',padding:'16px',borderRadius:14,border:'1.5px solid #FEE500',background:'var(--bg-card)',color:'#191600',fontSize:16,fontWeight:700,letterSpacing:-0.3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:7}}><Icon n="brand-kakao" size={18} color="#391B1B"/>카톡 공유</button>
+      <button onClick={async()=>{posthog.capture('정산_링크_공유');const shared=await shareText(msg);if(!shared){await copy(msg,'메시지');}else showToast('공유 완료');}} style={{width:'100%',padding:'16px',borderRadius:14,border:'none',background:'#FEE500',color:'#191919',fontSize:16,fontWeight:700,letterSpacing:-0.3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:7,boxShadow:'0 1px 3px rgba(0,0,0,0.08)'}}><Icon n="brand-kakao" size={19} color="#191919"/>카카오톡으로 공유</button>
     </div>
   );
 }
@@ -5373,11 +5376,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
           <div style={{marginTop:12}}>
             <Btn onClick={()=>setShareOpen(true)} style={{background:C.purple}}><Icon n="users" size={14} color="#fff" style={{marginRight:4}}/>공유하기</Btn>
           </div>
-          {(form.submissions||[]).length>0?(
-            <button onClick={()=>setSlide(1)} className="press" style={{width:'100%',marginTop:10,padding:'13px',borderRadius:12,background:C.cardBg,border:`1px solid ${C.purple}`,color:C.purple,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>신청 {(form.submissions||[]).length}명 · 대조하러 가기 <Icon n="arrow-right" size={15} color={C.purple}/></button>
-          ):(
-            <div style={{marginTop:10,textAlign:'center',fontSize:12,color:C.textMid}}>신청이 들어오면 여기서 대조해요</div>
-          )}
+          <button onClick={()=>setSlide(1)} className="press" style={{width:'100%',marginTop:10,padding:'13px',borderRadius:12,background:C.cardBg,border:`1px solid ${C.purple}`,color:C.purple,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>{(form.submissions||[]).length>0?`신청 ${(form.submissions||[]).length}명 · 대조하러 가기`:'대조하러 가기'} <Icon n="arrow-right" size={15} color={C.purple}/></button>
           {form.amountPaid&&(
             <div style={{marginTop:10}}>
               <button onClick={async()=>{const newList=buildMemberList(profile);await updateForm({...form,memberList:newList});showToast(`명단 업데이트 완료 (${newList.length}명)`);}} style={{width:'100%',padding:'11px',borderRadius:12,background:C.inputBg,border:`1px solid ${C.border}`,color:C.textMid,fontSize:13,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><Icon n="refresh-cw" size={13} color={C.textMid}/>명단 업데이트</button>
