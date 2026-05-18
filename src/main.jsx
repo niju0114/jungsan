@@ -3141,7 +3141,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
             </div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
-            <div style={{color:C.accent,fontWeight:900,fontSize:13}}>{fmtKRW(displayAmount)}</div>
+            <div style={{color:'var(--c-purple)',fontWeight:900,fontSize:13}}>{fmtKRW(displayAmount)}</div>
             <PaySegCtrl status={effectiveStatus} onChange={newSt=>setStatus(k,newSt)} disabled={rejected&&!effectivePaid}/>
             <button onClick={e=>{e.stopPropagation();setOpenMenuKey(v=>v===k?null:k);}}
               style={{background:'none',border:'none',cursor:'pointer',padding:'2px 4px',color:C.textDim,fontSize:18,lineHeight:1}}>⋯</button>
@@ -3151,7 +3151,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
           <div style={{borderTop:`1px solid ${C.border}`,padding:'6px 14px'}}>
             {rejected&&!effectivePaid
               ?<button onClick={e=>{e.stopPropagation();setStatus(k,'none');setOpenMenuKey(null);}}
-                  style={{fontSize:12,color:C.accent,background:'none',border:'none',cursor:'pointer',fontWeight:700,padding:'4px 0'}}>정산 재포함</button>
+                  style={{fontSize:12,color:'var(--c-purple)',background:'none',border:'none',cursor:'pointer',fontWeight:700,padding:'4px 0'}}>정산 재포함</button>
               :<button onClick={e=>{e.stopPropagation();setStatus(k,'rejected');setOpenMenuKey(null);}}
                   style={{fontSize:12,color:C.red,background:'none',border:'none',cursor:'pointer',fontWeight:700,padding:'4px 0'}}>정산 대상에서 제외</button>
             }
@@ -3381,7 +3381,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
               <span style={{fontSize:11,color:C.textDim}}>그룹 묶기</span>
               <button onClick={()=>setShowGroups(v=>!v)} style={{
                 width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
-                background:showGroups?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+                background:showGroups?'var(--c-purple)':C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
               }}>
                 <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
                   left:showGroups?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
@@ -3392,7 +3392,7 @@ function StatusSection({event,updateEvent,groups,showToast}){
             {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>시간순</span>}
             <button onClick={()=>setSortByTime(v=>!v)} style={{
               width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
-              background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+              background:sortByTime?'var(--c-purple)':C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
             }}>
               <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
                 left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
@@ -4821,7 +4821,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
               <span style={{fontSize:11,color:C.textDim}}>그룹 묶기</span>
               <button onClick={()=>setShowGroups(v=>!v)} style={{
                 width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
-                background:showGroups?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+                background:showGroups?'var(--c-purple)':C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
               }}>
                 <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
                   left:showGroups?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
@@ -4844,7 +4844,7 @@ function SubmissionsTab({form, filteredSubs, subs, groupCounts, unregisteredCoun
               {sortByTime&&<span style={{fontSize:11,color:C.textDim}}>시간순</span>}
               <button onClick={()=>setSortByTime(v=>!v)} style={{
                 width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',padding:0,
-                background:sortByTime?C.accent:C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
+                background:sortByTime?'var(--c-purple)':C.disabled,position:'relative',transition:'background 0.2s',flexShrink:0,
               }}>
                 <div style={{width:16,height:16,borderRadius:8,background:'#fff',position:'absolute',top:2,
                   left:sortByTime?18:2,transition:'left 0.2s',boxShadow:'0 1px 2px rgba(0,0,0,0.2)'}}/>
