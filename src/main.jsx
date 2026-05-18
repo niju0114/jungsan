@@ -2063,7 +2063,14 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile,add
   const update=async ev=>{setEvent(ev);if(updateEvent) await updateEvent(ev);};
 
   const steps=['행사 진행','공유','정산 현황'];
-  const stepDone=steps.map((_,i)=>i<slide);
+  // 4단계 진행 스텝퍼(기존 3단계 대체). 자동판정은 calcAmounts 단일 소스 →
+  // 출석·정산방식(1/N↔학생회비 차등·feeConfig) 변경에 표시 금액과 항상 일치하게 유기적 연동.
+  const flowAtt=event.members.filter(k=>event.attendance[k]!==false).length;
+  const flowAmtDone=Object.values(calcAmounts(event)).some(v=>v>0);
+  const flowHasPay=Object.values(event.payments||{}).some(p=>getPayStatus(p)!=='none');
+  const flowStep=flowHasPay?3:(flowAmtDone?2:(flowAtt>0?1:0));
+  const FLOW=['참석한 사람 체크해주세요','총 금액 입력하세요','단톡방에 링크 공유해주세요','거래내역 엑셀로 자동 대조'];
+  const FLOW_SLIDE=[0,0,1,2];
 
   const safeNavigate=fn=>{
     if(slide===0&&attDirty){setSavePrompt({navigateFn:fn});}
@@ -2092,7 +2099,26 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile,add
         <button onClick={()=>setArchiveConfirm(true)} style={{background:C.inputBg,border:'none',borderRadius:12,color:C.textMid,cursor:'pointer',padding:'8px 14px',fontSize:13,fontWeight:700}}>종료</button>
       </div>
 
-      <FlowStepper steps={steps} current={slide} done={stepDone} onStepClick={i=>safeNavigate(()=>setSlide(i))}/>
+      {/* 4단계 진행 스텝퍼: 점·텍스트 클릭 시 해당 슬라이드 이동(기존 3단계 대체) */}
+      <div style={{background:C.cardBg,padding:'14px 18px 14px',borderBottom:`1px solid ${C.border}`}}>
+        <div style={{display:'flex',alignItems:'center',marginBottom:8}}>
+          {FLOW.map((_,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',flex:i<FLOW.length-1?1:'0 0 auto'}}>
+              <button onClick={()=>safeNavigate(()=>setSlide(FLOW_SLIDE[i]))} aria-label={FLOW[i]} style={{padding:0,margin:0,background:'none',border:'none',cursor:'pointer',flexShrink:0,display:'flex'}}>
+                <div style={{width:22,height:22,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',
+                  background:i<flowStep?C.textDim:(i===flowStep?C.accent:'transparent'),
+                  border:i>flowStep?`2px solid ${C.border}`:'none',transition:'all 0.2s'}}>
+                  {i<flowStep&&<Icon n="check" size={12} color="#fff"/>}
+                </div>
+              </button>
+              {i<FLOW.length-1&&<div style={{flex:1,height:2,background:i<flowStep?C.textDim:C.border,margin:'0 6px'}}/>}
+            </div>
+          ))}
+        </div>
+        <button onClick={()=>safeNavigate(()=>setSlide(FLOW_SLIDE[flowStep]))} style={{padding:0,background:'none',border:'none',cursor:'pointer',textAlign:'left',width:'100%'}}>
+          <span style={{fontSize:15,fontWeight:800,color:C.accent,letterSpacing:-0.3}}>{['①','②','③','④'][flowStep]} {FLOW[flowStep]}</span>
+        </button>
+      </div>
 
       {/* 슬라이드 콘텐츠 */}
       <div style={{flex:1,overflow:'auto'}}>
@@ -2627,32 +2653,8 @@ function RoundsSection({event,updateEvent,onRoundAdded,groups,onAttDirtyChange,s
 
   if(event.rounds.length===0) return null;
 
-  // 진행 단계 스텝퍼: 안내 전용(행동 제한 X). event 변경 시 자동 재판정.
-  const _attCount=event.members.filter(k=>event.attendance[k]!==false).length;
-  const _amtDone=event.rounds.some(r=>(r.amount||0)>0)||!!event.feeConfig;
-  const _hasPay=Object.values(event.payments||{}).some(p=>getPayStatus(p)!=='none');
-  const flowStep=_hasPay?3:(_amtDone?2:(_attCount>0?1:0));
-  const FLOW=['참석한 사람 체크해주세요','총 금액 입력하세요','단톡방에 링크 공유해주세요','거래내역 엑셀로 자동 대조'];
-
   return(
     <div>
-      <div style={{background:C.cardBg,borderRadius:14,padding:'14px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${C.border}`}}>
-        <div style={{display:'flex',alignItems:'center',marginBottom:10}}>
-          {FLOW.map((_,i)=>(
-            <div key={i} style={{display:'flex',alignItems:'center',flex:i<FLOW.length-1?1:'0 0 auto'}}>
-              <div style={{width:20,height:20,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',
-                background:i<flowStep?C.textDim:(i===flowStep?C.accent:'transparent'),
-                border:i>flowStep?`2px solid ${C.border}`:'none'}}>
-                {i<flowStep&&<Icon n="check" size={12} color="#fff"/>}
-              </div>
-              {i<FLOW.length-1&&<div style={{flex:1,height:2,background:i<flowStep?C.textDim:C.border,margin:'0 6px'}}/>}
-            </div>
-          ))}
-        </div>
-        <div style={{fontSize:15,fontWeight:800,color:C.accent,letterSpacing:-0.3}}>
-          {['①','②','③','④'][flowStep]} {FLOW[flowStep]}
-        </div>
-      </div>
       <FeeConfigSection event={event} updateEvent={updateEvent}/>
 
       {/* 명단 관리 (출석 화면에서 인라인 추가/제거) */}
@@ -4055,19 +4057,19 @@ function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
     {ms:'upload_file', t:'자동 대조', d:'거래내역 엑셀 올리면 자동 확인'},
   ];
   return(
-    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} maxWidth={380}>
+    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} maxWidth={440}>
       <div className="fade-up" style={{padding:'4px 2px'}}>
         <div style={{fontSize:18,fontWeight:900,color:C.text,marginBottom:18,letterSpacing:-0.4}}>이렇게 진행돼요</div>
-        <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:22}}>
+        <div style={{display:'flex',flexDirection:'column',gap:18,marginBottom:24}}>
           {STEPS.map((s,i)=>(
-            <div key={i} style={{display:'flex',alignItems:'center',gap:12}}>
-              <div style={{width:30,height:30,borderRadius:15,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:s.done?C.green:C.accentBg,color:s.done?'#fff':C.accent,fontWeight:800,fontSize:14}}>
-                {s.done?<span style={{fontFamily:'Material Symbols Rounded',fontSize:18}}>check</span>:i+1}
+            <div key={i} style={{display:'flex',alignItems:'center',gap:14}}>
+              <div style={{width:36,height:36,borderRadius:18,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:s.done?C.green:C.accentBg,color:s.done?'#fff':C.accent,fontWeight:800,fontSize:16}}>
+                {s.done?<span style={{fontFamily:'Material Symbols Rounded',fontSize:20}}>check</span>:i+1}
               </div>
-              <span style={{fontFamily:'Material Symbols Rounded',fontSize:20,color:s.done?C.textDim:C.accent,flexShrink:0}}>{s.ms}</span>
+              <span style={{fontFamily:'Material Symbols Rounded',fontSize:24,color:s.done?C.textDim:C.accent,flexShrink:0}}>{s.ms}</span>
               <div style={{flex:1,minWidth:0}}>
-                <span style={{fontSize:14,fontWeight:700,color:C.text}}>{s.t}</span>
-                <span style={{fontSize:13,color:C.textMid,marginLeft:6}}>{s.d}</span>
+                <span style={{fontSize:15,fontWeight:700,color:C.text}}>{s.t}</span>
+                <span style={{fontSize:14,color:C.textMid,marginLeft:6}}>{s.d}</span>
               </div>
             </div>
           ))}
@@ -4081,7 +4083,7 @@ function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
               <span style={{fontSize:12,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
             </button>
           )}
-          <Btn style={{flex:1,width:'auto'}} onClick={finish}>시작하기</Btn>
+          <Btn style={{flex:1,width:'auto',padding:'18px 24px',fontSize:17}} onClick={finish}>시작하기</Btn>
         </div>
       </div>
     </Modal>
@@ -4106,19 +4108,19 @@ function FormOnboardingModal({onClose,showNeverShow=true,userId=null}){
     {ms:'receipt_long', t:'신청자 확인', d:'신청 명단이 자동으로 모여요'},
   ];
   return(
-    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} maxWidth={380}>
+    <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} maxWidth={440}>
       <div className="fade-up" style={{padding:'4px 2px'}}>
         <div style={{fontSize:18,fontWeight:900,color:C.text,marginBottom:18,letterSpacing:-0.4}}>이렇게 진행돼요</div>
-        <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:22}}>
+        <div style={{display:'flex',flexDirection:'column',gap:18,marginBottom:24}}>
           {STEPS.map((s,i)=>(
-            <div key={i} style={{display:'flex',alignItems:'center',gap:12}}>
-              <div style={{width:30,height:30,borderRadius:15,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:s.done?C.green:C.accentBg,color:s.done?'#fff':C.accent,fontWeight:800,fontSize:14}}>
-                {s.done?<span style={{fontFamily:'Material Symbols Rounded',fontSize:18}}>check</span>:i+1}
+            <div key={i} style={{display:'flex',alignItems:'center',gap:14}}>
+              <div style={{width:36,height:36,borderRadius:18,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:s.done?C.green:C.accentBg,color:s.done?'#fff':C.accent,fontWeight:800,fontSize:16}}>
+                {s.done?<span style={{fontFamily:'Material Symbols Rounded',fontSize:20}}>check</span>:i+1}
               </div>
-              <span style={{fontFamily:'Material Symbols Rounded',fontSize:20,color:s.done?C.textDim:C.accent,flexShrink:0}}>{s.ms}</span>
+              <span style={{fontFamily:'Material Symbols Rounded',fontSize:24,color:s.done?C.textDim:C.accent,flexShrink:0}}>{s.ms}</span>
               <div style={{flex:1,minWidth:0}}>
-                <span style={{fontSize:14,fontWeight:700,color:C.text}}>{s.t}</span>
-                <span style={{fontSize:13,color:C.textMid,marginLeft:6}}>{s.d}</span>
+                <span style={{fontSize:15,fontWeight:700,color:C.text}}>{s.t}</span>
+                <span style={{fontSize:14,color:C.textMid,marginLeft:6}}>{s.d}</span>
               </div>
             </div>
           ))}
@@ -4132,7 +4134,7 @@ function FormOnboardingModal({onClose,showNeverShow=true,userId=null}){
               <span style={{fontSize:12,fontWeight:600,color:neverShow?C.accent:C.textDim,whiteSpace:'nowrap',transition:'color 0.15s'}}>다시 안 보기</span>
             </button>
           )}
-          <Btn style={{flex:1,width:'auto'}} onClick={finish}>시작하기</Btn>
+          <Btn style={{flex:1,width:'auto',padding:'18px 24px',fontSize:17}} onClick={finish}>시작하기</Btn>
         </div>
       </div>
     </Modal>
