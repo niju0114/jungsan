@@ -922,11 +922,12 @@ function App() {
     }
   };
 
-  // 명단 동기화(방향 B): 정산 내에서 추가한 사람을 전체 명단(profile.groups '기본')에 단방향 upsert.
+  // 명단 동기화(방향 B): 정산 내에서 추가한 사람을 전체 명단(profile.groups의 지정 그룹, 기본 '기본')에 단방향 upsert.
   // 이벤트는 건드리지 않음(재키잉/마이그레이션/금액변동 없음). 제거는 event 한정(여기서 안 함).
   // 배치 처리(한 번의 setProfile/upsert) — 여러 명을 forEach로 호출 시 stale 클로저로
   // 마지막 1명만 남던 레이스 방지. 단건은 addProfileMember 래퍼가 1건 배열로 위임.
-  const addProfileMembers=async(list)=>{
+  // groupName 없으면 '기본'(기존 호출부 동작 불변). 대상 그룹 없으면 생성.
+  const addProfileMembers=async(list,groupName)=>{
     if(!user?.id||!list?.length) return;
     const groups=profile.groups||[];
     const seen=new Set(groups.flatMap(g=>(g.members||[]).map(m=>m.name+(m.sid?'_'+m.sid:''))));
@@ -942,20 +943,24 @@ function App() {
     }
     if(!toAdd.length) return;
     const addText=toAdd.map(m=>m.name+(m.sid?` ${m.sid}`:'')).join('\n');
+    const tgt=(groupName||'기본').trim()||'기본';
     let placed=false;
     let next=groups.map(g=>{
-      if(!placed&&g.name==='기본'){
+      if(!placed&&g.name===tgt){
         placed=true;
         const rt=(g.rawText||'').replace(/\s*$/,'');
         return {...g,members:[...(g.members||[]),...toAdd],rawText:(rt?rt+'\n':'')+addText};
       }
       return g;
     });
-    if(!placed) next=[{id:'g1',name:'기본',rawText:addText,members:toAdd,paidFeeMembers:[]},...groups];
+    if(!placed){
+      const ng={id:'g_'+Date.now(),name:tgt,rawText:addText,members:toAdd,paidFeeMembers:[]};
+      next=tgt==='기본'?[ng,...groups]:[...groups,ng];
+    }
     setProfile(p=>({...p,groups:next}));
     try{await api.upsertProfile({id:user.id,name:profile.name||'',account:profile.account,groups:next,school:profile.school||'',updated_at:new Date().toISOString()});}catch(e){}
   };
-  const addProfileMember=(name,sid)=>addProfileMembers([{name,sid}]);
+  const addProfileMember=(name,sid,groupName)=>addProfileMembers([{name,sid}],groupName);
 
   const createEvent=async(ev)=>{
     const {error}=await api.insertEvent(evToRow(ev,user.id));
@@ -2437,6 +2442,9 @@ function RoundsSection({event,updateEvent,mode,groups,onAttDirtyChange,saveAttFn
   const [newMemberName,setNewMemberName]=useState('');
   const [newMemberSid,setNewMemberSid]=useState('');
   const [rosterErr,setRosterErr]=useState('');
+  const [rosterGroup,setRosterGroup]=useState(()=>{const gs=groups||[];return (gs[0]&&gs[0].name)||'기본';});
+  const [addingRosterGroup,setAddingRosterGroup]=useState(false);
+  const [newRosterGroup,setNewRosterGroup]=useState('');
   const [removeConfirm,setRemoveConfirm]=useState(null);
   const [attSort,setAttSort]=useState('group'); // 출석 명단 정렬: 'group'(기본) | 'name'(가나다). DB 미저장
   const [collapsedGroups,setCollapsedGroups]=useState(()=>new Set()); // 그룹순일 때 접힌 그룹명. 기본 모두 펼침
@@ -2615,7 +2623,7 @@ function RoundsSection({event,updateEvent,mode,groups,onAttDirtyChange,saveAttFn
       attendance:{...(event.attendance||{}),[key]:true},
       rounds:newRounds,
     });
-    addProfileMember?.(nm,sid); // 방향 B: 전체 명단(profile.groups '기본')에 단방향 반영
+    addProfileMember?.(nm,sid,rosterGroup); // 방향 B: 선택 그룹(profile.groups)에 단방향 반영
     setNewMemberName('');setNewMemberSid('');setRosterErr('');
   };
   const doRemoveMember=key=>{
@@ -2662,8 +2670,6 @@ function RoundsSection({event,updateEvent,mode,groups,onAttDirtyChange,saveAttFn
 
   return(
     <div>
-      {mode==='att'&&<FeeConfigSection event={event} updateEvent={updateEvent}/>}
-
       {/* 명단 관리 (출석 슬라이드 전용) */}
       {mode==='att'&&(
       <div style={{background:C.cardBg,borderRadius:14,padding:'12px 14px',marginBottom:10,boxShadow:C.shadow,border:`1.5px solid ${C.border}`}}>
@@ -2673,6 +2679,23 @@ function RoundsSection({event,updateEvent,mode,groups,onAttDirtyChange,saveAttFn
         </div>
         {showRoster&&(
           <div style={{marginTop:12}}>
+            {/* 그룹 선택: 새로 추가할 사람이 들어갈 그룹 (그룹 멤버 복사 X) */}
+            <div style={{fontSize:12,fontWeight:700,color:C.textMid,marginBottom:6}}>그룹 <span style={{fontWeight:400,color:C.textDim}}>새로 추가할 사람이 이 그룹에 들어가요</span></div>
+            <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12}}>
+              {[...new Set([...(groups||[]).map(g=>g.name),rosterGroup])].filter(Boolean).map(gname=>(
+                <button key={gname} onClick={()=>setRosterGroup(gname)} className="press" style={{padding:'6px 12px',borderRadius:20,border:`2px solid ${rosterGroup===gname?C.accent:C.border}`,background:rosterGroup===gname?C.accent:C.cardBg,color:rosterGroup===gname?'#fff':C.textMid,fontSize:13,fontWeight:700,cursor:'pointer',transition:'all 0.12s'}}>{gname}</button>
+              ))}
+              {addingRosterGroup?(
+                <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                  <input value={newRosterGroup} onChange={e=>setNewRosterGroup(e.target.value)} placeholder="그룹 이름" maxLength={12} autoFocus
+                    onKeyDown={e=>{if(e.key==='Enter'){const nm=newRosterGroup.trim();if(nm)setRosterGroup(nm);setAddingRosterGroup(false);setNewRosterGroup('');}}}
+                    style={{padding:'6px 12px',borderRadius:20,border:`2px solid ${C.accent}`,fontSize:13,fontWeight:600,outline:'none',width:96,background:C.accentBg,color:C.accent}}/>
+                  <button onClick={()=>{const nm=newRosterGroup.trim();if(nm)setRosterGroup(nm);setAddingRosterGroup(false);setNewRosterGroup('');}} style={{background:C.green,color:'#fff',border:'none',borderRadius:20,padding:'6px 12px',fontSize:12,fontWeight:700,cursor:'pointer'}}>저장</button>
+                </div>
+              ):(
+                <button onClick={()=>setAddingRosterGroup(true)} className="press" style={{padding:'6px 12px',borderRadius:20,border:`2px dashed ${C.border}`,background:'transparent',color:C.textDim,fontSize:13,cursor:'pointer'}}>＋ 새 그룹</button>
+              )}
+            </div>
             <div style={{marginBottom:rosterErr?6:10}}>
               <div style={{display:'flex',gap:6,marginBottom:6}}>
                 <input value={newMemberName} onChange={e=>{setNewMemberName(e.target.value);setRosterErr('');}}
@@ -2698,6 +2721,9 @@ function RoundsSection({event,updateEvent,mode,groups,onAttDirtyChange,saveAttFn
         )}
       </div>
       )}
+
+      {/* 학생회비 낸 사람: 금액 슬라이드에서 어떤 차수든 학생회비 차등일 때만 노출 */}
+      {mode==='amt'&&event.rounds.some(r=>roundIsFeeTier(r,fc))&&<FeeConfigSection event={event} updateEvent={updateEvent}/>}
 
       {/* 차수 카드들 */}
       {event.rounds.map((r,ridx)=>{
