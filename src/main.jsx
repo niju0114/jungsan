@@ -425,40 +425,40 @@ const matchEngine = {
 // 법률 텍스트 (AuthScreen 인라인에서 분리)
 const LEGAL_TEXTS = {
   terms: (<div>
-    <p style={{fontWeight:700,color:'#191F28',marginBottom:8}}>제1조 (목적)</p>
+    <p style={{fontWeight:700,color:'#1D1D25',marginBottom:8}}>제1조 (목적)</p>
     <p>본 약관은 정산해(이하 "서비스")가 제공하는 모임 정산 관련 서비스의 이용 조건 및 절차, 이용자와 서비스 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.</p>
-    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>제2조 (서비스의 내용)</p>
+    <p style={{fontWeight:700,color:'#1D1D25',margin:'12px 0 8px'}}>제2조 (서비스의 내용)</p>
     <p>서비스는 모임 참여자 명단 관리, 정산 금액 계산, 입금 현황 확인 등의 기능을 제공합니다. 서비스의 구체적인 내용은 운영 상황에 따라 변경될 수 있습니다.</p>
-    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>제3조 (이용자의 의무)</p>
+    <p style={{fontWeight:700,color:'#1D1D25',margin:'12px 0 8px'}}>제3조 (이용자의 의무)</p>
     <p>이용자는 서비스 이용 시 타인의 권리를 침해하거나 관련 법령을 위반하는 행위를 해서는 안 됩니다. 허위 정보 입력, 서비스 악용, 부정 접근 시도 등은 금지됩니다.</p>
-    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>제4조 (서비스의 중단)</p>
+    <p style={{fontWeight:700,color:'#1D1D25',margin:'12px 0 8px'}}>제4조 (서비스의 중단)</p>
     <p>서비스는 시스템 점검, 장비 교체 등 운영상 필요한 경우 서비스의 전부 또는 일부를 제한하거나 중단할 수 있습니다.</p>
-    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>제5조 (면책)</p>
+    <p style={{fontWeight:700,color:'#1D1D25',margin:'12px 0 8px'}}>제5조 (면책)</p>
     <p>서비스는 이용자 간 정산 과정에서 발생하는 금전적 분쟁에 대해 책임을 지지 않습니다. 서비스는 정산 편의 도구를 제공할 뿐, 금전 거래의 당사자가 아닙니다.</p>
-    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>제6조 (계정 해지)</p>
+    <p style={{fontWeight:700,color:'#1D1D25',margin:'12px 0 8px'}}>제6조 (계정 해지)</p>
     <p>이용자는 언제든지 회원 탈퇴를 통해 계정을 해지할 수 있으며, 탈퇴 시 관련 데이터는 즉시 삭제됩니다.</p>
   </div>),
   privacy: (<div>
-    <p style={{fontWeight:700,color:'#191F28',marginBottom:8}}>1. 수집하는 개인정보 항목</p>
+    <p style={{fontWeight:700,color:'#1D1D25',marginBottom:8}}>1. 수집하는 개인정보 항목</p>
     <p>필수: 아이디, 비밀번호, 이름, 소속(학교·단체)</p>
-    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>2. 수집 목적</p>
+    <p style={{fontWeight:700,color:'#1D1D25',margin:'12px 0 8px'}}>2. 수집 목적</p>
     <p>서비스 제공 및 운영, 본인 확인, 서비스 개선, 고객 지원</p>
-    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>3. 보유 및 이용 기간</p>
+    <p style={{fontWeight:700,color:'#1D1D25',margin:'12px 0 8px'}}>3. 보유 및 이용 기간</p>
     <p>회원 탈퇴 시까지 보유하며, 탈퇴 즉시 파기합니다. 단, 관련 법령에 따라 보존이 필요한 경우 해당 기간 동안 보관합니다.</p>
-    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>4. 개인정보의 안전성 확보</p>
+    <p style={{fontWeight:700,color:'#1D1D25',margin:'12px 0 8px'}}>4. 개인정보의 안전성 확보</p>
     <p>모든 데이터는 암호화된 전송(HTTPS) 및 저장이 적용되며, 접근 권한을 최소화하여 관리합니다.</p>
-    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>5. 이용자의 권리</p>
+    <p style={{fontWeight:700,color:'#1D1D25',margin:'12px 0 8px'}}>5. 이용자의 권리</p>
     <p>이용자는 언제든 본인의 개인정보를 조회, 수정, 삭제할 수 있으며, 회원 탈퇴를 통해 처리 정지를 요청할 수 있습니다.</p>
   </div>),
   thirdParty: (<div>
-    <p style={{fontWeight:700,color:'#191F28',marginBottom:8}}>제3자 정보 제공 안내</p>
-    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>1. 제공 대상</p>
+    <p style={{fontWeight:700,color:'#1D1D25',marginBottom:8}}>제3자 정보 제공 안내</p>
+    <p style={{fontWeight:700,color:'#1D1D25',margin:'12px 0 8px'}}>1. 제공 대상</p>
     <p>Supabase Inc. (데이터베이스 및 인증 서비스 제공)</p>
-    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>2. 제공 항목</p>
+    <p style={{fontWeight:700,color:'#1D1D25',margin:'12px 0 8px'}}>2. 제공 항목</p>
     <p>아이디(이메일 형식), 비밀번호(암호화), 서비스 이용 데이터</p>
-    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>3. 제공 목적</p>
+    <p style={{fontWeight:700,color:'#1D1D25',margin:'12px 0 8px'}}>3. 제공 목적</p>
     <p>회원 인증, 데이터 저장 및 실시간 동기화 서비스 운영</p>
-    <p style={{fontWeight:700,color:'#191F28',margin:'12px 0 8px'}}>4. 보유 기간</p>
+    <p style={{fontWeight:700,color:'#1D1D25',margin:'12px 0 8px'}}>4. 보유 기간</p>
     <p>회원 탈퇴 시까지이며, 탈퇴 시 즉시 삭제 요청합니다.</p>
   </div>),
   marketing: (<div>
@@ -741,8 +741,8 @@ class ErrorBoundary extends React.Component {
           <div style={{width:64,height:64,borderRadius:32,background:'#FFF0F0',display:'flex',alignItems:'center',justifyContent:'center'}}>
             <Icon n="triangle-alert" size={32} color="#F04452"/>
           </div>
-          <div style={{fontSize:20,fontWeight:900,color:'#191F28'}}>일시적인 문제가 발생했어요</div>
-          <div style={{fontSize:14,color:'#4E5968',lineHeight:1.7}}>입력하신 내용은 대부분 자동 저장돼요.<br/>새로고침하면 이어서 사용할 수 있어요.</div>
+          <div style={{fontSize:20,fontWeight:900,color:'#1D1D25'}}>일시적인 문제가 발생했어요</div>
+          <div style={{fontSize:14,color:'#555566',lineHeight:1.7}}>입력하신 내용은 대부분 자동 저장돼요.<br/>새로고침하면 이어서 사용할 수 있어요.</div>
           <button onClick={()=>window.location.reload()} style={{marginTop:8,padding:'14px 28px',borderRadius:14,border:'none',background:'linear-gradient(135deg,#6366F1,#4F46E5)',color:'#fff',fontWeight:700,fontSize:15,cursor:'pointer'}}>새로고침</button>
         </div>
       );
