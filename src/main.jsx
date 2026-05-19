@@ -35,7 +35,7 @@ const C = {
   red:'#F04452', redBg:'#FFF0F0',
   orange:'#FF6B2B', orangeBg:'#FFF4EE',
   yellow:'#C57700', yellowBg:'#FFF8DD',
-  text:'#191F28', textMid:'#4E5968', textDim:'#8B95A1',
+  text:'#1D1D25', textMid:'#555566', textDim:'#91919F',
   border:'#E5E5EC', borderStrong:'#E5E8EB',
   shadow:'0 1px 4px rgba(0,0,0,0.06)',
   purple:'#8B5CF6', disabled:'#D1D5DB',
