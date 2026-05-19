@@ -29,14 +29,14 @@ const ID_DOMAIN = '@jungsan.app';
 const DECRYPT_API_URL = import.meta.env.VITE_DECRYPT_API_URL || '';
 
 const C = {
-  pageBg:'#FAFAFA', cardBg:'#FFFFFF', inputBg:'#F7F8FA',
+  pageBg:'#FAFAFC', cardBg:'#FFFFFF', inputBg:'#F7F8FA',
   accent:'#6366F1', accentBg:'#EEF0FF', accentDark:'#4F46E5',
   green:'#00C072', greenBg:'#E8FAF0',
   red:'#F04452', redBg:'#FFF0F0',
   orange:'#FF6B2B', orangeBg:'#FFF4EE',
   yellow:'#C57700', yellowBg:'#FFF8DD',
   text:'#191F28', textMid:'#4E5968', textDim:'#8B95A1',
-  border:'#E4E4E7', borderStrong:'#E5E8EB',
+  border:'#E5E5EC', borderStrong:'#E5E8EB',
   shadow:'0 1px 4px rgba(0,0,0,0.06)',
   purple:'#8B5CF6', disabled:'#D1D5DB',
 };
