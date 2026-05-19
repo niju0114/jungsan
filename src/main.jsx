@@ -41,6 +41,19 @@ const C = {
   purple:'#8B5CF6', disabled:'#D1D5DB',
 };
 
+// 단일 소스: 온보딩 모달 · 진행 스텝퍼 · 사용방법 화면이 공유하는 단계 정의
+const SMALL_FLOW=[
+  {short:'출석', ms:'checklist',   title:'출석 체크', desc:'참석한 사람만 ✓ 체크',     prompt:'참석한 사람 체크해주세요'},
+  {short:'금액', ms:'payments',    title:'금액 입력', desc:'차수별 총 금액 입력',       prompt:'총 금액 입력하세요'},
+  {short:'공유', ms:'share',       title:'링크 공유', desc:'카톡으로 한 번에 공유',     prompt:'단톡방에 링크 공유해주세요'},
+  {short:'대조', ms:'upload_file', title:'자동 대조', desc:'거래내역 엑셀로 자동 확인', prompt:'거래내역 엑셀로 자동 대조'},
+];
+
+const FORM_FLOW=[
+  {short:'폼 생성+공유', ms:'edit',        title:'폼 만들고 공유', desc:'참가비·정원 설정 후 카톡으로 신청 받기'},
+  {short:'대조',         ms:'upload_file', title:'입금 대조·관리', desc:'신청 명단 자동 수집 · 참가비 받으면 입금 엑셀 자동 대조 + 콕 찌르기'},
+];
+
 // ═══════════════════════════════════════════════════════════
 // 2. API LAYER — 모든 DB 호출을 여기서 관리
 //    컴포넌트에서 sb.from() 직접 호출하지 않음
@@ -2077,11 +2090,11 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile,add
 
   const update=async ev=>{setEvent(ev);if(updateEvent) await updateEvent(ev);};
 
-  const steps=['출석','금액','공유','대조'];
+  const steps=SMALL_FLOW.map(s=>s.short);
   // 4슬라이드=4스텝 1:1. 현재 단계=현재 슬라이드. 점 클릭=해당 슬라이드 이동.
   const flowStep=slide;
-  const FLOW=['참석한 사람 체크해주세요','총 금액 입력하세요','단톡방에 링크 공유해주세요','거래내역 엑셀로 자동 대조'];
-  const FLOW_SHORT=['출석','금액','공유','대조'];
+  const FLOW=SMALL_FLOW.map(s=>s.prompt);
+  const FLOW_SHORT=SMALL_FLOW.map(s=>s.short);
   const FLOW_SLIDE=[0,1,2,3];
 
   const safeNavigate=fn=>{
@@ -4263,7 +4276,7 @@ function FormCreateScreen({nav,profile,createForm}){
     <div className="fade-up screen" style={{background:C.pageBg,display:'flex',flexDirection:'column'}}>
       {showOnboarding&&<FormOnboardingModal onClose={()=>setShowOnboarding(false)} userId={profile.id}/>}
       <Header title="신청폼 만들기" onBack={()=>nav.setView('home')}/>
-      <FlowStepper steps={['폼 생성+공유','대조']} current={0} done={[]}/>
+      <FlowStepper steps={FORM_FLOW.map(s=>s.short)} current={0} done={[]}/>
       <div style={{flex:1,padding:'8px 16px 16px',overflow:'auto'}}>
         {/* 기본 정보 */}
         <Card>
@@ -5349,7 +5362,7 @@ function FormAdminScreen({nav,form,updateForm,showToast,profile,saveProfile,crea
       <Header title={form.name} onBack={()=>nav.setView('home')}/>
 
       <FlowStepper
-        steps={['폼 생성+공유','대조']}
+        steps={FORM_FLOW.map(s=>s.short)}
         current={slide}
         done={stepDone}
         onStepClick={setSlide}
