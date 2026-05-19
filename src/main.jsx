@@ -1187,7 +1187,7 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
     if(error){showToast('Google 로그인에 실패했어요',C.red);setLoading(false);}
   };
 
-  const iStyle={width:'100%',padding:'15px 16px',background:'#F2F4F6',border:'1.5px solid transparent',borderRadius:14,color:C.text,fontSize:15,outline:'none',display:'block'};
+  const iStyle={width:'100%',padding:'15px 16px',background:'#F2F4F6',border:'1.5px solid transparent',borderRadius:14,color:'var(--text-strong)',fontSize:15,outline:'none',display:'block'};
   const gSvg=(
     <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -1198,12 +1198,12 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
   );
 
   return(
-    <div className="fade-up screen" style={{background:'#fff',overflowY:'auto'}}>
+    <div className="fade-up screen" style={{background:'var(--bg-page)',overflowY:'auto'}}>
       <div style={{padding:'56px 24px calc(48px + env(safe-area-inset-bottom)) 24px'}}>
 
         {/* 인사말 */}
         <div style={{marginBottom:36}}>
-          <div style={{fontSize:30,fontWeight:900,color:C.text,lineHeight:1.35,letterSpacing:-0.5,marginBottom:8,display:'flex',alignItems:'center',gap:12}}>
+          <div style={{fontSize:30,fontWeight:900,color:'var(--text-strong)',lineHeight:1.35,letterSpacing:-0.5,marginBottom:8,display:'flex',alignItems:'center',gap:12}}>
             <svg viewBox="0 0 200 200" style={{width:40,height:40,borderRadius:12,flexShrink:0}}>
               <defs><clipPath id="auth-logo"><circle cx="100" cy="100" r="100"/></clipPath></defs>
               <g clipPath="url(#auth-logo)">
@@ -1213,21 +1213,21 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
             </svg>
             {mode==='login'?<>환영해요</>:<>환영해요</>}
           </div>
-          <div style={{fontSize:15,color:C.textMid,fontWeight:500}}>
+          <div style={{fontSize:15,color:'var(--text-body)',fontWeight:500}}>
             {mode==='login'?'로그인하고 정산을 이어가세요':'총무의 부담을 1/10로'}
           </div>
         </div>
 
         {/* Google 버튼 */}
-        <button onClick={signInWithGoogle} disabled={loading} className="press" style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:10,padding:'15px 16px',background:'#fff',border:`1.5px solid ${C.border}`,borderRadius:14,fontSize:15,fontWeight:600,color:C.text,cursor:'pointer',marginBottom:16}}>
+        <button onClick={signInWithGoogle} disabled={loading} className="press" style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:10,padding:'15px 16px',background:'var(--bg-card)',border:'1.5px solid var(--border)',borderRadius:14,fontSize:15,fontWeight:600,color:'var(--text-strong)',cursor:'pointer',marginBottom:16}}>
           {gSvg}{mode==='login'?'Google로 계속하기':'Google로 시작하기'}
         </button>
 
         {/* 구분선 */}
         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
-          <div style={{flex:1,height:1,background:C.border}}/>
-          <span style={{color:C.textDim,fontSize:13,whiteSpace:'nowrap'}}>또는 아이디로</span>
-          <div style={{flex:1,height:1,background:C.border}}/>
+          <div style={{flex:1,height:1,background:'var(--border)'}}/>
+          <span style={{color:'var(--text-label)',fontSize:13,whiteSpace:'nowrap'}}>또는 아이디로</span>
+          <div style={{flex:1,height:1,background:'var(--border)'}}/>
         </div>
 
         {/* 이름 (signup, 맨 위) */}
@@ -1249,7 +1249,7 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
           maxLength={20}
           style={{...iStyle,borderColor:idChecked?(idAvail?C.green:C.red):'transparent',marginBottom:(idChecking||idChecked)?4:10}}
         />
-        {idChecking&&<div style={{fontSize:12,color:C.textDim,paddingLeft:4,marginBottom:10}}>확인 중...</div>}
+        {idChecking&&<div style={{fontSize:12,color:'var(--text-label)',paddingLeft:4,marginBottom:10}}>확인 중...</div>}
         {!idChecking&&idChecked&&idAvail&&<div style={{fontSize:12,color:C.green,paddingLeft:4,marginBottom:10,display:'flex',alignItems:'center',gap:4}}><Icon n="check" size={12} color={C.green}/>사용 가능한 아이디예요</div>}
         {!idChecking&&idChecked&&!idAvail&&<div style={{fontSize:12,color:C.red,paddingLeft:4,marginBottom:10,display:'flex',alignItems:'center',gap:4}}><Icon n="x" size={12} color={C.red}/>사용 불가능한 아이디예요</div>}
 
@@ -1271,13 +1271,13 @@ function AuthScreen({nav,showToast,setShowOnboarding=()=>{}}){
         {/* 약관 (signup only) */}
         {mode==='signup'&&(
           <div style={{textAlign:'center',marginTop:14}}>
-            <span style={{fontSize:11,color:C.textDim,lineHeight:1.6}}>가입 시 이용약관 및 개인정보처리방침에 동의한 것으로 간주됩니다</span>
+            <span style={{fontSize:11,color:'var(--text-label)',lineHeight:1.6}}>가입 시 이용약관 및 개인정보처리방침에 동의한 것으로 간주됩니다</span>
           </div>
         )}
 
         {/* 모드 전환 */}
         <div style={{textAlign:'center',marginTop:28}}>
-          <span style={{color:C.textDim,fontSize:14}}>{mode==='login'?'계정이 없으신가요? ':'이미 계정이 있으신가요? '}</span>
+          <span style={{color:'var(--text-label)',fontSize:14}}>{mode==='login'?'계정이 없으신가요? ':'이미 계정이 있으신가요? '}</span>
           <button onClick={()=>{setMode(m=>m==='login'?'signup':'login');setErr('');setIdChecked(false);setIdAvail(null);}} style={{color:C.accent,fontWeight:700,fontSize:14,background:'none',border:'none',cursor:'pointer',padding:0}}>
             {mode==='login'?'회원가입':'로그인'}
           </button>
