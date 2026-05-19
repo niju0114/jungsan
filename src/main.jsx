@@ -3880,13 +3880,13 @@ function UsageGuideScreen({nav}){
         <div>
           <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:4,display:'flex',alignItems:'center',gap:6}}><Icon n="inbox" size={15} color={C.orange}/>신청 받고 정산하기</div>
           <div style={{fontSize:12,color:C.orange,fontWeight:600,marginBottom:10}}>MT, 학생회비, 야식 등</div>
-          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8}}>① 신청폼 생성 → ② 카톡으로 신청 받기 → ③ 신청 명단 자동 확인. 거래내역 엑셀을 올리면 입금이 자동 확인되고, 미입금자에게 콕 찌르기도 가능해요.</div>
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8}}>{FORM_FLOW.map(s=>s.title).join(' → ')}. 거래내역 엑셀로 입금 자동 확인 + 미입금자 콕 찌르기까지 돼요.</div>
         </div>
         <Sep/>
         <div>
           <div style={{fontWeight:800,color:C.text,fontSize:15,marginBottom:4,display:'flex',alignItems:'center',gap:6}}><Icon n="users" size={15} color={C.accent}/>바로 정산하기</div>
           <div style={{fontSize:12,color:C.accent,fontWeight:600,marginBottom:10}}>술자리, 뒷풀이, 회식</div>
-          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8}}>① 정산 생성 → ② 참석자 체크(온 사람만 ✓) → ③ 카톡 공유 → ④ 거래내역 엑셀 올리면 자동 대조. 1·2·3차 추가 가능.</div>
+          <div style={{fontSize:14,color:C.textMid,lineHeight:1.8}}>정산 생성 → {SMALL_FLOW.map(s=>s.title).join(' → ')}. 1·2·3차 추가 가능.</div>
         </div>
         <Sep/>
         <div>
@@ -4088,26 +4088,21 @@ function SmallEventOnboardingModal({onClose,showNeverShow=true,userId=null}){
     posthog.capture('온보딩_정산_완료',{다시_보지_않기:neverShow});
     onClose();
   };
-  const STEPS=[
-    {ms:'edit', t:'정산 생성하기', d:'명단·차수 입력'},
-    {ms:'checklist', t:'출석 체크', d:'참석한 사람만 ✓ 체크'},
-    {ms:'share', t:'링크 공유', d:'카톡으로 한 번에 공유'},
-    {ms:'upload_file', t:'자동 대조', d:'거래내역 엑셀 올리면 자동 확인'},
-  ];
   return(
     <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={440}>
       <div className="fade-up" style={{padding:'4px 2px'}}>
-        <div style={{fontSize:18,fontWeight:900,color:C.text,marginBottom:18,letterSpacing:-0.4}}>이렇게 진행돼요</div>
+        <div style={{fontSize:18,fontWeight:900,color:C.text,marginBottom:8,letterSpacing:-0.4}}>이렇게 진행돼요</div>
+        <div style={{fontSize:13,color:C.textDim,marginBottom:18,lineHeight:1.6}}>명단·계좌는 메뉴 › 명단·계좌에서 미리 등록해두세요</div>
         <div style={{display:'flex',flexDirection:'column',gap:18,marginBottom:24}}>
-          {STEPS.map((s,i)=>(
+          {SMALL_FLOW.map((s,i)=>(
             <div key={i} style={{display:'flex',alignItems:'center',gap:14}}>
               <div style={{width:36,height:36,borderRadius:18,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:s.done?C.green:C.accentBg,color:s.done?'#fff':C.accent,fontWeight:800,fontSize:16}}>
                 {s.done?<span style={{fontFamily:'Material Symbols Rounded',fontSize:20}}>check</span>:i+1}
               </div>
               <span style={{fontFamily:'Material Symbols Rounded',fontSize:24,color:s.done?C.textDim:C.accent,flexShrink:0}}>{s.ms}</span>
               <div style={{flex:1,minWidth:0}}>
-                <span style={{fontSize:15,fontWeight:700,color:C.text}}>{s.t}</span>
-                <span style={{fontSize:14,color:C.textMid,marginLeft:6}}>{s.d}</span>
+                <span style={{fontSize:15,fontWeight:700,color:C.text}}>{s.title}</span>
+                <span style={{fontSize:14,color:C.textMid,marginLeft:6}}>{s.desc}</span>
               </div>
             </div>
           ))}
@@ -4140,25 +4135,20 @@ function FormOnboardingModal({onClose,showNeverShow=true,userId=null}){
     posthog.capture('온보딩_신청폼_완료',{다시_보지_않기:neverShow});
     onClose();
   };
-  const STEPS=[
-    {ms:'edit', t:'신청폼 생성하기', d:'참가비·정원 입력'},
-    {ms:'share', t:'링크 공유', d:'카톡으로 신청 받기'},
-    {ms:'receipt_long', t:'신청자 확인', d:'신청 명단이 자동으로 모여요'},
-  ];
   return(
     <Modal isOpen={true} onClose={onClose} closeOnBackdrop={false} showCloseButton={false} maxWidth={440}>
       <div className="fade-up" style={{padding:'4px 2px'}}>
         <div style={{fontSize:18,fontWeight:900,color:C.text,marginBottom:18,letterSpacing:-0.4}}>이렇게 진행돼요</div>
         <div style={{display:'flex',flexDirection:'column',gap:18,marginBottom:24}}>
-          {STEPS.map((s,i)=>(
+          {FORM_FLOW.map((s,i)=>(
             <div key={i} style={{display:'flex',alignItems:'center',gap:14}}>
               <div style={{width:36,height:36,borderRadius:18,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:s.done?C.green:C.accentBg,color:s.done?'#fff':C.accent,fontWeight:800,fontSize:16}}>
                 {s.done?<span style={{fontFamily:'Material Symbols Rounded',fontSize:20}}>check</span>:i+1}
               </div>
               <span style={{fontFamily:'Material Symbols Rounded',fontSize:24,color:s.done?C.textDim:C.accent,flexShrink:0}}>{s.ms}</span>
               <div style={{flex:1,minWidth:0}}>
-                <span style={{fontSize:15,fontWeight:700,color:C.text}}>{s.t}</span>
-                <span style={{fontSize:14,color:C.textMid,marginLeft:6}}>{s.d}</span>
+                <span style={{fontSize:15,fontWeight:700,color:C.text}}>{s.title}</span>
+                <span style={{fontSize:14,color:C.textMid,marginLeft:6}}>{s.desc}</span>
               </div>
             </div>
           ))}
