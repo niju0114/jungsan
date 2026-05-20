@@ -134,17 +134,21 @@ const api = {
   deleteAuthUser: () => sb.functions.invoke('delete-user'),
 
   // Realtime
-  subscribeEvent: (code, cb) => {
+  subscribeEvent: (code, onUpdate, onDelete) => {
     const ch = sb.channel(`event:${code}`)
       .on('postgres_changes',{event:'UPDATE',schema:'public',table:'events',filter:`code=eq.${code}`},
-        p=>{ if(p.new) cb(p.new); })
+        p=>{ if(p.new) onUpdate(p.new); })
+      .on('postgres_changes',{event:'DELETE',schema:'public',table:'events',filter:`code=eq.${code}`},
+        ()=>{ if(onDelete) onDelete(); })
       .subscribe();
     return () => sb.removeChannel(ch);
   },
-  subscribeForm: (code, cb) => {
+  subscribeForm: (code, onUpdate, onDelete) => {
     const ch = sb.channel(`form:${code}`)
       .on('postgres_changes',{event:'UPDATE',schema:'public',table:'forms',filter:`code=eq.${code}`},
-        p=>{ if(p.new) cb(p.new); })
+        p=>{ if(p.new) onUpdate(p.new); })
+      .on('postgres_changes',{event:'DELETE',schema:'public',table:'forms',filter:`code=eq.${code}`},
+        ()=>{ if(onDelete) onDelete(); })
       .subscribe();
     return () => sb.removeChannel(ch);
   },
@@ -724,17 +728,17 @@ const ExcelPasswordModal = ({isOpen, onClose, onSubmit, loading}) => {
 };
 
 // Realtime hook
-function useRealtimeEvent(code, onUpdate) {
+function useRealtimeEvent(code, onUpdate, onDelete) {
   useEffect(()=>{
     if(!code) return;
-    return api.subscribeEvent(code, raw => onUpdate(rowToEv(raw)));
+    return api.subscribeEvent(code, raw => onUpdate(rowToEv(raw)), onDelete);
   },[code]);
 }
 
-function useRealtimeForm(code, onUpdate, enabled=true) {
+function useRealtimeForm(code, onUpdate, enabled=true, onDelete) {
   useEffect(()=>{
     if(!code||!enabled) return;
-    return api.subscribeForm(code, raw => onUpdate(rowToForm(raw)));
+    return api.subscribeForm(code, raw => onUpdate(rowToForm(raw)), onDelete);
   },[code,enabled]);
 }
 
@@ -844,15 +848,23 @@ function App() {
       },0);
     });
 
+    // PostgrestError: row 없음은 'PGRST116', 그 외(네트워크/RLS/스키마)는 일시 오류로 분리
+    const classifyLoadError=err=>{
+      if(!err) return 'notFound';
+      if(err.code==='PGRST116') return 'notFound';
+      if(typeof err.details==='string'&&err.details.includes('0 rows')) return 'notFound';
+      return 'netError';
+    };
+
     // 신청폼 URL 처리
     if(urlForm){
       const code=urlForm.toUpperCase();
       window.history.replaceState({},'',window.location.pathname);
       api.getFormByCode(code).then(({data,error})=>{
         if(data&&!error){setForms([rowToForm(data)]);setCurrentFormCode(code);setView('formSubmit');}
-        else setView('notFound');
+        else {if(error) console.warn('[form load]',error); setView(classifyLoadError(error));}
         setReady(true);
-      }).catch(()=>{setView('notFound');setReady(true);});
+      }).catch(e=>{console.warn('[form load] threw:',e);setView('netError');setReady(true);});
       return()=>subscription.unsubscribe();
     }
 
@@ -860,14 +872,14 @@ function App() {
       const code=urlCode.toUpperCase();
       const urlKey=urlParams.get('k')||'';
       window.history.replaceState({},'',window.location.pathname);
-      api.getEventByCode(code).then(({data})=>{
+      api.getEventByCode(code).then(({data,error})=>{
         if(data){
           setEvents([rowToEv(data)]);setCurrentCode(code);
           if(urlKey) setParticipantKey(decodeURIComponent(urlKey));
           setView('participantEvent');
-        } else setView('notFound');
+        } else {if(error) console.warn('[event load]',error); setView(classifyLoadError(error));}
         setReady(true);
-      }).catch(()=>{setView('notFound');setReady(true);});
+      }).catch(e=>{console.warn('[event load] threw:',e);setView('netError');setReady(true);});
       return()=>subscription.unsubscribe();
     }
 
@@ -1109,8 +1121,9 @@ function App() {
   return(
     <div className="screen" style={{fontFamily:"'Pretendard',-apple-system,sans-serif",background:C.pageBg,maxWidth:480,margin:'0 auto',color:C.text,paddingBottom:60}}>
       <ErrorBoundary>
-      {!user&&!['participantEvent','formSubmit','notFound'].includes(view)&&<AuthScreen nav={nav} showToast={showToast} setShowOnboarding={setShowOnboarding}/>}
+      {!user&&!['participantEvent','formSubmit','notFound','netError'].includes(view)&&<AuthScreen nav={nav} showToast={showToast} setShowOnboarding={setShowOnboarding}/>}
       {view==='notFound'&&<NotFoundScreen/>}
+      {view==='netError'&&<NetErrorScreen/>}
       {view==='participantEvent'&&currentEvent&&<ParticipantScreen nav={nav} event={currentEvent} updateEvent={updateEvent} participantKey={participantKey} showToast={showToast}/>}
       {view==='formSubmit'&&currentForm&&<FormSubmitScreen nav={nav} form={currentForm} updateForm={updateForm} showToast={showToast}/>}
       {user&&view==='home'&&<HomeScreen nav={nav} user={user} profile={profile} events={events} forms={forms} showToast={showToast} onGuide={()=>setShowGuide(true)} showFeedback={showFeedback} onFeedbackDone={()=>setShowFeedback(false)}/>}
@@ -3572,6 +3585,21 @@ function NotFoundScreen(){
   );
 }
 
+function NetErrorScreen(){
+  return(
+    <div className="fade-up screen" style={{background:C.pageBg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'40px 28px',textAlign:'center'}}>
+      <div style={{width:72,height:72,borderRadius:36,background:C.orange+'18',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
+        <Icon n="wifi-off" size={36} color={C.orange}/>
+      </div>
+      <div style={{fontSize:22,fontWeight:900,color:C.text,marginBottom:8,letterSpacing:-0.5}}>일시적인 연결 문제가 있어요</div>
+      <div style={{fontSize:14,color:C.textMid,lineHeight:1.7,marginBottom:28}}>
+        잠시 후 카톡으로 받은 링크를<br/>다시 눌러주세요.
+      </div>
+      <a href="https://jungsan-hae.com" style={{fontSize:13,color:C.accent,fontWeight:700,textDecoration:'none'}}>정산해 알아보기 →</a>
+    </div>
+  );
+}
+
 function ParticipantSplashScreen({onDone}){
   const [fading,setFading]=useState(false);
   useEffect(()=>{
@@ -3620,7 +3648,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   const [splashDone,setSplashDone]=useState(()=>!!lsGet('splash_event_'+initEvent.code));
 
   useEffect(()=>setEvent(initEvent),[initEvent]);
-  useRealtimeEvent(event.code,ev=>setEvent(ev));
+  useRealtimeEvent(event.code,ev=>setEvent(ev),()=>nav.setView('notFound'));
   useEffect(()=>{api.trackView(event.code,null,participantKey||'anonymous');},[]);
 
   if(!splashDone) return <ParticipantSplashScreen onDone={()=>{lsSet('splash_event_'+initEvent.code,'1');setSplashDone(true);}}/>;
@@ -3639,7 +3667,12 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   const markRequested=async()=>{
     if(isClosed) return;
     if(!selectedKey||myPayStatus==='paid'||myPayStatus==='requested'||myPayStatus==='rejected') return;
-    await api.markEventRequested(event.code,selectedKey);
+    const {error}=await api.markEventRequested(event.code,selectedKey);
+    if(error){
+      console.warn('[markEventRequested]',error);
+      showToast('요청 처리에 실패했어요. 잠시 후 다시 시도해주세요',C.red);
+      return;
+    }
     setEvent(ev=>({...ev,payments:{...ev.payments,[selectedKey]:{...(ev.payments?.[selectedKey]||{}),payStatus:'requested',requested:true,requestedAt:new Date().toISOString()}}}));
   };
 
@@ -3706,7 +3739,9 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
               const isAbsent=event.attendance[k]===false;
               return(
                 <button key={k} onClick={async()=>{
-                  if(!isClosed&&!isAbsent&&(event.attendance[k]===undefined||event.attendance[k]===null)){
+                  const isDup=(nameToKeys[getBaseName(k)]||[]).length>1;
+                  // 동명이인은 자동 출석 처리 스킵 — 잘못 누르면 엉뚱한 사람이 출석 처리되는 사고 방지
+                  if(!isClosed&&!isAbsent&&!isDup&&(event.attendance[k]===undefined||event.attendance[k]===null)){
                     await api.markEventAttendance(event.code,k,true);
                     setEvent(ev=>({...ev,attendance:{...ev.attendance,[k]:true}}));
                   }
@@ -4279,7 +4314,10 @@ function FormCreateScreen({nav,profile,createForm}){
     setFields(fs=>[...fs,{id:'f'+Date.now(),type:customType,label:customLabel.trim(),required:false,options:opts}]);
     setCustomLabel('');setCustomType('text');setShowCustom(false);
   };
-  const removeField=id=>setFields(fs=>fs.filter(f=>f.id!==id));
+  const removeField=id=>{
+    if(id==='name') return; // 이름 필드는 신청자 식별을 위해 제거 불가
+    setFields(fs=>fs.filter(f=>f.id!==id));
+  };
   const updateField=(id,key,val)=>setFields(fs=>fs.map(f=>f.id===id?{...f,[key]:val}:f));
   const addOption=(id)=>setFields(fs=>fs.map(f=>f.id===id?{...f,options:[...(f.options||[]),'']}:f));
   const removeOption=(id,idx)=>setFields(fs=>fs.map(f=>f.id===id?{...f,options:(f.options||[]).filter((_,i)=>i!==idx)}:f));
@@ -4294,6 +4332,9 @@ function FormCreateScreen({nav,profile,createForm}){
     const n=number.trim()||profile.account?.number||'';
     const h=holder.trim()||profile.account?.holder||'';
     if(!noFee&&(!b||!n||!h)){setErr('계좌 정보를 입력해주세요');return;}
+    // 중복 신청 차단을 위해 학번 또는 연락처 중 1개 이상 필수
+    const hasIdField=fields.some(f=>f.id==='phone'||f.id==='studentId');
+    if(!hasIdField){setErr('학번 또는 연락처 중 하나는 받아주세요 (중복 신청 방지용)');return;}
 
     setLoading(true);
     const code=genCode();
@@ -5557,7 +5598,7 @@ function FormSubmitScreen({nav,form:initForm,updateForm,showToast,isPreview=fals
   const isFull=form.maxPeople&&(form.submissions||[]).length>=form.maxPeople;
 
   useEffect(()=>setForm(initForm),[initForm]);
-  useRealtimeForm(form.code, f=>setForm(f), !isPreview);
+  useRealtimeForm(form.code, f=>setForm(f), !isPreview, ()=>nav.setView('notFound'));
 
   // 조회수 추적
   useEffect(()=>{if(!isPreview)api.trackView(null,form.code,'anonymous');},[]);
@@ -5658,7 +5699,12 @@ function FormSubmitScreen({nav,form:initForm,updateForm,showToast,isPreview=fals
 
   const markFormRequested=async()=>{
     if(!mySubmission||mySubmission.paid||mySubmission.paymentStatus==='matched'||mySubmission.paymentStatus==='requested') return;
-    await api.requestFormPayment(form.code,mySubmission.createdAt);
+    const {error}=await api.requestFormPayment(form.code,mySubmission.createdAt);
+    if(error){
+      console.warn('[requestFormPayment]',error);
+      showToast('요청 처리에 실패했어요. 잠시 후 다시 시도해주세요',C.red);
+      return;
+    }
     setMySubmission(s=>({...s,paymentStatus:'requested',requestedAt:new Date().toISOString()}));
   };
 
