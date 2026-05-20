@@ -856,10 +856,9 @@ function App() {
       return 'netError';
     };
 
-    // 신청폼 URL 처리
+    // 신청폼 URL 처리 — URL은 보존(새로고침 시 같은 화면 복구)
     if(urlForm){
       const code=urlForm.toUpperCase();
-      window.history.replaceState({},'',window.location.pathname);
       api.getFormByCode(code).then(({data,error})=>{
         if(data&&!error){setForms([rowToForm(data)]);setCurrentFormCode(code);setView('formSubmit');}
         else {if(error) console.warn('[form load]',error); setView(classifyLoadError(error));}
@@ -871,7 +870,7 @@ function App() {
     if(urlCode&&!isOAuthCallback){
       const code=urlCode.toUpperCase();
       const urlKey=urlParams.get('k')||'';
-      window.history.replaceState({},'',window.location.pathname);
+      // URL은 보존(새로고침 시 같은 참여자 화면 복구)
       api.getEventByCode(code).then(({data,error})=>{
         if(data){
           setEvents([rowToEv(data)]);setCurrentCode(code);
@@ -3718,10 +3717,10 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
               <span style={{fontSize:13,color:C.orange,fontWeight:700}}>동명이인이 있어요. 이름을 검색하고 선택해주세요</span>
             </div>
           )}
-          {!dupWarning&&(
+          {!dupWarning&&!isClosed&&(
             <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'10px 14px',background:C.accentBg,borderRadius:12,border:`1px solid ${C.accent}20`}}>
               <span className="ms ms-sm" style={{color:C.accent}}>info</span>
-              <span style={{fontSize:13,color:C.accent,fontWeight:700}}>본인 이름 검색 후 입금해주세요</span>
+              <span style={{fontSize:13,color:C.accent,fontWeight:700,lineHeight:1.5}}>본인 이름 검색 후 입금해주세요<br/><span style={{fontSize:11,color:C.textMid,fontWeight:500}}>'동명이인' 뱃지가 보이면 잘못 선택 시 총무에게 알려주세요</span></span>
             </div>
           )}
           <div style={{fontWeight:800,color:C.text,fontSize:16,marginBottom:12}}>이름을 검색해주세요</div>
@@ -3739,9 +3738,13 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
               const isAbsent=event.attendance[k]===false;
               return(
                 <button key={k} onClick={async()=>{
+                  if(isAbsent){
+                    showToast('결석 처리된 인원이에요. 잘못 처리됐다면 총무에게 문의해주세요',C.orange);
+                    return;
+                  }
                   const isDup=(nameToKeys[getBaseName(k)]||[]).length>1;
                   // 동명이인은 자동 출석 처리 스킵 — 잘못 누르면 엉뚱한 사람이 출석 처리되는 사고 방지
-                  if(!isClosed&&!isAbsent&&!isDup&&(event.attendance[k]===undefined||event.attendance[k]===null)){
+                  if(!isClosed&&!isDup&&(event.attendance[k]===undefined||event.attendance[k]===null)){
                     await api.markEventAttendance(event.code,k,true);
                     setEvent(ev=>({...ev,attendance:{...ev.attendance,[k]:true}}));
                   }
@@ -3753,7 +3756,11 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
                   boxShadow:C.shadow,opacity:isAbsent?0.6:1,
                 }}>
                   <span>{getChipLabel(k)}</span>
-                  {isAbsent&&<span style={{color:C.textDim,fontSize:12,fontWeight:700,background:C.inputBg,padding:'3px 8px',borderRadius:8}}>결석</span>}
+                  {isAbsent
+                    ? <span style={{color:C.textDim,fontSize:12,fontWeight:700,background:C.inputBg,padding:'3px 8px',borderRadius:8}}>결석</span>
+                    : (nameToKeys[getBaseName(k)]||[]).length>1
+                      ? <span style={{color:C.orange,fontSize:11,fontWeight:700,background:C.orangeBg,padding:'3px 8px',borderRadius:8}}>동명이인</span>
+                      : null}
                 </button>
               );
             })}
@@ -5908,7 +5915,12 @@ function FormSubmitScreen({nav,form:initForm,updateForm,showToast,isPreview=fals
                 <input
                   type="number"
                   value={values[f.id]||''}
-                  onChange={e=>setValue(f.id,e.target.value)}
+                  onChange={e=>{
+                    const v=e.target.value;
+                    if(v===''||/^\d+$/.test(v)) setValue(f.id,v);
+                  }}
+                  min="0" step="1"
+                  inputMode="numeric" pattern="[0-9]*"
                   maxLength={10}
                   style={{width:'100%',padding:'12px 14px',border:`1.5px solid ${C.border}`,borderRadius:12,fontSize:15,background:C.inputBg,outline:'none'}}
                   placeholder="0"
