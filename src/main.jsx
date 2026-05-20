@@ -1915,14 +1915,28 @@ function DeleteAccountBtn({showToast,nav}){
     try{
       const {data:{user}}=await api.getUser();
       if(!user) throw new Error('no user');
-      await Promise.all([api.deleteUserEvents(user.id),api.deleteUserForms(user.id)]);
-      await api.updateProfile(user.id,{deleted:true,name:'',school:'',groups:[],account:{},username:null});
-      try{await api.deleteAuthUser();}catch(e){}
-      posthog.capture('탈퇴_완료');
-      posthog.reset();
+      const [evRes,fmRes]=await Promise.all([api.deleteUserEvents(user.id),api.deleteUserForms(user.id)]);
+      if(evRes?.error) throw new Error('events 삭제 실패: '+(evRes.error.message||evRes.error));
+      if(fmRes?.error) throw new Error('forms 삭제 실패: '+(fmRes.error.message||fmRes.error));
+      const profRes=await api.updateProfile(user.id,{deleted:true,name:'',school:'',groups:[],account:{},username:null});
+      if(profRes?.error) throw new Error('profile 업데이트 실패: '+(profRes.error.message||profRes.error));
+      let edgeFailed=false;
+      try{
+        const r=await api.deleteAuthUser();
+        if(r?.error){edgeFailed=true;console.warn('[delete-user] edge error:',r.error);}
+      }catch(e){edgeFailed=true;console.warn('[delete-user] threw:',e);}
+      if(edgeFailed){
+        try{posthog.capture('탈퇴_edge_func_실패');}catch(_){}
+        showToast('데이터는 삭제됐지만 계정 해지에 실패했어요. 관리자에게 문의해주세요.',C.orange);
+      }else{
+        try{posthog.capture('탈퇴_완료');}catch(_){}
+      }
+      try{posthog.reset();}catch(_){}
       await api.signOut();
     }catch(e){
-      showToast('탈퇴 처리 중 오류가 발생했어요',C.red);
+      console.error('[deleteAccount]',e);
+      try{posthog.capture('탈퇴_실패',{step:String(e?.message||e).slice(0,120)});}catch(_){}
+      showToast('탈퇴 처리 중 오류: '+(e?.message||'알 수 없는 오류'),C.red);
       setLoading(false);
       return;
     }
