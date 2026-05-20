@@ -834,18 +834,9 @@ function App() {
       loadingRef.current=true;
       // Supabase 콜백은 auth 락 보유 중 — 내부에서 Supabase 호출 시 재진입 루프 발생.
       // 락 밖(setTimeout 0)에서 처리하고, getUser() 대신 콜백이 준 session.user 사용.
+      // 온보딩 모달은 신규가입(AuthScreen.signUp) 직후에만 표시 — 로그인/세션 복원 시 자동 표시 없음.
       const su=session.user;
-      setTimeout(()=>{
-        const isParticipantView=['participantEvent','formSubmit'];
-        if(!isParticipantView.some(v2=>view===v2||urlCode||urlForm)){
-          api.getProfileFields(su.id,'onboarding_done').then(({data})=>{
-            if(localStorage.getItem('onboarding_done_'+su.id)==='true') return;
-            if(data?.onboarding_done===true) return;
-            setShowOnboarding(true);
-          });
-        }
-        loadUserData(su.id,su);
-      },0);
+      setTimeout(()=>{loadUserData(su.id,su);},0);
     });
 
     // PostgrestError: row 없음은 'PGRST116', 그 외(네트워크/RLS/스키마)는 일시 오류로 분리
@@ -1135,7 +1126,7 @@ function App() {
       {user&&view==='help'&&<HelpScreen nav={nav}/>}
       {user&&view==='usage-guide'&&<UsageGuideScreen nav={nav}/>}
       {showGuide&&<GuideModal onClose={()=>setShowGuide(false)} onFeedback={()=>{setShowGuide(false);setShowFeedback(true);}}/>}
-      {showOnboarding&&<OnboardingModal nav={nav} profile={profile} onClose={()=>setShowOnboarding(false)}/>}
+      {showOnboarding&&<OnboardingModal nav={nav} onClose={()=>setShowOnboarding(false)}/>}
       </ErrorBoundary>
       <Toast msg={toast?.msg} color={toast?.color}/>
     </div>
@@ -4157,44 +4148,30 @@ function HistoryScreen({nav,events,forms,deleteEvent,deleteForm}){
 }
 
 
-// ── OnboardingModal (가입 후 1회) ─────────────────────────
-function OnboardingModal({nav,profile,onClose}){
-  const [neverShow,setNeverShow]=useState(false);
-  // 명단·계좌 이미 설정된 사용자(재가입/다른 디바이스)는 setup 스킵하고 home으로
-  const hasAccount=!!(profile?.account?.bank&&profile?.account?.number);
-  const hasMembers=(profile?.groups||[]).some(g=>(g.members||[]).length>0);
-  const alreadySetup=hasAccount&&hasMembers;
-
+// ── OnboardingModal (회원가입 직후 1회만 — AuthScreen.signUp 성공 시 트리거) ─────
+function OnboardingModal({nav,onClose}){
   const finish=async()=>{
-    if(neverShow){
-      try{
-        const {data:{user}}=await api.getUser();
-        if(user){
-          await api.updateProfile(user.id,{onboarding_done:true,updated_at:new Date().toISOString()});
-          localStorage.setItem('onboarding_done_'+user.id,'true');
-        }
-      }catch(e){console.error(e);}
-    }
-    posthog.capture('온보딩_환영_완료',{다시_보지_않기:neverShow,already_setup:alreadySetup});
+    try{
+      const {data:{user}}=await api.getUser();
+      if(user){
+        await api.updateProfile(user.id,{onboarding_done:true,updated_at:new Date().toISOString()});
+        localStorage.setItem('onboarding_done_'+user.id,'true');
+      }
+    }catch(e){console.error(e);}
+    posthog.capture('온보딩_환영_완료');
     onClose();
-    nav.setView(alreadySetup?'home':'setup');
+    nav.setView('setup');
   };
 
   return(
-    <Modal isOpen={true} onClose={finish} closeOnBackdrop={false} showCloseButton={false} maxWidth={400}>
+    <Modal isOpen={true} onClose={finish} closeOnBackdrop={false} showCloseButton={false} maxWidth={380}>
       <div className="fade-up">
-        <div style={{textAlign:'center',marginBottom:24}}>
-          <div style={{fontSize:40,marginBottom:10}}>👋</div>
-          <div style={{fontWeight:900,color:C.text,fontSize:21,marginBottom:8,letterSpacing:-0.5,lineHeight:1.3}}>총무 일, 이제 자동으로.</div>
-          <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>{alreadySetup?'바로 정산을 만들어볼까요?':'먼저 명단·계좌부터 설정해주세요.'}</div>
+        <div style={{textAlign:'center',marginBottom:22}}>
+          <div style={{fontSize:28,marginBottom:10}}>👋</div>
+          <div style={{fontWeight:800,color:C.text,fontSize:18,marginBottom:8,letterSpacing:-0.4,lineHeight:1.4}}>가입을 환영해요</div>
+          <div style={{fontSize:13.5,color:C.textMid,lineHeight:1.65}}>먼저 명단·계좌를 한 번만 설정해두면<br/>다음부터 자동으로 적용돼요</div>
         </div>
-        <Btn onClick={finish}>{alreadySetup?'시작하기 →':'좋아요, 명단·계좌 먼저 설정해요 →'}</Btn>
-        <div onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginTop:16,cursor:'pointer'}}>
-          <div style={{width:18,height:18,borderRadius:5,border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.12s'}}>
-            {neverShow&&<Icon n="check" size={11} color="#fff"/>}
-          </div>
-          <span style={{fontSize:13,color:C.textMid}}>다시 보지 않기</span>
-        </div>
+        <Btn onClick={finish}>명단·계좌 설정하러 가요</Btn>
       </div>
     </Modal>
   );
