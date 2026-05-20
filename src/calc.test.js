@@ -132,4 +132,10 @@ describe('isEventDone', () => {
   it('참석자 0명이면 false', () => {
     expect(isEventDone({members:['A'],attendance:{A:false},payments:{}})).toBe(false);
   });
+  it('status closed면 paid 여부와 무관하게 true', () => {
+    expect(isEventDone({status:'closed',members:['A','B'],attendance:{A:true,B:true},payments:{}})).toBe(true);
+  });
+  it('status closed면 참석자 0명이어도 true', () => {
+    expect(isEventDone({status:'closed',members:['A'],attendance:{A:false},payments:{}})).toBe(true);
+  });
 });

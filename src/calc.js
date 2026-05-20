@@ -98,6 +98,7 @@ export const getPayStatus = (p) => {
   return 'none';
 };
 export const isEventDone = ev => {
+  if(ev?.status==='closed') return true;
   const presentMembers=(ev.members||[]).filter(k=>ev.attendance[k]!==false);
   if(presentMembers.length===0) return false;
   return presentMembers.every(k=>getPayStatus(ev.payments?.[k])==='paid');

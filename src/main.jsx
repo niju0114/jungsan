@@ -167,6 +167,7 @@ const rowToEv = r => ({
   feeConfig:r.fee_config||null,
   paidFeeKeys:Array.isArray(r.member_meta?.paidFeeKeys)?r.member_meta.paidFeeKeys:[],
   lastMatchSummary:r.member_meta?.lastMatchSummary||null,
+  status:r.status||'open',
 });
 const evToRow = (ev, uid) => ({
   code:ev.code, name:ev.name, date:ev.date, time:ev.time||null, pin:ev.pin,
@@ -176,6 +177,7 @@ const evToRow = (ev, uid) => ({
   source_form_code:ev.sourceFormCode||null,
   fee_config:ev.feeConfig||null,
   member_meta:{paidFeeKeys:ev.paidFeeKeys||[],lastMatchSummary:ev.lastMatchSummary||null},
+  ...(ev.status?{status:ev.status}:{}),
   ...(uid?{user_id:uid}:{}),
 });
 const rowToForm = r => ({
@@ -2104,9 +2106,13 @@ function AdminEventScreen({nav,event:initEvent,updateEvent,showToast,profile,add
 
   const archiveEvent=async()=>{
     const payments={...event.payments};
-    event.members.forEach(k=>{if(getPayStatus(payments[k])!=='paid') payments[k]={payStatus:'paid',hasBeenConfirmed:true,time:new Date().toISOString(),by:'archive'};});
-    await update({...event,payments});
-    nav.setView('home');
+    const now=new Date().toISOString();
+    event.members.forEach(k=>{
+      if(event.attendance?.[k]===false) return;
+      if(getPayStatus(payments[k])!=='paid') payments[k]={payStatus:'paid',hasBeenConfirmed:true,time:now,by:'archive'};
+    });
+    await update({...event,payments,status:'closed'});
+    nav.setView('history');
   };
 
   return(
@@ -3591,10 +3597,12 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   const isPaid=myPayStatus==='paid';
   const isRequested=myPayStatus==='requested';
   const isRejected=myPayStatus==='rejected';
+  const isClosed=event.status==='closed';
   const myAmount=amounts[selectedKey]||0;
   const myRounds=(event.rounds||[]).filter(r=>(r.members||[]).includes(selectedKey));
 
   const markRequested=async()=>{
+    if(isClosed) return;
     if(!selectedKey||myPayStatus==='paid'||myPayStatus==='requested'||myPayStatus==='rejected') return;
     await api.markEventRequested(event.code,selectedKey);
     setEvent(ev=>({...ev,payments:{...ev.payments,[selectedKey]:{...(ev.payments?.[selectedKey]||{}),payStatus:'requested',requested:true,requestedAt:new Date().toISOString()}}}));
@@ -3628,8 +3636,14 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
     return(
       <div className="fade-up screen" style={{background:C.pageBg}}>
         <Header title={event.name} onBack={()=>nav.setView('home')}/>
-        <div style={{fontSize:12,color:C.textMid,textAlign:'center',padding:'5px 0 3px',fontWeight:600}}>정산해로 진행 중인 정산</div>
+        <div style={{fontSize:12,color:C.textMid,textAlign:'center',padding:'5px 0 3px',fontWeight:600}}>{isClosed?'종료된 정산':'정산해로 진행 중인 정산'}</div>
         <div style={{padding:20}}>
+          {isClosed&&(
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'12px 14px',background:C.textDim+'15',borderRadius:12,border:`1px solid ${C.textDim}30`}}>
+              <Icon n="lock" size={15} color={C.textMid}/>
+              <span style={{fontSize:13,color:C.textMid,fontWeight:700,lineHeight:1.5}}>이 정산은 종료됐어요. 입금이 필요하면 총무에게 문의해주세요</span>
+            </div>
+          )}
           {dupWarning&&(
             <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'10px 14px',background:C.orangeBg,borderRadius:12,border:`1px solid ${C.orange}30`}}>
               <Icon n="triangle-alert" size={15} color={C.orange}/>
@@ -3657,7 +3671,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
               const isAbsent=event.attendance[k]===false;
               return(
                 <button key={k} onClick={async()=>{
-                  if(!isAbsent&&(event.attendance[k]===undefined||event.attendance[k]===null)){
+                  if(!isClosed&&!isAbsent&&(event.attendance[k]===undefined||event.attendance[k]===null)){
                     await api.markEventAttendance(event.code,k,true);
                     setEvent(ev=>({...ev,attendance:{...ev.attendance,[k]:true}}));
                   }
@@ -3683,8 +3697,14 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
   return(
     <div className="fade-up screen" style={{background:C.pageBg}}>
       <Header title={event.name} onBack={()=>setSelectedKey('')}/>
-      <div style={{fontSize:12,color:C.textMid,textAlign:'center',padding:'5px 0 3px',fontWeight:600}}>정산해로 진행 중인 정산</div>
+      <div style={{fontSize:12,color:C.textMid,textAlign:'center',padding:'5px 0 3px',fontWeight:600}}>{isClosed?'종료된 정산':'정산해로 진행 중인 정산'}</div>
       <div style={{padding:'16px 16px 24px'}}>
+        {isClosed&&(
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'12px 14px',background:C.textDim+'15',borderRadius:12,border:`1px solid ${C.textDim}30`}}>
+            <Icon n="lock" size={15} color={C.textMid}/>
+            <span style={{fontSize:13,color:C.textMid,fontWeight:700,lineHeight:1.5}}>이 정산은 종료됐어요. 입금이 필요하면 총무에게 문의해주세요</span>
+          </div>
+        )}
         <Card style={{background:isPaid?C.greenBg:C.cardBg,border:`1.5px solid ${isPaid?C.green+'40':C.border}`}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16}}>
             <div>
@@ -3719,7 +3739,7 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
               <Icon n="circle-x" size={16} color={C.red}/>
               <div style={{fontSize:13,color:C.red,fontWeight:700,lineHeight:1.5}}>처리에서 제외됐어요. 총무에게 문의해주세요.</div>
             </div>
-          ):event.account?.bank&&!isPaid?(()=>{
+          ):event.account?.bank&&!isPaid&&!isClosed?(()=>{
             const tl=getTossLink(event.account.bank,event.account.number,myAmount);
             const kl=getKakaoBankLink(event.account.bank,event.account.number,myAmount);
             return(
@@ -3995,13 +4015,13 @@ function HistoryScreen({nav,events,forms,deleteEvent,deleteForm}){
             const presentMembers=ev.members.filter(k=>ev.attendance[k]!==false);
             const totalAmt=ev.rounds.reduce((s,r)=>s+r.amount,0);
             return(
-              <div key={ev.code} onClick={()=>setSel(ev.code)} className="press" style={{background:C.cardBg,borderRadius:16,padding:'16px 18px',marginBottom:10,boxShadow:C.shadow,cursor:'pointer',border:`1.5px solid ${C.green}30`}}>
+              <div key={ev.code} onClick={()=>setSel(ev.code)} className="press" style={{background:C.cardBg,borderRadius:16,padding:'16px 18px',marginBottom:10,boxShadow:C.shadow,cursor:'pointer',border:`1.5px solid ${ev.status==='closed'?C.textDim+'40':C.green+'30'}`}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
                   <div>
                     <div style={{fontWeight:800,color:C.text,fontSize:15}}>{ev.name}</div>
                     <div style={{color:C.textDim,fontSize:12,marginTop:3}}>{ev.date} · {presentMembers.length}명 · {ev.rounds.length}차</div>
                   </div>
-                  <Badge color={C.green}>완료</Badge>
+                  <Badge color={ev.status==='closed'?C.textDim:C.green}>{ev.status==='closed'?'종료':'완료'}</Badge>
                 </div>
                 {totalAmt>0&&<div style={{marginTop:8,fontSize:12,color:C.textMid}}>총 <span style={{color:C.text,fontWeight:800}}>{fmtKRW(totalAmt)}</span></div>}
               </div>
