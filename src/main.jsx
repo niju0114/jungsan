@@ -1135,7 +1135,7 @@ function App() {
       {user&&view==='help'&&<HelpScreen nav={nav}/>}
       {user&&view==='usage-guide'&&<UsageGuideScreen nav={nav}/>}
       {showGuide&&<GuideModal onClose={()=>setShowGuide(false)} onFeedback={()=>{setShowGuide(false);setShowFeedback(true);}}/>}
-      {showOnboarding&&<OnboardingModal nav={nav} onClose={()=>setShowOnboarding(false)}/>}
+      {showOnboarding&&<OnboardingModal nav={nav} profile={profile} onClose={()=>setShowOnboarding(false)}/>}
       </ErrorBoundary>
       <Toast msg={toast?.msg} color={toast?.color}/>
     </div>
@@ -1708,8 +1708,7 @@ function SetupScreen({nav,profile,saveProfile,showToast}){
           </div>
         )}
         <Card>
-          <div style={{fontWeight:800,color:C.text,marginBottom:4,fontSize:15,display:'flex',alignItems:'center',gap:6}}><Icon n="credit-card" size={15} color={C.accent}/>입금 계좌</div>
-          <div style={{color:C.textDim,fontSize:12,marginBottom:14}}>한 번 저장하면 모든 정산에 자동 적용돼요</div>
+          <div style={{fontWeight:800,color:C.text,marginBottom:14,fontSize:15,display:'flex',alignItems:'center',gap:6}}><Icon n="credit-card" size={15} color={C.accent}/>입금 계좌</div>
           <Field label="은행" value={bank} onChange={setBank} placeholder="카카오뱅크, 국민은행…"/>
           <Field label="계좌번호" value={number} onChange={setNumber} placeholder="숫자만" inputMode="numeric"/>
           <Field label="예금주" value={holder} onChange={setHolder} placeholder="홍길동"/>
@@ -2030,6 +2029,7 @@ function CreateScreen({nav,profile,events,createEvent,showToast,addProfileMember
   const [bank,setBank]=useState(profile.account?.bank||'');
   const [number,setNumber]=useState(profile.account?.number||'');
   const [holder,setHolder]=useState(profile.account?.holder||'');
+  const [editAccount,setEditAccount]=useState(false);
   const [selected,setSelected]=useState([]);
   const [extraText,setExtraText]=useState('');
   const [err,setErr]=useState('');
@@ -2098,8 +2098,30 @@ function CreateScreen({nav,profile,events,createEvent,showToast,addProfileMember
         <input type="datetime-local" value={date+'T'+(time||'00:00')} onChange={e=>{const v=e.target.value;setDate(v.slice(0,10));setTime(v.slice(11,16));}}
           style={{width:'100%',padding:'14px',fontSize:16,border:'1px solid var(--border)',borderRadius:12,background:'var(--bg-card)',color:'var(--text-strong)',outline:'none',marginBottom:16,letterSpacing:-0.3,boxSizing:'border-box'}}/>
         <div style={{background:'var(--bg-page)',border:'1px solid var(--border)',borderRadius:14,padding:'14px 16px',marginBottom:10}}>
-          <div style={{fontSize:11.5,color:'var(--text-label)',marginBottom:4,letterSpacing:-0.2}}>입금 계좌</div>
-          {hasAccount?(
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:editAccount?10:4}}>
+            <div style={{fontSize:11.5,color:'var(--text-label)',letterSpacing:-0.2}}>입금 계좌</div>
+            {hasAccount&&(
+              <button onClick={()=>{
+                if(editAccount){
+                  // 편집 종료 — 기본 계좌로 복원
+                  setBank(profile.account?.bank||'');
+                  setNumber(profile.account?.number||'');
+                  setHolder(profile.account?.holder||'');
+                }
+                setEditAccount(v=>!v);
+              }} style={{background:'none',border:'none',cursor:'pointer',padding:0,fontSize:11.5,color:'var(--c-purple)',fontWeight:600,textDecoration:'underline'}}>
+                {editAccount?'기본 계좌로':'다른 계좌 사용'}
+              </button>
+            )}
+          </div>
+          {editAccount?(
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              <input value={bank} onChange={e=>setBank(e.target.value)} placeholder="은행 (예: 카카오뱅크)" style={{padding:'10px 12px',fontSize:14,border:'1px solid var(--border)',borderRadius:10,background:'var(--bg-card)',color:'var(--text-strong)',outline:'none'}}/>
+              <input value={number} onChange={e=>setNumber(e.target.value.replace(/[^0-9-]/g,''))} placeholder="계좌번호" inputMode="numeric" style={{padding:'10px 12px',fontSize:14,border:'1px solid var(--border)',borderRadius:10,background:'var(--bg-card)',color:'var(--text-strong)',outline:'none'}}/>
+              <input value={holder} onChange={e=>setHolder(e.target.value)} placeholder="예금주" style={{padding:'10px 12px',fontSize:14,border:'1px solid var(--border)',borderRadius:10,background:'var(--bg-card)',color:'var(--text-strong)',outline:'none'}}/>
+              <div style={{fontSize:11,color:'var(--text-faint)',letterSpacing:-0.2}}>이 정산에만 적용돼요 (저장된 기본 계좌는 변경되지 않아요)</div>
+            </div>
+          ):hasAccount?(
             <div style={{fontSize:14,color:'var(--text-strong)',fontWeight:600,letterSpacing:-0.3}}>{bank} {number} <span style={{color:'var(--text-faint)',fontWeight:400}}>({holder})</span></div>
           ):(
             <div style={{fontSize:13,color:'var(--text-faint)'}}>계좌 미설정 — 메뉴 ＞ 명단·계좌에서 설정</div>
@@ -4136,8 +4158,13 @@ function HistoryScreen({nav,events,forms,deleteEvent,deleteForm}){
 
 
 // ── OnboardingModal (가입 후 1회) ─────────────────────────
-function OnboardingModal({nav,onClose}){
+function OnboardingModal({nav,profile,onClose}){
   const [neverShow,setNeverShow]=useState(false);
+  // 명단·계좌 이미 설정된 사용자(재가입/다른 디바이스)는 setup 스킵하고 home으로
+  const hasAccount=!!(profile?.account?.bank&&profile?.account?.number);
+  const hasMembers=(profile?.groups||[]).some(g=>(g.members||[]).length>0);
+  const alreadySetup=hasAccount&&hasMembers;
+
   const finish=async()=>{
     if(neverShow){
       try{
@@ -4148,9 +4175,9 @@ function OnboardingModal({nav,onClose}){
         }
       }catch(e){console.error(e);}
     }
-    posthog.capture('온보딩_환영_완료',{다시_보지_않기:neverShow});
+    posthog.capture('온보딩_환영_완료',{다시_보지_않기:neverShow,already_setup:alreadySetup});
     onClose();
-    nav.setView('setup');
+    nav.setView(alreadySetup?'home':'setup');
   };
 
   return(
@@ -4159,9 +4186,9 @@ function OnboardingModal({nav,onClose}){
         <div style={{textAlign:'center',marginBottom:24}}>
           <div style={{fontSize:40,marginBottom:10}}>👋</div>
           <div style={{fontWeight:900,color:C.text,fontSize:21,marginBottom:8,letterSpacing:-0.5,lineHeight:1.3}}>총무 일, 이제 자동으로.</div>
-          <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>먼저 명단·계좌부터 설정해주세요.</div>
+          <div style={{fontSize:13,color:C.textMid,lineHeight:1.8}}>{alreadySetup?'바로 정산을 만들어볼까요?':'먼저 명단·계좌부터 설정해주세요.'}</div>
         </div>
-        <Btn onClick={finish}>시작하기 →</Btn>
+        <Btn onClick={finish}>{alreadySetup?'시작하기 →':'좋아요, 명단·계좌 먼저 설정해요 →'}</Btn>
         <div onClick={()=>setNeverShow(v=>!v)} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginTop:16,cursor:'pointer'}}>
           <div style={{width:18,height:18,borderRadius:5,border:`2px solid ${neverShow?C.accent:C.border}`,background:neverShow?C.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.12s'}}>
             {neverShow&&<Icon n="check" size={11} color="#fff"/>}
@@ -4286,6 +4313,7 @@ function FormCreateScreen({nav,profile,createForm}){
   const [bank,setBank]=useState(profile.account?.bank||'');
   const [number,setNumber]=useState(profile.account?.number||'');
   const [holder,setHolder]=useState(profile.account?.holder||'');
+  const [editAccount,setEditAccount]=useState(false);
   const [fields,setFields]=useState([
     {id:'name',type:'text',label:'이름',required:true},
     {id:'studentId',type:'text',label:'학번',required:false},
@@ -4428,8 +4456,22 @@ function FormCreateScreen({nav,profile,createForm}){
 
         {/* 계좌 - 프로필에 있으면 자동 적용, 참가비 없음이면 숨김 */}
         {!noFee&&<Card>
-          <div style={{fontWeight:800,color:C.text,marginBottom:12,fontSize:15,display:'flex',alignItems:'center',gap:6}}><Icon n="credit-card" size={15} color={C.accent}/>입금 계좌</div>
-          {hasAccount?(
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <div style={{fontWeight:800,color:C.text,fontSize:15,display:'flex',alignItems:'center',gap:6}}><Icon n="credit-card" size={15} color={C.accent}/>입금 계좌</div>
+            {hasAccount&&(
+              <button onClick={()=>{
+                if(editAccount){
+                  setBank(profile.account?.bank||'');
+                  setNumber(profile.account?.number||'');
+                  setHolder(profile.account?.holder||'');
+                }
+                setEditAccount(v=>!v);
+              }} style={{background:'none',border:'none',cursor:'pointer',padding:0,fontSize:12,color:C.accent,fontWeight:700,textDecoration:'underline'}}>
+                {editAccount?'기본 계좌로':'다른 계좌 사용'}
+              </button>
+            )}
+          </div>
+          {hasAccount&&!editAccount?(
             <div style={{background:C.inputBg,borderRadius:14,padding:'14px 16px'}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                 <div>
@@ -4444,6 +4486,7 @@ function FormCreateScreen({nav,profile,createForm}){
               <Field label="은행" value={bank} onChange={setBank} placeholder="카카오뱅크"/>
               <Field label="계좌번호" value={number} onChange={setNumber} placeholder="계좌번호" inputMode="numeric"/>
               <Field label="예금주" value={holder} onChange={setHolder} placeholder="홍길동"/>
+              {hasAccount&&editAccount&&<div style={{fontSize:11,color:C.textDim,marginTop:-6}}>이 신청폼에만 적용돼요 (저장된 기본 계좌는 변경되지 않아요)</div>}
             </>
           )}
         </Card>}
@@ -4995,8 +5038,12 @@ function VerifyTab({form, uploading, bankGuideOpen, setBankGuideOpen, fileRef, o
         <div style={{fontWeight:800,color:C.text,fontSize:18,marginBottom:4}}>거래내역 대조</div>
         <div style={{color:C.textMid,fontSize:13,lineHeight:1.7}}>은행 거래내역(엑셀파일) 업로드 후 자동 대조해요</div>
       </div>
-      <div style={{marginBottom:14,padding:'9px 14px',background:C.accentBg,borderRadius:10,fontSize:12,color:C.textMid,display:'flex',alignItems:'center',gap:6}}>
+      <div style={{marginBottom:10,padding:'9px 14px',background:C.accentBg,borderRadius:10,fontSize:12,color:C.textMid,display:'flex',alignItems:'center',gap:6}}>
         <Icon n="lock" size={13} color={C.accent}/><span>거래내역은 브라우저에서만 처리되며 서버에 저장되지 않아요.</span>
+      </div>
+      <div style={{marginBottom:14,padding:'9px 14px',background:C.orange+'15',borderRadius:10,fontSize:12,color:C.textMid,display:'flex',alignItems:'flex-start',gap:6,lineHeight:1.55}}>
+        <Icon n="triangle-alert" size={13} color={C.orange} style={{marginTop:2,flexShrink:0}}/>
+        <span>같은 사람이 여러 정산을 진행 중이면 입금이 합쳐져 들어올 수 있어요. <strong>'초과'</strong> 표시 시 다른 정산도 확인해주세요.</span>
       </div>
       <div style={{textAlign:'center',marginBottom:20}}>
         <Btn onClick={()=>fileRef.current?.click()} loading={uploading}>파일 선택하기</Btn>
