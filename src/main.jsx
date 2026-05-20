@@ -251,6 +251,27 @@ const getKakaoBankLink = (bank, accountNo, amount) => {
   return `kakaotalk://kakaopay/money/to/bank?bank=${code}&accountNo=${accountNo.replace(/[^0-9]/g,'')}&amount=${amount}`;
 };
 
+// 송금 딥링크 클릭 → 앱 전환(hidden) 후 복귀(visible) 시에만 콜백 호출.
+// PC/앱 미설치로 다이얼로그만 뜨고 백그라운드 전환이 없으면 5초 후 자동 정리 → 콜백 미발화.
+// "토스 송금 버튼만 눌렀는데 OX 보드가 노란불(요청됨)로 바뀌는" 오발화 방지.
+const triggerOnReturn = (callback, timeoutMs = 5000) => {
+  let triggered = false, wentHidden = false;
+  const cleanup = () => {
+    document.removeEventListener('visibilitychange', handler);
+    clearTimeout(timer);
+  };
+  const handler = () => {
+    if(document.visibilityState === 'hidden') wentHidden = true;
+    else if(document.visibilityState === 'visible' && wentHidden && !triggered) {
+      triggered = true;
+      cleanup();
+      try{ callback(); }catch(_){}
+    }
+  };
+  document.addEventListener('visibilitychange', handler);
+  const timer = setTimeout(cleanup, timeoutMs);
+};
+
 // 카카오톡/시스템 공유 (모바일 Web Share API)
 const shareText = async (text) => {
   if(navigator.share){
@@ -3775,8 +3796,8 @@ function ParticipantScreen({nav,event:initEvent,updateEvent,participantKey,showT
                 </div>
                 {(tl||kl)&&(
                   <div style={{display:'flex',gap:8}}>
-                    {tl&&<a href={tl} onClick={markRequested} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'12px',borderRadius:12,background:'#0050FF',color:'#fff',fontWeight:700,fontSize:13,textDecoration:'none'}}>토스 송금</a>}
-                    {kl&&<a href={kl} onClick={markRequested} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'12px',borderRadius:12,background:'#FEE500',color:'#191919',fontWeight:700,fontSize:13,textDecoration:'none'}}>카뱅 송금</a>}
+                    {tl&&<a href={tl} onClick={()=>triggerOnReturn(markRequested)} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'12px',borderRadius:12,background:'#0050FF',color:'#fff',fontWeight:700,fontSize:13,textDecoration:'none'}}>토스 송금</a>}
+                    {kl&&<a href={kl} onClick={()=>triggerOnReturn(markRequested)} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'12px',borderRadius:12,background:'#FEE500',color:'#191919',fontWeight:700,fontSize:13,textDecoration:'none'}}>카뱅 송금</a>}
                   </div>
                 )}
               </div>
@@ -5746,12 +5767,12 @@ function FormSubmitScreen({nav,form:initForm,updateForm,showToast,isPreview=fals
             {(tossLink||kakaoLink)&&(
               <div style={{display:'flex',gap:8,marginBottom:10}}>
                 {tossLink&&(
-                  <a href={tossLink} onClick={markFormRequested} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'14px',borderRadius:14,background:'#0050FF',color:'#fff',fontWeight:700,fontSize:14,textDecoration:'none',cursor:'pointer'}}>
+                  <a href={tossLink} onClick={()=>triggerOnReturn(markFormRequested)} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'14px',borderRadius:14,background:'#0050FF',color:'#fff',fontWeight:700,fontSize:14,textDecoration:'none',cursor:'pointer'}}>
                     토스 송금
                   </a>
                 )}
                 {kakaoLink&&(
-                  <a href={kakaoLink} onClick={markFormRequested} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'14px',borderRadius:14,background:'#FEE500',color:'#191919',fontWeight:700,fontSize:14,textDecoration:'none',cursor:'pointer'}}>
+                  <a href={kakaoLink} onClick={()=>triggerOnReturn(markFormRequested)} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'14px',borderRadius:14,background:'#FEE500',color:'#191919',fontWeight:700,fontSize:14,textDecoration:'none',cursor:'pointer'}}>
                     카뱅 송금
                   </a>
                 )}
